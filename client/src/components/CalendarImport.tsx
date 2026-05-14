@@ -22,10 +22,14 @@ export default function CalendarImport({ userId, month, onSuccess }: { userId: s
     setLoading(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      const accessToken = session?.provider_token; // Note: Supabase needs to be configured to provide this
+      const accessToken = session?.provider_token;
+
+      console.log("🛠️ Debug: Session found:", !!session);
+      console.log("🛠️ Debug: Token found:", !!accessToken);
 
       if (!accessToken) {
-        alert('Google access token not found. Please re-login.');
+        alert('🚨 ERROR: Google Access Token is missing. You must Logout and Login again to refresh permissions.');
+        setLoading(false);
         return;
       }
 
