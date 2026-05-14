@@ -6,7 +6,6 @@ export const getClients = async (req: Request, res: Response) => {
     const { data, error } = await supabase
       .from('clients')
       .select('*')
-      .eq('is_active', true)
       .order('name', { ascending: true });
 
     if (error) throw error;
