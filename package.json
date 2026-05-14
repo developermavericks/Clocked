@@ -1,7 +1,10 @@
 {
-  "dependencies": {
-    "@supabase/supabase-js": "^2.105.4",
-    "dotenv": "^17.4.2",
-    "exceljs": "^4.4.0"
+  "name": "mavstracker-root",
+  "private": true,
+  "scripts": {
+    "dev": "npm --prefix client run dev",
+    "build": "npm --prefix client run build",
+    "start": "npm --prefix client run start",
+    "lint": "npm --prefix client run lint"
   }
 }
