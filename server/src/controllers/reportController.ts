@@ -77,7 +77,7 @@ export const getMemberReport = async (req: Request, res: Response) => {
   if (!email || !month) return res.status(400).json({ error: 'Missing email or month' });
 
   try {
-    // Join with users to filter by email
+    // Join with users to filter by email (case-insensitive)
     const { data: allocations, error } = await supabase
       .from('allocations_weekly')
       .select(`
@@ -85,7 +85,7 @@ export const getMemberReport = async (req: Request, res: Response) => {
         clients(name),
         users!inner(email)
       `)
-      .eq('users.email', email)
+      .ilike('users.email', email as string)
       .eq('month', month);
 
     if (error) throw error;
