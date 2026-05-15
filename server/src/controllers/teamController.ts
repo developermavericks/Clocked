@@ -62,3 +62,17 @@ export const getAllUsers = async (req: Request, res: Response) => {
     res.status(500).json({ error: error.message });
   }
 };
+export const deleteUser = async (req: Request, res: Response) => {
+  const { id } = req.params;
+  try {
+    const { error } = await supabase
+      .from('users')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
+    res.json({ success: true });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+};

@@ -68,6 +68,38 @@ export const getClientRoster = async (req: Request, res: Response) => {
   try {
     const data = await (require('../services/reportService').getClientRoster(month as string, clientName as string, view as any));
     res.json(data);
+  }
+};
+
+export const getMemberReport = async (req: Request, res: Response) => {
+  const { email, month } = req.query;
+  if (!email || !month) return res.status(400).json({ error: 'Missing email or month' });
+
+  try {
+    const { data: allocations, error } = await supabase
+      .from('allocations_weekly')
+      .select('*, clients(name)')
+      .eq('email', email)
+      .eq('month', month);
+
+    if (error) throw error;
+    res.json({ allocations });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+export const getActiveEmails = async (req: Request, res: Response) => {
+  const { month } = req.query;
+  try {
+    const { data, error } = await supabase
+      .from('allocations_weekly')
+      .select('email')
+      .eq('month', month);
+
+    if (error) throw error;
+    const emails = [...new Set((data || []).map(d => d.email))];
+    res.json(emails);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }

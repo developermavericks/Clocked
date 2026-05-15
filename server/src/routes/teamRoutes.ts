@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { getTeamMembers, getMemberAllocations, getAllUsers } from '../controllers/teamController';
+import { getTeamMembers, getMemberAllocations, getAllUsers, deleteUser } from '../controllers/teamController';
 import { authenticate, requireRole } from '../middleware/auth';
 
 const router = Router();

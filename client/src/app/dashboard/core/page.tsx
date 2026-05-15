@@ -3,13 +3,14 @@
 export const dynamic = 'force-dynamic';
 
 import { useState, useEffect } from 'react';
-import { Settings, FileText, Briefcase, Download, Plus, Search, ShieldCheck, User as UserIcon } from 'lucide-react';
+import { Settings, FileText, Briefcase, Download, Plus, Search, ShieldCheck, User as UserIcon, Users, Trash2 } from 'lucide-react';
 import StatsCard from '@/components/StatsCard';
 import { apiFetch } from '@/lib/api';
 import ClientAdmin from '@/components/ClientAdmin';
+import MemberInsights from '@/components/MemberInsights';
 
 export default function CorePortal() {
-  const [activeTab, setActiveTab] = useState<'admin' | 'master' | 'clients'>('admin');
+  const [activeTab, setActiveTab] = useState<'admin' | 'members' | 'master' | 'clients'>('admin');
   const [month, setMonth] = useState(new Date().toISOString().slice(0, 7));
   const [clients, setClients] = useState<any[]>([]);
   const [users, setUsers] = useState<any[]>([]);
@@ -18,7 +19,7 @@ export default function CorePortal() {
 
   useEffect(() => {
     if (activeTab === 'clients') fetchClients();
-    if (activeTab === 'admin') fetchUsers();
+    if (activeTab === 'admin' || activeTab === 'members') fetchUsers();
     if (activeTab === 'master') fetchReport();
   }, [activeTab, month]);
 
@@ -115,13 +116,13 @@ export default function CorePortal() {
             Admin Config
           </button>
           <button 
-            onClick={() => setActiveTab('master')}
+            onClick={() => setActiveTab('members')}
             className={`px-6 py-4 text-sm font-bold border-b-2 transition-all flex items-center gap-2 ${
-              activeTab === 'master' ? 'border-orange-600 text-orange-600' : 'border-transparent text-slate-500 hover:text-slate-700'
+              activeTab === 'members' ? 'border-orange-600 text-orange-600' : 'border-transparent text-slate-500 hover:text-slate-700'
             }`}
           >
-            <FileText className="w-4 h-4" />
-            Master Report
+            <Users className="w-4 h-4" />
+            Members
           </button>
           <button 
             onClick={() => setActiveTab('clients')}
@@ -131,6 +132,15 @@ export default function CorePortal() {
           >
             <Briefcase className="w-4 h-4" />
             Clients (Admin)
+          </button>
+          <button 
+            onClick={() => setActiveTab('master')}
+            className={`px-6 py-4 text-sm font-bold border-b-2 transition-all flex items-center gap-2 ${
+              activeTab === 'master' ? 'border-orange-600 text-orange-600' : 'border-transparent text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            <FileText className="w-4 h-4" />
+            Master Report
           </button>
         </div>
 
@@ -149,11 +159,12 @@ export default function CorePortal() {
                       <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase">User</th>
                       <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase">Email</th>
                       <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase text-right">Role</th>
+                      <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase text-right">Action</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
                     {loading ? (
-                       <tr><td colSpan={3} className="text-center py-10"><div className="animate-spin inline-block w-6 h-6 border-b-2 border-orange-600 rounded-full"></div></td></tr>
+                       <tr><td colSpan={4} className="text-center py-10"><div className="animate-spin inline-block w-6 h-6 border-b-2 border-orange-600 rounded-full"></div></td></tr>
                     ) : users.map(u => (
                       <tr key={u.id} className="hover:bg-slate-50 transition-colors">
                         <td className="px-6 py-4 flex items-center gap-3">
@@ -164,12 +175,29 @@ export default function CorePortal() {
                         <td className="px-6 py-4 text-sm text-right">
                           <span className="bg-orange-100 text-orange-700 text-[10px] font-bold px-2 py-1 rounded-md uppercase">{u.role}</span>
                         </td>
+                        <td className="px-6 py-4 text-right">
+                          <button 
+                            onClick={async () => {
+                              if (confirm(`Remove ${u.email}? This will revoke their access immediately.`)) {
+                                await apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/teams/users/${u.id}`, { method: 'DELETE' });
+                                fetchUsers();
+                              }
+                            }}
+                            className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
             </div>
+          )}
+
+          {activeTab === 'members' && (
+            <MemberInsights month={month} />
           )}
 
           {activeTab === 'master' && (
