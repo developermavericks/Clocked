@@ -1,8 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Calendar, Download, Check, AlertCircle, Loader2 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { apiFetch } from '@/lib/api';
 
 interface CalendarEvent {
   title: string;
@@ -19,9 +20,9 @@ export default function CalendarImport({ userId, month, onSuccess }: { userId: s
   const [selectedEvents, setSelectedEvents] = useState<Set<string>>(new Set());
   const [user, setUser] = useState<any>(null);
 
-  useState(() => {
+  useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setUser(data.user));
-  });
+  }, []);
 
   const handleLoginRefresh = async () => {
     await supabase.auth.signInWithOAuth({
@@ -38,13 +39,9 @@ export default function CalendarImport({ userId, month, onSuccess }: { userId: s
     try {
       const { data: { session } } = await supabase.auth.getSession();
       
-      // Try to find the token in multiple places
-      const accessToken = session?.provider_token || (session as any)?.access_token;
+      const googleToken = session?.provider_token;
       
-      console.log("🛠️ Debug: Session:", session);
-      console.log("🛠️ Debug: Provider Token:", !!session?.provider_token);
-
-      if (!accessToken) {
+      if (!googleToken) {
         setLoading(false);
         if (confirm('🚨 Your Google Session has expired. Would you like to refresh it now to fetch calendar events?')) {
           handleLoginRefresh();
@@ -52,7 +49,10 @@ export default function CalendarImport({ userId, month, onSuccess }: { userId: s
         return;
       }
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/calendar/events?accessToken=${accessToken}&startDate=${month}-01&endDate=${month}-31`);
+      const response = await apiFetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/calendar/events?accessToken=${googleToken}&startDate=${month}-01&endDate=${month}-31`
+      );
+      
       const data = await response.json();
       
       if (data.error) throw new Error(data.error);
