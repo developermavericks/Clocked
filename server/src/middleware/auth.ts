@@ -34,48 +34,7 @@ export const authenticate = async (req: AuthRequest, res: Response, Next: NextFu
       return res.status(403).json({ error: 'Access denied: Unauthorized domain' });
     }
 
-    // Role Mapping Logic based on Provided List
-    const coreEmails = [
-      'pooja@themavericksindia.com',
-      'chetan@themavericksindia.com',
-      'tech@themavericksindia.com',
-      'mitali.p@themavericksindia.com',
-      'archana@themavericksindia.com',
-      'smriti@themavericksindia.com',
-      'gaurav@themavericksindia.com',
-      'avinash@themavericksindia.com',
-      'satyam.singh@themavericksindia.com',
-      'arunkumar@themavericksindia.com',
-      'divyanshsharma@themavericksindia.com',
-      'developerteam@themavericksindia.com'
-    ];
-
-    const managerEmails = [
-      'aashna@themavericksindia.com',
-      'mahek@themavericksindia.com',
-      'srishtee@themavericksindia.com',
-      'vibhuti@themavericksindia.com',
-      'akshay@themavericksindia.com',
-      'manaswi@themavericksindia.com',
-      'muskaan@themavericksindia.com',
-      'indrajit@themavericksindia.com',
-      'pavithra@themavericksindia.com',
-      'shrestha@themavericksindia.com',
-      'ila@themavericksindia.com',
-      'samrat@themavericksindia.com',
-      'anil@themavericksindia.com',
-      'viviqa@themavericksindia.com',
-      'ananya@themavericksindia.com',
-      'kavita@themavericksindia.com'
-    ];
-
-    let assignedRole = 'team';
-    if (coreEmails.includes(email.toLowerCase())) assignedRole = 'core';
-    else if (managerEmails.includes(email.toLowerCase())) assignedRole = 'manager';
-
-    console.log(`[AUTH] Assigned role for ${email}: ${assignedRole}`);
-
-    // Auto-sync user to our 'users' table if missing OR role needs update
+    // Check database for existing user and role
     const { data: existingUser } = await supabase
       .from('users')
       .select('id, role')
@@ -83,21 +42,18 @@ export const authenticate = async (req: AuthRequest, res: Response, Next: NextFu
       .single();
 
     if (!existingUser) {
+      // For NEW users, default to 'team'
       await supabase.from('users').insert([{
         id: user.id,
         email: user.email,
         name: user.user_metadata?.full_name || user.email?.split('@')[0],
         picture: user.user_metadata?.avatar_url,
-        role: assignedRole
+        role: 'team' // New users start as team
       }]);
-    } else if (existingUser.role !== assignedRole) {
-      // Update role if it changed in the list
-      await supabase.from('users')
-        .update({ role: assignedRole })
-        .eq('id', user.id);
+      (req as any).user_role = 'team';
+    } else {
+      (req as any).user_role = existingUser.role;
     }
-
-    (req as any).user_role = assignedRole;
     req.user = user;
     Next();
   } catch (error) {

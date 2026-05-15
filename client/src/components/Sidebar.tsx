@@ -55,27 +55,20 @@ export default function Sidebar() {
   useEffect(() => {
     const fetchRole = async () => {
       try {
-        // 1. First, check direct email mapping for instant UI response
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user?.email) {
-          const email = user.email.toLowerCase();
-          if (CORE_EMAILS.includes(email)) {
-            setUserRole('core');
-            setLoading(false);
-            return;
-          }
-          if (MANAGER_EMAILS.includes(email)) {
-            setUserRole('manager');
-            setLoading(false);
-            return;
-          }
-        }
-
-        // 2. Fallback to backend check for database consistency
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
         const response = await apiFetch(`${apiUrl}/api/teams/me`);
-        const data = await response.json();
-        setUserRole(data.role || 'team');
+        if (response.ok) {
+          const data = await response.json();
+          setUserRole(data.role || 'team');
+        } else {
+          // Fallback to email list ONLY if API fails
+          const { data: { user } } = await supabase.auth.getUser();
+          if (user?.email) {
+            const email = user.email.toLowerCase();
+            if (CORE_EMAILS.includes(email)) setUserRole('core');
+            else if (MANAGER_EMAILS.includes(email)) setUserRole('manager');
+          }
+        }
       } catch (err) {
         console.error('Failed to fetch role:', err);
       } finally {
