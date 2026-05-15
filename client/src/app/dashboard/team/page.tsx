@@ -18,7 +18,7 @@ import { apiFetch } from '@/lib/api';
 export default function TeamPortal() {
   const [activeTab, setActiveTab] = useState<'projected' | 'weekly'>('weekly');
   const [displayMode, setDisplayMode] = useState<'detailed' | 'summary'>('detailed');
-  const [month, setMonth] = useState('2026-05');
+  const [month, setMonth] = useState(new Date().toISOString().slice(0, 7));
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isActionLoading, setIsActionLoading] = useState(false);
   const [warning, setWarning] = useState<{ isOpen: boolean, overlaps: any[], isBlocking: boolean, retryData: any }>({

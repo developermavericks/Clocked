@@ -10,7 +10,7 @@ import ClientAdmin from '@/components/ClientAdmin';
 
 export default function CorePortal() {
   const [activeTab, setActiveTab] = useState<'admin' | 'master' | 'clients'>('admin');
-  const [month, setMonth] = useState('2024-05');
+  const [month, setMonth] = useState(new Date().toISOString().slice(0, 7));
   const [clients, setClients] = useState<any[]>([]);
   const [users, setUsers] = useState<any[]>([]);
   const [report, setReport] = useState<any>(null);
