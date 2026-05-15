@@ -39,6 +39,21 @@ export default function MemberInsights({ month: initialMonth }: { month: string 
   const [memberData, setMemberData] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [summary, setSummary] = useState<any>(null);
+  const [dbUsers, setDbUsers] = useState<string[]>([]);
+
+  useEffect(() => {
+    fetchDbUsers();
+  }, []);
+
+  const fetchDbUsers = async () => {
+    try {
+      const res = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/teams/all`);
+      const users = await res.json();
+      setDbUsers(users.map((u: any) => u.email.toLowerCase()));
+    } catch (err) {
+      console.error('Failed to fetch DB users:', err);
+    }
+  };
 
   // Parse internalMonth into year and month index
   const currentYear = internalMonth.split('-')[0];
@@ -102,9 +117,14 @@ export default function MemberInsights({ month: initialMonth }: { month: string 
                 className="w-full bg-white/5 border border-white/10 rounded-2xl pl-11 pr-5 py-3.5 text-sm text-white font-bold outline-none focus:ring-4 focus:ring-orange-500/20 transition-all cursor-pointer appearance-none"
               >
                 <option value="" className="text-slate-900">Choose a member...</option>
-                {MASTER_EMAILS.sort().map(email => (
-                  <option key={email} value={email} className="text-slate-900">{email}</option>
-                ))}
+                {MASTER_EMAILS.sort().map(email => {
+                  const isConnected = dbUsers.includes(email.toLowerCase());
+                  return (
+                    <option key={email} value={email} className="text-slate-900">
+                      {email} {isConnected ? '✓' : '(Not logged in)'}
+                    </option>
+                  );
+                })}
               </select>
             </div>
           </div>
