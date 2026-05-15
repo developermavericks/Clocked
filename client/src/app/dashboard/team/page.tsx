@@ -17,7 +17,7 @@ import { apiFetch } from '@/lib/api';
 export default function TeamPortal() {
   const [activeTab, setActiveTab] = useState<'projected' | 'weekly'>('weekly');
   const [displayMode, setDisplayMode] = useState<'detailed' | 'summary'>('detailed');
-  const [month, setMonth] = useState('2024-05');
+  const [month, setMonth] = useState('2026-05');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isActionLoading, setIsActionLoading] = useState(false);
   const [warning, setWarning] = useState<{ isOpen: boolean, overlaps: any[], isBlocking: boolean, retryData: any }>({
@@ -100,8 +100,9 @@ export default function TeamPortal() {
             onChange={(e) => setMonth(e.target.value)}
             className="bg-white border border-slate-200 rounded-xl px-4 py-2 text-sm font-medium focus:ring-2 focus:ring-blue-500 outline-none transition-all"
           >
-            <option value="2024-05">May 2024</option>
-            <option value="2024-04">April 2024</option>
+            <option value="2026-05">May 2026</option>
+            <option value="2026-04">April 2026</option>
+            <option value="2026-03">March 2026</option>
           </select>
           <button 
             onClick={() => setIsModalOpen(true)}

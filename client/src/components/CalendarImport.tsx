@@ -19,6 +19,7 @@ export default function CalendarImport({ userId, month, onSuccess }: { userId: s
   const [saving, setSaving] = useState(false);
   const [selectedEvents, setSelectedEvents] = useState<Set<string>>(new Set());
   const [user, setUser] = useState<any>(null);
+  const [hasFetched, setHasFetched] = useState(false);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setUser(data.user));
@@ -36,6 +37,7 @@ export default function CalendarImport({ userId, month, onSuccess }: { userId: s
 
   const handleFetch = async () => {
     setLoading(true);
+    setHasFetched(false);
     try {
       const { data: { session } } = await supabase.auth.getSession();
       
@@ -57,6 +59,7 @@ export default function CalendarImport({ userId, month, onSuccess }: { userId: s
       
       if (data.error) throw new Error(data.error);
       setEvents(data);
+      setHasFetched(true);
     } catch (err: any) {
       alert(err.message);
     } finally {
@@ -87,6 +90,7 @@ export default function CalendarImport({ userId, month, onSuccess }: { userId: s
       onSuccess();
       setSelectedEvents(new Set());
       setEvents([]);
+      setHasFetched(false);
     } catch (err: any) {
       alert(err.message);
     } finally {
@@ -126,9 +130,17 @@ export default function CalendarImport({ userId, month, onSuccess }: { userId: s
         {events.length === 0 ? (
           <div className="py-12 flex flex-col items-center text-center">
             <div className="p-4 bg-slate-50 rounded-full mb-4">
-              <Download className="w-8 h-8 text-slate-300" />
+              {hasFetched ? (
+                <AlertCircle className="w-8 h-8 text-amber-500" />
+              ) : (
+                <Download className="w-8 h-8 text-slate-300" />
+              )}
             </div>
-            <p className="text-slate-500 max-w-xs">Click fetch to see your calendar events for this month.</p>
+            <p className="text-slate-500 max-w-xs">
+              {hasFetched 
+                ? `No calendar events found for ${month}. Try selecting a different month.` 
+                : "Click fetch to see your calendar events for this month."}
+            </p>
           </div>
         ) : (
           <div className="space-y-4">
