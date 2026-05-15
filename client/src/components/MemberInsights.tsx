@@ -40,6 +40,7 @@ export default function MemberInsights({ month: initialMonth }: { month: string 
   const [loading, setLoading] = useState(false);
   const [summary, setSummary] = useState<any>(null);
   const [dbUsers, setDbUsers] = useState<string[]>([]);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchDbUsers();
@@ -49,7 +50,9 @@ export default function MemberInsights({ month: initialMonth }: { month: string 
     try {
       const res = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/teams/all`);
       const users = await res.json();
-      setDbUsers(users.map((u: any) => u.email.toLowerCase()));
+      if (Array.isArray(users)) {
+        setDbUsers(users.map((u: any) => u.email.toLowerCase()));
+      }
     } catch (err) {
       console.error('Failed to fetch DB users:', err);
     }
@@ -70,13 +73,20 @@ export default function MemberInsights({ month: initialMonth }: { month: string 
   const fetchMemberReport = async () => {
     if (!selectedEmail) return;
     setLoading(true);
+    setError(null);
     try {
       const response = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/reports/member?email=${selectedEmail}&month=${internalMonth}`);
       const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to fetch report');
+      }
+
       setMemberData(data.allocations || []);
       setSummary(data.summary || null);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to fetch member report:', err);
+      setError(err.message);
     } finally {
       setLoading(false);
     }
@@ -188,6 +198,13 @@ export default function MemberInsights({ month: initialMonth }: { month: string 
             </div>
 
             <div className="p-0">
+              {error && (
+                <div className="mx-8 mt-6 p-4 bg-red-50 border border-red-100 rounded-2xl flex items-center gap-3 text-red-600">
+                  <AlertCircle className="w-5 h-5 flex-shrink-0" />
+                  <p className="text-sm font-bold">{error}</p>
+                </div>
+              )}
+
               {loading ? (
                 <div className="py-20 flex flex-col items-center justify-center gap-4">
                   <Loader2 className="w-10 h-10 text-orange-600 animate-spin" />
