@@ -69,6 +69,8 @@ export const getClientRoster = async (req: Request, res: Response) => {
   try {
     const data = await (require('../services/reportService').getClientRoster(month as string, clientName as string, view as any));
     res.json(data);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
   }
 };
 
