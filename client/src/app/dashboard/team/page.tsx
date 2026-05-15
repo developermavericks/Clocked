@@ -225,16 +225,23 @@ export default function TeamPortal() {
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
             </div>
           ) : (
-            <AllocationsTable 
-              data={data} 
-              type={activeTab} 
-              displayMode={displayMode} 
-              onDelete={handleDelete}
-              onEdit={(id) => {
-                const item = data.find(d => d.id === id);
-                if (item) handleEdit(item);
-              }}
-            />
+            <div className="space-y-8">
+              {activeTab === 'projected' && (
+                <div className="px-6 pt-6">
+                  <ClientTargetsCard month={month} actuals={data} title="Monthly Achievement Goals" />
+                </div>
+              )}
+              <AllocationsTable 
+                data={data} 
+                type={activeTab} 
+                displayMode={displayMode} 
+                onDelete={handleDelete}
+                onEdit={(id) => {
+                  const item = data.find(d => d.id === id);
+                  if (item) handleEdit(item);
+                }}
+              />
+            </div>
           )}
         </div>
       </div>

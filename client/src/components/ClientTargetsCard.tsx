@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { Target, CheckCircle2, AlertCircle } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 
-export default function ClientTargetsCard({ month, actuals }: { month: string, actuals: any[] }) {
+export default function ClientTargetsCard({ month, actuals, title }: { month: string, actuals: any[], title?: string }) {
   const [projections, setProjections] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -48,7 +48,7 @@ export default function ClientTargetsCard({ month, actuals }: { month: string, a
             <Target className="w-5 h-5 text-white" />
           </div>
           <div>
-            <h3 className="text-lg font-bold text-white">Monthly Targets</h3>
+            <h3 className="text-lg font-bold text-white">{title || 'Monthly Targets'}</h3>
             <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest">Admin Estimated Goals</p>
           </div>
         </div>

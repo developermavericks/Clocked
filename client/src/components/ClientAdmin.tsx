@@ -23,6 +23,7 @@ export default function ClientAdmin({ initialMonth }: { initialMonth: string }) 
   const [projHours, setProjHours] = useState('');
   const [projectionsList, setProjectionsList] = useState<any[]>([]);
   const [savingProj, setSavingProj] = useState(false);
+  const [projLoading, setProjLoading] = useState(false);
 
   useEffect(() => {
     if (activeSubTab === 'actuals') fetchSummary();
@@ -56,7 +57,7 @@ export default function ClientAdmin({ initialMonth }: { initialMonth: string }) 
   };
 
   const fetchProjections = async () => {
-    setLoading(true);
+    setProjLoading(true);
     try {
       const response = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/clients/projections`);
       const data = await response.json();
@@ -64,7 +65,7 @@ export default function ClientAdmin({ initialMonth }: { initialMonth: string }) 
     } catch (err) {
       console.error('Failed to fetch projections:', err);
     } finally {
-      setLoading(false);
+      setProjLoading(false);
     }
   };
 
@@ -315,7 +316,7 @@ export default function ClientAdmin({ initialMonth }: { initialMonth: string }) 
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {loading ? (
+              {projLoading ? (
                 <div className="col-span-full py-20 text-center"><Loader2 className="w-10 h-10 text-orange-600 animate-spin mx-auto" /></div>
               ) : projectionsList.length === 0 ? (
                 <div className="col-span-full py-20 bg-slate-50 rounded-[32px] border-2 border-dashed border-slate-200 text-center text-slate-400 italic">No projections set yet.</div>
