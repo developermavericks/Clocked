@@ -111,12 +111,12 @@ export default function CalendarImport({ userId, month, onSuccess }: { userId: s
       const internalClient = clients.find(c => c.name.toLowerCase() === 'internal');
       const defaultClientId = internalClient?.id || ''; 
 
-      // Initialize events
+      // Initialize events with default client, category, and empty notes
       const initializedEvents = data.map((ev: any) => ({
         ...ev,
         client_id: defaultClientId,
         category: 'Meeting',
-        notes: ev.title 
+        notes: '' 
       }));
 
       setEvents(initializedEvents);
