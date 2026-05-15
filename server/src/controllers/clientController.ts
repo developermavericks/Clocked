@@ -28,12 +28,23 @@ export const createClient = async (req: Request, res: Response) => {
       .insert([{ name }])
       .select();
 
-    if (error) throw error;
+    if (error) {
+      if (error.code === '23505') { // Unique constraint violation
+        // Fetch the existing client to return it
+        const { data: existing } = await supabase
+          .from('clients')
+          .select('*')
+          .eq('name', name)
+          .single();
+        
+        if (existing) {
+          return res.status(200).json(existing); // Return existing instead of error
+        }
+      }
+      throw error;
+    }
     res.status(201).json(data[0]);
   } catch (error: any) {
-    if (error.code === '23505') { // Unique constraint violation
-      return res.status(409).json({ error: 'Client already exists' });
-    }
     res.status(500).json({ error: error.message });
   }
 };
