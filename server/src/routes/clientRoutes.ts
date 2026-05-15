@@ -5,5 +5,7 @@ const router = Router();
 
 router.get('/', getClients);
 router.post('/', createClient);
+router.get('/projections', getClientProjections);
+router.post('/projections', setClientProjection);
 
 export default router;

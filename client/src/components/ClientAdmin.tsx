@@ -13,8 +13,15 @@ export default function ClientAdmin({ month }: { month: string }) {
   const [rosterLoading, setRosterLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
 
+  // New projection state
+  const [projectionClient, setProjectionClient] = useState('');
+  const [targetHours, setTargetHours] = useState('');
+  const [savingProjection, setSavingProjection] = useState(false);
+  const [clientProjections, setClientProjections] = useState<Record<string, number>>({});
+
   useEffect(() => {
     fetchSummary();
+    fetchProjections();
   }, [month, view]);
 
   const fetchSummary = async () => {
@@ -27,6 +34,51 @@ export default function ClientAdmin({ month }: { month: string }) {
       console.error('Failed to fetch summary:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchProjections = async () => {
+    try {
+      const response = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/clients/projections?month=${month}`);
+      const data = await response.json();
+      const mapping: Record<string, number> = {};
+      data.forEach((p: any) => {
+        mapping[p.clients?.name || ''] = p.target_hours;
+      });
+      setClientProjections(mapping);
+    } catch (err) {
+      console.error('Failed to fetch projections:', err);
+    }
+  };
+
+  const handleSaveProjection = async () => {
+    if (!projectionClient || !targetHours) return;
+    setSavingProjection(true);
+    try {
+      // Find client ID from summary or fetch clients
+      const res = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/clients`);
+      const allClients = await res.json();
+      const client = allClients.find((c: any) => c.name === projectionClient);
+      
+      if (!client) throw new Error('Client not found');
+
+      await apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/clients/projections`, {
+        method: 'POST',
+        body: JSON.stringify({
+          client_id: client.id,
+          month,
+          target_hours: parseFloat(targetHours)
+        })
+      });
+
+      setTargetHours('');
+      setProjectionClient('');
+      fetchProjections();
+      alert('Projection saved successfully!');
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setSavingProjection(false);
     }
   };
 
@@ -49,26 +101,64 @@ export default function ClientAdmin({ month }: { month: string }) {
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
+      {/* Set Projection Section */}
+      <div className="bg-orange-600 rounded-[32px] p-8 text-white shadow-2xl shadow-orange-200">
+        <div className="flex items-center gap-3 mb-6">
+          <Briefcase className="w-6 h-6" />
+          <h3 className="text-xl font-bold">Set Monthly Projection</h3>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-end">
+          <div className="space-y-2">
+            <label className="text-[10px] font-bold text-orange-200 uppercase tracking-widest ml-1">Client</label>
+            <select 
+              value={projectionClient}
+              onChange={(e) => setProjectionClient(e.target.value)}
+              className="w-full bg-orange-500/50 border border-orange-400/50 rounded-2xl px-5 py-3 text-sm focus:ring-4 focus:ring-white/20 outline-none transition-all font-bold placeholder:text-orange-200"
+            >
+              <option value="">Select Client...</option>
+              {summary.map(s => <option key={s.name} value={s.name} className="text-slate-900">{s.name}</option>)}
+            </select>
+          </div>
+          <div className="space-y-2">
+            <label className="text-[10px] font-bold text-orange-200 uppercase tracking-widest ml-1">Estimated Hours</label>
+            <input 
+              type="number"
+              value={targetHours}
+              onChange={(e) => setTargetHours(e.target.value)}
+              placeholder="e.g. 160"
+              className="w-full bg-orange-500/50 border border-orange-400/50 rounded-2xl px-5 py-3 text-sm focus:ring-4 focus:ring-white/20 outline-none transition-all font-bold placeholder:text-orange-200"
+            />
+          </div>
+          <button 
+            onClick={handleSaveProjection}
+            disabled={savingProjection || !projectionClient || !targetHours}
+            className="bg-white text-orange-600 px-8 py-3 rounded-2xl text-sm font-bold hover:bg-orange-50 transition-all shadow-xl disabled:opacity-50 h-[48px] flex items-center justify-center gap-2"
+          >
+            {savingProjection ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Set Projection'}
+          </button>
+        </div>
+      </div>
+
       {/* Filters Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
         <div className="flex items-center gap-4">
-          <div className="bg-orange-50 p-3 rounded-2xl">
-            <Filter className="w-5 h-5 text-orange-600" />
+          <div className="bg-slate-50 p-3 rounded-2xl">
+            <Filter className="w-5 h-5 text-slate-600" />
           </div>
           <div>
-            <h3 className="text-sm font-bold text-slate-900 uppercase tracking-tight">Report Settings</h3>
+            <h3 className="text-sm font-bold text-slate-900 uppercase tracking-tight">Report View</h3>
             <div className="flex bg-slate-100 p-1 rounded-xl mt-1">
               <button 
                 onClick={() => setView('weekly')}
                 className={`px-4 py-1.5 text-xs font-bold rounded-lg transition-all ${view === 'weekly' ? 'bg-white text-orange-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
               >
-                Weekly (Actuals)
+                Actual Hours
               </button>
               <button 
                 onClick={() => setView('projected')}
                 className={`px-4 py-1.5 text-xs font-bold rounded-lg transition-all ${view === 'projected' ? 'bg-white text-orange-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
               >
-                Monthly (Projected)
+                Employee Plans
               </button>
             </div>
           </div>
@@ -94,7 +184,7 @@ export default function ClientAdmin({ month }: { month: string }) {
             <h3 className="text-lg font-bold text-slate-900">Client Summary</h3>
           </div>
           <div className="text-right">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Total Hours</span>
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Actual Total</span>
             <span className="text-xl font-mono font-black text-slate-900">{totalHours.toFixed(2)}</span>
           </div>
         </div>
@@ -103,20 +193,21 @@ export default function ClientAdmin({ month }: { month: string }) {
             <thead className="bg-slate-50/50">
               <tr>
                 <th className="px-8 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Client Name</th>
-                <th className="px-8 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-wider text-right">Total Hours</th>
+                <th className="px-8 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-wider text-right">Target (Admin)</th>
+                <th className="px-8 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-wider text-right">Achieved Hours</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
               {loading ? (
                 <tr>
-                  <td colSpan={2} className="px-8 py-12 text-center">
+                  <td colSpan={3} className="px-8 py-12 text-center">
                     <Loader2 className="w-8 h-8 text-orange-600 animate-spin mx-auto" />
                     <p className="text-sm text-slate-500 mt-2">Loading client summaries...</p>
                   </td>
                 </tr>
               ) : filteredSummary.length === 0 ? (
                 <tr>
-                  <td colSpan={2} className="px-8 py-12 text-center text-slate-400 italic">No data found for this period.</td>
+                  <td colSpan={3} className="px-8 py-12 text-center text-slate-400 italic">No data found for this period.</td>
                 </tr>
               ) : (
                 filteredSummary.map(item => (
@@ -128,6 +219,11 @@ export default function ClientAdmin({ month }: { month: string }) {
                         </div>
                         <span className="text-sm font-bold text-slate-900 group-hover:text-orange-600 transition-colors">{item.name}</span>
                       </div>
+                    </td>
+                    <td className="px-8 py-4 text-right">
+                      <span className="text-sm font-mono font-bold text-slate-400">
+                        {clientProjections[item.name]?.toFixed(2) || '—'}
+                      </span>
                     </td>
                     <td className="px-8 py-4 text-right">
                       <span className="text-sm font-mono font-bold text-slate-900">{item.hours.toFixed(2)}</span>

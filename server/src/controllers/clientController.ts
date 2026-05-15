@@ -48,3 +48,38 @@ export const createClient = async (req: Request, res: Response) => {
     res.status(500).json({ error: error.message });
   }
 };
+
+export const setClientProjection = async (req: Request, res: Response) => {
+  const { client_id, month, target_hours } = req.body;
+
+  if (!client_id || !month || target_hours === undefined) {
+    return res.status(400).json({ error: 'Missing client_id, month, or target_hours' });
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('client_projections')
+      .upsert([{ client_id, month, target_hours }], { onConflict: 'client_id,month' })
+      .select();
+
+    if (error) throw error;
+    res.json(data[0]);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+export const getClientProjections = async (req: Request, res: Response) => {
+  const { month } = req.query;
+
+  try {
+    let query = supabase.from('client_projections').select('*, clients(name)');
+    if (month) query = query.eq('month', month);
+
+    const { data, error } = await query;
+    if (error) throw error;
+    res.json(data);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+};

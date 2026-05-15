@@ -10,6 +10,7 @@ import AddEntryModal from '@/components/AddEntryModal';
 import CalendarImport from '@/components/CalendarImport';
 import ExcelUpload from '@/components/ExcelUpload';
 import OverlapWarningModal from '@/components/OverlapWarningModal';
+import ClientTargetsCard from '@/components/ClientTargetsCard';
 import { useAllocations } from '@/hooks/useAllocations';
 import { supabase } from '@/lib/supabase';
 import { apiFetch } from '@/lib/api';
@@ -160,7 +161,9 @@ export default function TeamPortal() {
         />
       </div>
 
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+        <div className="lg:col-span-2 space-y-8">
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
         <div className="border-b border-slate-100 px-6 py-4 flex items-center justify-between bg-slate-50/50">
           <div className="flex gap-6">
             <button 
@@ -224,18 +227,25 @@ export default function TeamPortal() {
         </div>
       </div>
 
-      {activeTab === 'weekly' && user && (
-        <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-8">
-          <CalendarImport userId={user.id} month={month} onSuccess={refresh} />
-          <ExcelUpload userId={user.id} month={month} type="weekly" onSuccess={refresh} />
-        </div>
-      )}
+        {activeTab === 'weekly' && user && (
+          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-8">
+            <CalendarImport userId={user.id} month={month} onSuccess={refresh} />
+            <ExcelUpload userId={user.id} month={month} type="weekly" onSuccess={refresh} />
+          </div>
+        )}
 
-      {activeTab === 'projected' && user && (
-        <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-          <ExcelUpload userId={user.id} month={month} type="projected" onSuccess={refresh} />
+        {activeTab === 'projected' && user && (
+          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <ExcelUpload userId={user.id} month={month} type="projected" onSuccess={refresh} />
+          </div>
+        )}
         </div>
-      )}
+
+        {/* Sidebar with Targets */}
+        <div className="space-y-8">
+           <ClientTargetsCard month={month} actuals={data} />
+        </div>
+      </div>
 
       <AddEntryModal 
         isOpen={isModalOpen} 
