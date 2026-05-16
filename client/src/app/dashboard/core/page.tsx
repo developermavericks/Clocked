@@ -177,10 +177,12 @@ export default function CorePortal() {
                         displayRole === 'MANAGER' ? 'bg-indigo-100 text-indigo-700' :
                         'bg-slate-100 text-slate-600';
 
-                      // Avatar Color Logic
+                      // Avatar Color Logic: Only bright colors for logged-in users (u.sub exists)
                       const colors = ['bg-emerald-600', 'bg-blue-600', 'bg-indigo-600', 'bg-rose-600', 'bg-amber-600', 'bg-violet-600', 'bg-cyan-600'];
                       const colorIndex = (u.email?.length || 0) % colors.length;
-                      const avatarColor = colors[colorIndex];
+                      const hasLoggedIn = !!u.sub;
+                      const avatarColor = hasLoggedIn ? colors[colorIndex] : 'bg-slate-200';
+                      const initialColor = hasLoggedIn ? 'text-white' : 'text-slate-400';
                       const initial = (u.name?.[0] || u.email?.[0] || '?').toUpperCase();
 
                       return (
@@ -189,7 +191,7 @@ export default function CorePortal() {
                             {u.picture ? (
                               <img src={u.picture} className="w-9 h-9 rounded-xl object-cover shadow-sm ring-2 ring-white" />
                             ) : (
-                              <div className={`w-9 h-9 ${avatarColor} rounded-xl flex items-center justify-center text-white text-sm font-black shadow-sm ring-2 ring-white`}>
+                              <div className={`w-9 h-9 ${avatarColor} rounded-xl flex items-center justify-center ${initialColor} text-sm font-black shadow-sm ring-2 ring-white`}>
                                 {initial}
                               </div>
                             )}
