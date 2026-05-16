@@ -179,7 +179,7 @@ export default function CalendarImport({ userId, month, onSuccess }: { userId: s
                 type="date" 
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
-                className="bg-white border border-slate-200 rounded-xl px-4 py-2 text-sm font-medium focus:ring-2 focus:ring-blue-500 outline-none w-40"
+                className="bg-white border border-slate-200 rounded-xl px-4 py-2 text-sm font-medium text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none w-40"
               />
             </div>
             <div className="flex flex-col">
@@ -188,7 +188,7 @@ export default function CalendarImport({ userId, month, onSuccess }: { userId: s
                 type="date" 
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
-                className="bg-white border border-slate-200 rounded-xl px-4 py-2 text-sm font-medium focus:ring-2 focus:ring-blue-500 outline-none w-40"
+                className="bg-white border border-slate-200 rounded-xl px-4 py-2 text-sm font-medium text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none w-40"
               />
             </div>
           </div>
@@ -242,19 +242,19 @@ export default function CalendarImport({ userId, month, onSuccess }: { userId: s
                         onChange={(e) => {
                           updateEventDetails(event.title, 'client_id', e.target.value);
                         }}
-                        className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-blue-500 outline-none"
+                        className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none"
                       >
-                        <option value="">Select Client</option>
-                        {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                        <option value="" className="text-slate-900">Select Client</option>
+                        {clients.map(c => <option key={c.id} value={c.id} className="text-slate-900">{c.name}</option>)}
                       </select>
                     </div>
                     <div className="space-y-1">
                       <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-1">Category</label>
-                      <input type="text" value={event.category} onChange={(e) => updateEventDetails(event.title, 'category', e.target.value)} placeholder="Meeting / Internal / Billable" className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs outline-none" />
+                      <input type="text" value={event.category} onChange={(e) => updateEventDetails(event.title, 'category', e.target.value)} placeholder="Meeting / Internal / Billable" className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 outline-none" />
                     </div>
                     <div className="space-y-1">
                       <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-1">Notes (Optional)</label>
-                      <input type="text" value={event.notes} onChange={(e) => updateEventDetails(event.title, 'notes', e.target.value)} placeholder="Notes" className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs outline-none" />
+                      <input type="text" value={event.notes} onChange={(e) => updateEventDetails(event.title, 'notes', e.target.value)} placeholder="Notes" className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 outline-none" />
                     </div>
                   </div>
                 )}

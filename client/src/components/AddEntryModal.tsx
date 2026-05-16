@@ -153,11 +153,11 @@ export default function AddEntryModal({
                 onChange={(e) => {
                   setFormData({ ...formData, client_id: e.target.value });
                 }}
-                className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
               >
-                <option value="">Select Client</option>
+                <option value="" className="text-slate-900">Select Client</option>
                 {clients.map(c => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
+                  <option key={c.id} value={c.id} className="text-slate-900">{c.name}</option>
                 ))}
               </select>
             </div>
@@ -169,7 +169,7 @@ export default function AddEntryModal({
                 placeholder="Meeting / Internal / Billable"
                 value={formData.category}
                 onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
               />
             </div>
           </div>
@@ -183,7 +183,7 @@ export default function AddEntryModal({
                   required
                   value={formData.start_date}
                   onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
-                  className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                  className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
                 />
               </div>
               <div className="space-y-2">
@@ -193,7 +193,7 @@ export default function AddEntryModal({
                   required
                   value={formData.end_date}
                   onChange={(e) => setFormData({ ...formData, end_date: e.target.value })}
-                  className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                  className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
                 />
               </div>
             </div>
@@ -208,7 +208,7 @@ export default function AddEntryModal({
               placeholder="0.00"
               value={formData.hours}
               onChange={(e) => setFormData({ ...formData, hours: e.target.value })}
-              className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all font-mono"
+              className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none transition-all font-mono"
             />
           </div>
 
@@ -219,7 +219,7 @@ export default function AddEntryModal({
               placeholder="What did you work on?"
               value={formData.notes}
               onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-              className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all resize-none"
+              className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none transition-all resize-none"
             ></textarea>
           </div>
 
