@@ -93,3 +93,19 @@ export const deleteUser = async (req: Request, res: Response) => {
     res.status(500).json({ error: error.message });
   }
 };
+
+export const updateUserRole = async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const { role } = req.body;
+  try {
+    const { error } = await supabase
+      .from('users')
+      .update({ role })
+      .eq('id', id);
+
+    if (error) throw error;
+    res.json({ success: true });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+};

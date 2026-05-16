@@ -172,6 +172,21 @@ export default function CorePortal() {
                       else if (u.is_manager) displayRole = 'MANAGER';
                       else displayRole = 'TEAM';
 
+                      const handleRoleChange = async (userId: string, currentRole: string) => {
+                        const roles: ('team' | 'manager' | 'core')[] = ['team', 'manager', 'core'];
+                        const nextRole = roles[(roles.indexOf(currentRole as any) + 1) % roles.length];
+                        
+                        try {
+                          await apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/teams/users/${userId}/role`, {
+                            method: 'PATCH',
+                            body: JSON.stringify({ role: nextRole })
+                          });
+                          fetchUsers();
+                        } catch (err) {
+                          console.error('Failed to update role:', err);
+                        }
+                      };
+
                       const roleColor = 
                         displayRole === 'CORE' ? 'bg-orange-100 text-orange-700' :
                         displayRole === 'MANAGER' ? 'bg-indigo-100 text-indigo-700' :
@@ -202,9 +217,13 @@ export default function CorePortal() {
                           </td>
                           <td className="px-6 py-4 text-sm text-slate-600 font-medium">{u.email}</td>
                           <td className="px-6 py-4 text-sm text-right">
-                            <span className={`${roleColor} text-[10px] font-black px-2.5 py-1 rounded-lg uppercase tracking-widest`}>
+                            <button 
+                              onClick={() => handleRoleChange(u.id, u.role || 'team')}
+                              title="Click to cycle role (Team -> Manager -> Core)"
+                              className={`${roleColor} text-[10px] font-black px-2.5 py-1 rounded-lg uppercase tracking-widest hover:brightness-95 transition-all`}
+                            >
                               {displayRole}
-                            </span>
+                            </button>
                           </td>
                           <td className="px-6 py-4 text-right">
                             <button 
