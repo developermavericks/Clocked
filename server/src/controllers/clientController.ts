@@ -49,8 +49,9 @@ export const createClient = async (req: Request, res: Response) => {
   }
 };
 
-export const setClientProjection = async (req: Request, res: Response) => {
+export const setClientProjection = async (req: any, res: Response) => {
   const { id, client_id, month, target_hours } = req.body;
+  const created_by = req.user?.id;
 
   if (!client_id || !month || target_hours === undefined) {
     return res.status(400).json({ error: 'Missing client_id, month, or target_hours' });
@@ -59,7 +60,7 @@ export const setClientProjection = async (req: Request, res: Response) => {
   try {
     const { data, error } = await supabase
       .from('client_projections')
-      .upsert([{ id, client_id, month, target_hours }], { onConflict: 'client_id,month' })
+      .upsert([{ id, client_id, month, target_hours, created_by }], { onConflict: 'client_id,month' })
       .select();
 
     if (error) throw error;
@@ -72,10 +73,10 @@ export const setClientProjection = async (req: Request, res: Response) => {
 export const getClientProjections = async (req: Request, res: Response) => {
   const { month } = req.query;
   try {
-    // 1. Get projections
+    // 1. Get projections with client name and creator name
     let query = supabase
       .from('client_projections')
-      .select('*, clients(name)');
+      .select('*, clients(name), creator:users!created_by(name)');
     
     if (month) {
       query = query.eq('month', month);
@@ -126,14 +127,15 @@ export const deleteClientProjection = async (req: Request, res: Response) => {
   }
 };
 
-export const updateClientProjection = async (req: Request, res: Response) => {
+export const updateClientProjection = async (req: any, res: Response) => {
   const { id } = req.params;
   const { target_hours } = req.body;
+  const created_by = req.user?.id;
 
   try {
     const { data, error } = await supabase
       .from('client_projections')
-      .update({ target_hours })
+      .update({ target_hours, created_by })
       .eq('id', id)
       .select();
 

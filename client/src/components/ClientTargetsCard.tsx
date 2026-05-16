@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Target, CheckCircle2, AlertCircle, Clock } from 'lucide-react';
+import { Target, CheckCircle2, AlertCircle, Clock, Users } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 
 export default function ClientTargetsCard({ month, actuals, title }: { month: string, actuals: any[], title?: string }) {
@@ -83,6 +83,12 @@ export default function ClientTargetsCard({ month, actuals, title }: { month: st
                 <span className={percentage >= 100 ? "text-emerald-600" : "text-slate-400"}>
                   {percentage >= 100 ? "Target Achieved" : `${(p.target_hours - p.actual_hours).toFixed(1)}h remaining`}
                 </span>
+                {p.creator?.name && (
+                  <div className="flex items-center gap-1.5 text-slate-300 group-hover:text-slate-400 transition-colors">
+                    <Users className="w-2.5 h-2.5" />
+                    By {p.creator.name}
+                  </div>
+                )}
               </div>
             </div>
           );

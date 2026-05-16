@@ -353,9 +353,17 @@ export default function ClientAdmin({ initialMonth }: { initialMonth: string }) 
                     </button>
                   </div>
                   <h5 className="font-bold text-slate-900 text-lg mb-1">{p.clients?.name}</h5>
-                  <div className="flex items-center gap-2 text-xs font-bold text-slate-400 mb-6">
-                    <Calendar className="w-3 h-3" />
-                    {new Date(p.month + '-02').toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                  <div className="flex flex-wrap items-center gap-3 mb-6">
+                    <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-400 bg-slate-50 px-2 py-1 rounded-md">
+                      <Calendar className="w-3 h-3" />
+                      {new Date(p.month + '-02').toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                    </div>
+                    {p.creator?.name && (
+                      <div className="flex items-center gap-1.5 text-[10px] font-bold text-blue-500 bg-blue-50 px-2 py-1 rounded-md border border-blue-100">
+                        <Users className="w-3 h-3" />
+                        By {p.creator.name}
+                      </div>
+                    )}
                   </div>
                   <div className="flex items-end justify-between mb-4">
                     <div>
