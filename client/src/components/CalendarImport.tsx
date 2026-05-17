@@ -7,6 +7,7 @@ import { apiFetch } from '@/lib/api';
 import SearchableSelect from '@/components/SearchableSelect';
 
 interface CalendarEvent {
+  id: string;
   title: string;
   hours: number;
   count: number;
@@ -90,8 +91,9 @@ export default function CalendarImport({ userId, month, onSuccess }: { userId: s
       const defaultClientId = internalClient?.id || ''; 
 
       // Initialize events with default client, category, and event title as notes
-      const initializedEvents = data.map((ev: any) => ({
+      const initializedEvents = data.map((ev: any, index: number) => ({
         ...ev,
+        id: `${ev.title}_${ev.start}_${index}`,
         client_id: defaultClientId,
         category: '', // Empty default
         notes: ev.title // Default notes to event title
@@ -109,7 +111,7 @@ export default function CalendarImport({ userId, month, onSuccess }: { userId: s
   const handleSave = async () => {
     setSaving(true);
     try {
-      const selected = events.filter(e => selectedEvents.has(e.title));
+      const selected = events.filter(e => selectedEvents.has(e.id));
       
       if (selected.length === 0) return;
 
@@ -146,16 +148,16 @@ export default function CalendarImport({ userId, month, onSuccess }: { userId: s
     }
   };
 
-  const toggleSelect = (title: string) => {
+  const toggleSelect = (id: string) => {
     const next = new Set(selectedEvents);
-    if (next.has(title)) next.delete(title);
-    else next.add(title);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
     setSelectedEvents(next);
   };
 
-  const updateEventDetails = (title: string, field: string, value: string) => {
+  const updateEventDetails = (id: string, field: string, value: string) => {
     setEvents(prev => prev.map(ev => 
-      ev.title === title ? { ...ev, [field]: value } : ev
+      ev.id === id ? { ...ev, [field]: value } : ev
     ));
   };
 
@@ -215,13 +217,13 @@ export default function CalendarImport({ userId, month, onSuccess }: { userId: s
           <div className="space-y-4">
             {events.map((event) => (
               <div 
-                key={event.title}
-                onClick={() => toggleSelect(event.title)}
-                className={`p-6 rounded-3xl border transition-all cursor-pointer flex flex-col gap-4 ${selectedEvents.has(event.title) ? 'border-blue-600 bg-blue-50/50' : 'border-slate-100 hover:border-slate-200'}`}
+                key={event.id}
+                onClick={() => toggleSelect(event.id)}
+                className={`p-6 rounded-3xl border transition-all cursor-pointer flex flex-col gap-4 ${selectedEvents.has(event.id) ? 'border-blue-600 bg-blue-50/50' : 'border-slate-100 hover:border-slate-200'}`}
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-4">
-                    <div className={`p-2 rounded-lg ${selectedEvents.has(event.title) ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-400'}`}>
+                    <div className={`p-2 rounded-lg ${selectedEvents.has(event.id) ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-400'}`}>
                       <Check className="w-4 h-4" />
                     </div>
                     <div>
@@ -239,25 +241,25 @@ export default function CalendarImport({ userId, month, onSuccess }: { userId: s
                   </div>
                 </div>
 
-                {selectedEvents.has(event.title) && (
+                {selectedEvents.has(event.id) && (
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 animate-in fade-in slide-in-from-top-2 duration-200" onClick={(e) => e.stopPropagation()}>
                     <div className="space-y-1">
                       <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-1">Client</label>
                       <SearchableSelect 
                         options={clients.map(c => ({ value: c.id, label: c.name }))}
                         value={event.client_id || ''}
-                        onChange={(val) => updateEventDetails(event.title, 'client_id', val)}
+                        onChange={(val) => updateEventDetails(event.id, 'client_id', val)}
                         placeholder="Select Client"
                         className="text-xs"
                       />
                     </div>
                     <div className="space-y-1">
                       <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-1">Category</label>
-                      <input type="text" value={event.category} onChange={(e) => updateEventDetails(event.title, 'category', e.target.value)} placeholder="Meeting / Internal / Billable" className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 outline-none" />
+                      <input type="text" value={event.category} onChange={(e) => updateEventDetails(event.id, 'category', e.target.value)} placeholder="Meeting / Internal / Billable" className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 outline-none" />
                     </div>
                     <div className="space-y-1">
                       <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-1">Notes (Optional)</label>
-                      <input type="text" value={event.notes} onChange={(e) => updateEventDetails(event.title, 'notes', e.target.value)} placeholder="Notes" className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 outline-none" />
+                      <input type="text" value={event.notes} onChange={(e) => updateEventDetails(event.id, 'notes', e.target.value)} placeholder="Notes" className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 outline-none" />
                     </div>
                   </div>
                 )}
