@@ -248,7 +248,7 @@ export default function ClientAdmin({ initialMonth }: { initialMonth: string }) 
       ) : (
         <div className="space-y-10">
           {/* Projection Form */}
-          <div className="bg-orange-600 rounded-[40px] p-10 text-white shadow-2xl shadow-orange-100 relative overflow-hidden group">
+          <div className="bg-orange-600 rounded-[40px] p-10 text-white shadow-2xl shadow-orange-100 relative group">
             <div className="relative z-10">
               <div className="flex items-center gap-3 mb-8">
                 <div className="bg-white/20 p-2 rounded-xl backdrop-blur-sm">
@@ -265,7 +265,7 @@ export default function ClientAdmin({ initialMonth }: { initialMonth: string }) 
                     value={projClient}
                     onChange={(val) => setProjClient(val)}
                     placeholder="Choose a client..."
-                    className="[&>div]:bg-white/10 [&>div]:border-white/20 [&>div]:text-white [&>div>span]:text-white [&>div>svg]:text-white"
+                    triggerClassName="bg-white/10 border-white/20 text-white !text-white focus:ring-4 focus:ring-white/10 backdrop-blur-md"
                   />
                 </div>
                 <div className="space-y-3">

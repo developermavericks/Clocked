@@ -14,9 +14,11 @@ interface SearchableSelectProps {
   onChange: (value: string) => void;
   placeholder?: string;
   className?: string;
+  triggerClassName?: string;
+  dropdownClassName?: string;
 }
 
-export default function SearchableSelect({ options, value, onChange, placeholder = "Select...", className = "" }: SearchableSelectProps) {
+export default function SearchableSelect({ options, value, onChange, placeholder = "Select...", className = "", triggerClassName = "", dropdownClassName = "" }: SearchableSelectProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState('');
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -41,16 +43,16 @@ export default function SearchableSelect({ options, value, onChange, placeholder
     <div ref={wrapperRef} className={`relative w-full ${className}`}>
       <div 
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-900 flex justify-between items-center cursor-pointer hover:border-slate-300 transition-all"
+        className={`w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-900 flex justify-between items-center cursor-pointer hover:border-slate-300 transition-all ${triggerClassName}`}
       >
-        <span className={selectedOption ? "text-slate-900 font-bold" : "text-slate-500 font-bold"}>
+        <span className={selectedOption ? "font-bold" : "text-slate-500 font-bold"}>
           {selectedOption ? selectedOption.label : placeholder}
         </span>
         <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
       </div>
 
       {isOpen && (
-        <div className="absolute z-[999] top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+        <div className={`absolute z-[9999] top-full left-0 right-0 mt-1 bg-white !text-slate-900 border border-slate-200 rounded-xl shadow-xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200 ${dropdownClassName}`}>
           <div className="p-2 border-b border-slate-100 flex items-center gap-2">
             <Search className="w-4 h-4 text-slate-400 ml-1" />
             <input 
@@ -59,7 +61,7 @@ export default function SearchableSelect({ options, value, onChange, placeholder
               placeholder="Search..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full text-sm outline-none bg-transparent"
+              className="w-full text-sm outline-none bg-transparent !text-slate-900 placeholder-slate-400"
             />
           </div>
           <div className="max-h-60 overflow-y-auto p-1 custom-scrollbar">

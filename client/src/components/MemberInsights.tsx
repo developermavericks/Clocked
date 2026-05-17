@@ -120,7 +120,6 @@ export default function MemberInsights({ month: initialMonth }: { month: string 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 items-end">
           <div className="space-y-3">
             <label className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] ml-1">Select Member</label>
-            <div className="relative group">
               <SearchableSelect 
                 options={MASTER_EMAILS.sort().map(email => ({ 
                   value: email, 
@@ -129,9 +128,8 @@ export default function MemberInsights({ month: initialMonth }: { month: string 
                 value={selectedEmail}
                 onChange={(val) => setSelectedEmail(val)}
                 placeholder="Choose a member..."
-                className="[&>div]:bg-white/5 [&>div]:border-white/10 [&>div]:text-white [&>div>span]:text-white"
+                triggerClassName="bg-white/5 border-white/10 text-white !text-white focus:ring-4 focus:ring-orange-500/20"
               />
-            </div>
           </div>
 
           <div className="space-y-3 lg:col-span-1">
