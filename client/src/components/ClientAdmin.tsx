@@ -162,26 +162,37 @@ export default function ClientAdmin({ initialMonth }: { initialMonth: string }) 
               <h3 className="text-lg font-bold text-slate-900 tracking-tight">View Actual Hours</h3>
               <p className="text-xs text-slate-500 font-medium">Select a month to see performance across all clients.</p>
             </div>
-            <div className="flex bg-slate-50 border border-slate-100 rounded-2xl overflow-hidden">
-               <select 
-                 value={selectedMonth.split('-')[1]} 
-                 onChange={(e) => setSelectedMonth(`${selectedMonth.split('-')[0]}-${e.target.value}`)}
-                 className="pl-4 pr-2 py-2.5 text-sm font-bold bg-transparent border-none focus:ring-0 outline-none cursor-pointer"
-               >
-                 {['01','02','03','04','05','06','07','08','09','10','11','12'].map(m => (
-                   <option key={m} value={m}>{new Date(2025, parseInt(m)-1).toLocaleString('en-US', { month: 'long' })}</option>
-                 ))}
-               </select>
-               <div className="w-[1px] bg-slate-200 my-2" />
-               <select 
-                 value={selectedMonth.split('-')[0]} 
-                 onChange={(e) => setSelectedMonth(`${e.target.value}-${selectedMonth.split('-')[1]}`)}
-                 className="pl-2 pr-4 py-2.5 text-sm font-bold bg-transparent border-none focus:ring-0 outline-none cursor-pointer text-orange-600"
-               >
-                 {[2025, 2026, 2027, 2028, 2029, 2030].map(y => (
-                   <option key={y} value={y}>{y}</option>
-                 ))}
-               </select>
+            <div className="flex flex-wrap items-center gap-3">
+              <SearchableSelect 
+                options={[...summary].sort((a, b) => a.name.localeCompare(b.name)).map(item => ({ value: item.name, label: item.name }))}
+                value=""
+                onChange={(val) => {
+                  if (val) openRoster(val);
+                }}
+                placeholder="Search Client..."
+                className="w-48"
+              />
+              <div className="flex bg-slate-50 border border-slate-100 rounded-2xl overflow-hidden">
+                 <select 
+                   value={selectedMonth.split('-')[1]} 
+                   onChange={(e) => setSelectedMonth(`${selectedMonth.split('-')[0]}-${e.target.value}`)}
+                   className="pl-4 pr-2 py-2.5 text-sm font-bold bg-transparent border-none focus:ring-0 outline-none cursor-pointer"
+                 >
+                   {['01','02','03','04','05','06','07','08','09','10','11','12'].map(m => (
+                     <option key={m} value={m}>{new Date(2025, parseInt(m)-1).toLocaleString('en-US', { month: 'long' })}</option>
+                   ))}
+                 </select>
+                 <div className="w-[1px] bg-slate-200 my-2" />
+                 <select 
+                   value={selectedMonth.split('-')[0]} 
+                   onChange={(e) => setSelectedMonth(`${e.target.value}-${selectedMonth.split('-')[1]}`)}
+                   className="pl-2 pr-4 py-2.5 text-sm font-bold bg-transparent border-none focus:ring-0 outline-none cursor-pointer text-orange-600"
+                 >
+                   {[2025, 2026, 2027, 2028, 2029, 2030].map(y => (
+                     <option key={y} value={y}>{y}</option>
+                   ))}
+                 </select>
+              </div>
             </div>
           </div>
 
