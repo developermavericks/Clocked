@@ -1,10 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { X, Loader2, Plus } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
-import { useEffect } from 'react';
 import { apiFetch } from '@/lib/api';
+import SearchableSelect from '@/components/SearchableSelect';
 
 interface AddEntryModalProps {
   isOpen: boolean;
@@ -133,9 +133,9 @@ export default function AddEntryModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
-      <div className="bg-white w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden border border-slate-200 animate-in fade-in zoom-in duration-200">
-        <div className="px-8 py-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
+      <div className="bg-white w-full max-w-lg rounded-3xl shadow-2xl border border-slate-200 animate-in fade-in zoom-in duration-200">
+        <div className="px-8 py-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50 rounded-t-3xl">
           <h2 className="text-xl font-bold text-slate-900">
             {isEdit ? 'Edit' : 'Add'} {type === 'weekly' ? 'Weekly Actual' : 'Monthly Projection'}
           </h2>
@@ -148,18 +148,12 @@ export default function AddEntryModal({
           <div className="grid grid-cols-2 gap-6">
             <div className="space-y-2">
               <label className="text-sm font-bold text-slate-700">Client</label>
-              <select 
+              <SearchableSelect 
+                options={clients.map(c => ({ value: c.id, label: c.name }))}
                 value={formData.client_id}
-                onChange={(e) => {
-                  setFormData({ ...formData, client_id: e.target.value });
-                }}
-                className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
-              >
-                <option value="" className="text-slate-900">Select Client</option>
-                {clients.map(c => (
-                  <option key={c.id} value={c.id} className="text-slate-900">{c.name}</option>
-                ))}
-              </select>
+                onChange={(val) => setFormData({ ...formData, client_id: val })}
+                placeholder="Select Client"
+              />
             </div>
             <div className="space-y-2">
               <label className="text-sm font-bold text-slate-700">Category</label>

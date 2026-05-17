@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Users, Briefcase, ChevronRight, Loader2, Search, Target, Calendar, Trash2, Edit3, X, ArrowRight, CheckCircle2 } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
+import SearchableSelect from '@/components/SearchableSelect';
 
 export default function ClientAdmin({ initialMonth }: { initialMonth: string }) {
   const [activeSubTab, setActiveSubTab] = useState<'actuals' | 'projected'>('actuals');
@@ -259,14 +260,13 @@ export default function ClientAdmin({ initialMonth }: { initialMonth: string }) 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-end">
                 <div className="space-y-3">
                   <label className="text-[10px] font-bold text-orange-100 uppercase tracking-[0.2em] ml-1">Select Client</label>
-                  <select 
+                  <SearchableSelect 
+                    options={allClients.map(c => ({ value: c.name, label: c.name }))}
                     value={projClient}
-                    onChange={(e) => setProjClient(e.target.value)}
-                    className="w-full bg-white/10 border border-white/20 rounded-2xl px-5 py-3.5 text-sm focus:ring-4 focus:ring-white/10 outline-none transition-all font-bold backdrop-blur-md"
-                  >
-                    <option value="" className="text-slate-900">Choose a client...</option>
-                    {allClients.map(c => <option key={c.id} value={c.name} className="text-slate-900">{c.name}</option>)}
-                  </select>
+                    onChange={(val) => setProjClient(val)}
+                    placeholder="Choose a client..."
+                    className="[&>div]:bg-white/10 [&>div]:border-white/20 [&>div]:text-white [&>div>span]:text-white [&>div>svg]:text-white"
+                  />
                 </div>
                 <div className="space-y-3">
                   <label className="text-[10px] font-bold text-orange-100 uppercase tracking-[0.2em] ml-1">Target Month</label>

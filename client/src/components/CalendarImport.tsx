@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { Calendar, Download, Check, AlertCircle, Loader2, Plus } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { apiFetch } from '@/lib/api';
+import SearchableSelect from '@/components/SearchableSelect';
 
 interface CalendarEvent {
   title: string;
@@ -242,16 +243,13 @@ export default function CalendarImport({ userId, month, onSuccess }: { userId: s
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 animate-in fade-in slide-in-from-top-2 duration-200" onClick={(e) => e.stopPropagation()}>
                     <div className="space-y-1">
                       <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-1">Client</label>
-                      <select 
-                        value={event.client_id}
-                        onChange={(e) => {
-                          updateEventDetails(event.title, 'client_id', e.target.value);
-                        }}
-                        className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none"
-                      >
-                        <option value="" className="text-slate-900">Select Client</option>
-                        {clients.map(c => <option key={c.id} value={c.id} className="text-slate-900">{c.name}</option>)}
-                      </select>
+                      <SearchableSelect 
+                        options={clients.map(c => ({ value: c.id, label: c.name }))}
+                        value={event.client_id || ''}
+                        onChange={(val) => updateEventDetails(event.title, 'client_id', val)}
+                        placeholder="Select Client"
+                        className="text-xs"
+                      />
                     </div>
                     <div className="space-y-1">
                       <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-1">Category</label>

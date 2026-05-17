@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Search, User, Clock, Briefcase, Calendar, AlertCircle, Loader2 } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
+import SearchableSelect from '@/components/SearchableSelect';
 
 const MASTER_EMAILS = [
   "aashna@themavericksindia.com", "abhilasha@themavericksindia.com", "aditya.s@themavericksindia.com",
@@ -120,22 +121,16 @@ export default function MemberInsights({ month: initialMonth }: { month: string 
           <div className="space-y-3">
             <label className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] ml-1">Select Member</label>
             <div className="relative group">
-              <User className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 group-focus-within:text-orange-500 transition-colors" />
-              <select 
+              <SearchableSelect 
+                options={MASTER_EMAILS.sort().map(email => ({ 
+                  value: email, 
+                  label: `${email} ${dbUsers.includes(email.toLowerCase()) ? '✓' : '(Not logged in)'}` 
+                }))}
                 value={selectedEmail}
-                onChange={(e) => setSelectedEmail(e.target.value)}
-                className="w-full bg-white/5 border border-white/10 rounded-2xl pl-11 pr-5 py-3.5 text-sm text-white font-bold outline-none focus:ring-4 focus:ring-orange-500/20 transition-all cursor-pointer appearance-none"
-              >
-                <option value="" className="text-slate-900">Choose a member...</option>
-                {MASTER_EMAILS.sort().map(email => {
-                  const isConnected = dbUsers.includes(email.toLowerCase());
-                  return (
-                    <option key={email} value={email} className="text-slate-900">
-                      {email} {isConnected ? '✓' : '(Not logged in)'}
-                    </option>
-                  );
-                })}
-              </select>
+                onChange={(val) => setSelectedEmail(val)}
+                placeholder="Choose a member..."
+                className="[&>div]:bg-white/5 [&>div]:border-white/10 [&>div]:text-white [&>div>span]:text-white"
+              />
             </div>
           </div>
 
