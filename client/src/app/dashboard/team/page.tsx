@@ -117,36 +117,6 @@ export default function TeamPortal() {
           <h1 className="text-4xl font-display font-black text-slate-900 tracking-tight">My Allocations</h1>
           <p className="text-slate-500 mt-1 font-medium">Manage your time allocations and actuals.</p>
         </div>
-        <div className="flex flex-wrap items-center gap-3 relative z-[100]">
-          <div className="flex bg-white border border-slate-200 rounded-xl shadow-sm overflow-visible">
-            <select 
-              value={month.split('-')[1]} 
-              onChange={(e) => setMonth(`${month.split('-')[0]}-${e.target.value}`)}
-              className="pl-4 pr-2 py-2 text-sm font-bold bg-white border-none focus:ring-0 outline-none cursor-pointer text-slate-900 min-w-[120px] rounded-l-xl"
-            >
-              {['01','02','03','04','05','06','07','08','09','10','11','12'].map(m => (
-                <option key={m} value={m} className="bg-white text-slate-900">{new Date(2025, parseInt(m)-1).toLocaleString('en-US', { month: 'long' })}</option>
-              ))}
-            </select>
-            <div className="w-[1px] bg-slate-100 my-2" />
-            <select 
-              value={month.split('-')[0]} 
-              onChange={(e) => setMonth(`${e.target.value}-${month.split('-')[1]}`)}
-              className="pl-2 pr-4 py-2 text-sm font-bold bg-white border-none focus:ring-0 outline-none cursor-pointer text-blue-600 min-w-[90px] rounded-r-xl"
-            >
-              {[2025, 2026, 2027, 2028, 2029, 2030].map(y => (
-                <option key={y} value={y} className="bg-white text-slate-900">{y}</option>
-              ))}
-            </select>
-          </div>
-          <button 
-            onClick={() => setIsModalOpen(true)}
-            className="bg-blue-600 text-white px-5 py-2.5 rounded-xl text-sm font-bold hover:bg-blue-700 transition-all flex items-center gap-2 shadow-lg shadow-blue-100"
-          >
-            <Plus className="w-4 h-4" />
-            Add Entry
-          </button>
-        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -175,6 +145,37 @@ export default function TeamPortal() {
           icon={Filter} 
           color="bg-indigo-600" 
         />
+      </div>
+
+      <div className="flex justify-end gap-3 relative z-[100]">
+        <div className="flex bg-white border border-slate-200 rounded-xl shadow-sm overflow-visible">
+          <select 
+            value={month.split('-')[1]} 
+            onChange={(e) => setMonth(`${month.split('-')[0]}-${e.target.value}`)}
+            className="pl-4 pr-2 py-2 text-sm font-bold bg-white border-none focus:ring-0 outline-none cursor-pointer text-slate-900 min-w-[120px] rounded-l-xl"
+          >
+            {['01','02','03','04','05','06','07','08','09','10','11','12'].map(m => (
+              <option key={m} value={m} className="bg-white text-slate-900">{new Date(2025, parseInt(m)-1).toLocaleString('en-US', { month: 'long' })}</option>
+            ))}
+          </select>
+          <div className="w-[1px] bg-slate-100 my-2" />
+          <select 
+            value={month.split('-')[0]} 
+            onChange={(e) => setMonth(`${e.target.value}-${month.split('-')[1]}`)}
+            className="pl-2 pr-4 py-2 text-sm font-bold bg-white border-none focus:ring-0 outline-none cursor-pointer text-blue-600 min-w-[90px] rounded-r-xl"
+          >
+            {[2025, 2026, 2027, 2028, 2029, 2030].map(y => (
+              <option key={y} value={y} className="bg-white text-slate-900">{y}</option>
+            ))}
+          </select>
+        </div>
+        <button 
+          onClick={() => setIsModalOpen(true)}
+          className="bg-blue-600 text-white px-5 py-2.5 rounded-xl text-sm font-bold hover:bg-blue-700 transition-all flex items-center gap-2 shadow-lg shadow-blue-100"
+        >
+          <Plus className="w-4 h-4" />
+          Add Entry
+        </button>
       </div>
 
       <div className="space-y-8 animate-in fade-in duration-700">
