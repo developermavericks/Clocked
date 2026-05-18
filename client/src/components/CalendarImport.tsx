@@ -228,21 +228,23 @@ export default function CalendarImport({ userId, month, onSuccess }: { userId: s
 
   return (
     <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
-      <div className="p-8 border-b border-slate-100 flex flex-col lg:flex-row lg:items-end justify-between bg-blue-50/30 gap-6">
-        <div className="flex items-center gap-3">
-          <div className="p-3 bg-blue-100 rounded-2xl">
-            <Calendar className="w-6 h-6 text-blue-600" />
-          </div>
-          <div>
-            <h3 className="text-lg font-bold text-slate-900">Calendar Import</h3>
-            <p className="text-sm text-slate-500">Fetch and customize your meetings.</p>
-          </div>
+      {/* Title & Icon Header Band */}
+      <div className="p-8 pb-6 border-b border-slate-100 bg-blue-50/20 flex items-center gap-4">
+        <div className="p-3 bg-blue-100 rounded-2xl">
+          <Calendar className="w-6 h-6 text-blue-600" />
         </div>
-        
-        <div className="flex flex-wrap items-end gap-5">
-          {/* 1. Month/Year Split Dropdown */}
+        <div>
+          <h3 className="text-lg font-bold text-slate-900">Calendar Import</h3>
+          <p className="text-sm text-slate-500">Fetch and customize your meetings.</p>
+        </div>
+      </div>
+      
+      {/* Aligned Controls Action Band */}
+      <div className="px-8 py-5 bg-slate-50/40 border-b border-slate-100 flex flex-col md:flex-row md:items-end justify-between gap-4">
+        <div className="flex flex-wrap items-center gap-4">
+          {/* Selected Month Selector */}
           <div className="flex flex-col">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 mb-1">Selected Month</span>
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 mb-1.5">Selected Month</span>
             <div className="flex bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm h-[38px] lg:h-[42px] items-center">
                <select 
                  value={selectedMonth.split('-')[1]} 
@@ -274,36 +276,39 @@ export default function CalendarImport({ userId, month, onSuccess }: { userId: s
             </div>
           </div>
 
-          {/* 2. Custom Date Range Pickers (From / To) constrained to the selectedMonth */}
+          {/* Date Picker inputs (From / To) */}
           <div className="flex items-center gap-3">
             <div className="flex flex-col">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 mb-1">From</span>
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 mb-1.5">From</span>
               <input 
                 type="date" 
                 value={startDate}
                 min={`${selectedMonth}-01`}
                 max={`${selectedMonth}-${new Date(parseInt(selectedMonth.split('-')[0]), parseInt(selectedMonth.split('-')[1]), 0).getDate().toString().padStart(2, '0')}`}
                 onChange={(e) => setStartDate(e.target.value)}
-                className="bg-white border border-slate-200 rounded-xl px-4 py-2 text-sm font-bold text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none w-36 shadow-sm h-[38px] lg:h-[42px] cursor-pointer"
+                className="bg-white border border-slate-200 rounded-xl px-4 py-2 text-sm font-bold text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none w-36 lg:w-40 shadow-sm h-[38px] lg:h-[42px] cursor-pointer"
               />
             </div>
             <div className="flex flex-col">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 mb-1">To</span>
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 mb-1.5">To</span>
               <input 
                 type="date" 
                 value={endDate}
                 min={`${selectedMonth}-01`}
                 max={`${selectedMonth}-${new Date(parseInt(selectedMonth.split('-')[0]), parseInt(selectedMonth.split('-')[1]), 0).getDate().toString().padStart(2, '0')}`}
                 onChange={(e) => setEndDate(e.target.value)}
-                className="bg-white border border-slate-200 rounded-xl px-4 py-2 text-sm font-bold text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none w-36 shadow-sm h-[38px] lg:h-[42px] cursor-pointer"
+                className="bg-white border border-slate-200 rounded-xl px-4 py-2 text-sm font-bold text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none w-36 lg:w-40 shadow-sm h-[38px] lg:h-[42px] cursor-pointer"
               />
             </div>
           </div>
-          
+        </div>
+
+        {/* Fetch Action Button */}
+        <div className="flex flex-col w-full md:w-auto mt-2 md:mt-0">
           <button 
             onClick={handleFetch}
             disabled={loading}
-            className="bg-blue-600 text-white px-8 py-2.5 rounded-xl text-sm font-bold hover:bg-blue-700 transition-all flex items-center gap-2 shadow-lg shadow-blue-100 disabled:opacity-50 h-[38px] lg:h-[42px]"
+            className="bg-blue-600 text-white px-8 py-2.5 rounded-xl text-sm font-bold hover:bg-blue-700 transition-all flex items-center justify-center gap-2 shadow-lg shadow-blue-100 disabled:opacity-50 h-[38px] lg:h-[42px] w-full md:w-auto"
           >
             {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Fetch Events'}
           </button>
