@@ -5,9 +5,8 @@ import { Users, Briefcase, ChevronRight, Loader2, Search, Target, Calendar, Tras
 import { apiFetch } from '@/lib/api';
 import SearchableSelect from '@/components/SearchableSelect';
 
-export default function ClientAdmin({ initialMonth }: { initialMonth: string }) {
+export default function ClientAdmin({ selectedMonth, setSelectedMonth }: { selectedMonth: string; setSelectedMonth: (m: string) => void }) {
   // Projected tab state removed
-  const [selectedMonth, setSelectedMonth] = useState(initialMonth || new Date().toISOString().slice(0, 7));
   const [summary, setSummary] = useState<{ name: string, hours: number }[]>([]);
   const [loading, setLoading] = useState(false);
   
