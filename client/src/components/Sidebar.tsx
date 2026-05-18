@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Users, User, Settings, LogOut, Calendar, Loader2, Moon, Sun, IndianRupee } from 'lucide-react';
+import { LayoutDashboard, Users, User, Settings, LogOut, Calendar, Loader2, Moon, Sun, IndianRupee, ChevronLeft } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { apiFetch } from '@/lib/api';
 
@@ -48,7 +48,12 @@ const MANAGER_EMAILS = [
   'kavita@themavericksindia.com'
 ];
 
-export default function Sidebar() {
+interface SidebarProps {
+  isOpen: boolean;
+  toggleSidebar: () => void;
+}
+
+export default function Sidebar({ isOpen, toggleSidebar }: SidebarProps) {
   const pathname = usePathname();
   const [userRole, setUserRole] = useState('team');
   const [loading, setLoading] = useState(true);
@@ -122,11 +127,18 @@ export default function Sidebar() {
 
   return (
     <aside className="w-64 bg-white dark:bg-slate-950 border-r border-slate-200 dark:border-slate-800 flex flex-col h-screen sticky top-0 transition-colors z-50">
-      <div className="p-6 border-b border-slate-100 dark:border-slate-800">
+      <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
         <h2 className="text-xl font-display font-black text-slate-900 dark:text-white flex items-center gap-2 tracking-tight">
-          <Calendar className="w-6 h-6 text-blue-600" />
-          MavsTracker
+          <Calendar className="w-6 h-6 text-blue-600 flex-shrink-0" />
+          <span className="truncate">MavsTracker</span>
         </h2>
+        <button
+          onClick={toggleSidebar}
+          className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer flex items-center justify-center border border-transparent hover:border-slate-200 dark:hover:border-slate-700"
+          title="Collapse Sidebar"
+        >
+          <ChevronLeft className="w-4 h-4 text-slate-500" />
+        </button>
       </div>
 
       <nav className="flex-1 p-4 space-y-1">
