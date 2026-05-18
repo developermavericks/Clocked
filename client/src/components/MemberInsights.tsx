@@ -29,7 +29,7 @@ export default function MemberInsights({ month: initialMonth }: { month: string 
       const res = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/teams/all`);
       const users = await res.json();
       if (Array.isArray(users)) {
-        setDbUsers(users.map((u: any) => u.email.toLowerCase()));
+        setDbUsers(users.filter((u: any) => u.is_active).map((u: any) => u.email.toLowerCase()));
       }
     } catch (err) {
       console.error('Failed to fetch DB users:', err);

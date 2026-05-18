@@ -81,7 +81,8 @@ const ACTIVE_EMAILS = new Set([
 ]);
 
 export const isActiveUser = (email: string | null | undefined): boolean => {
-  return !!email;
+  if (!email) return false;
+  return ACTIVE_EMAILS.has(email.toLowerCase().trim());
 };
 
 export const getActiveEmailsList = (): string[] => {

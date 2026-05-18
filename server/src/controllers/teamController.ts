@@ -34,7 +34,7 @@ export const getTeamMembers = async (req: Request, res: Response) => {
     // 3. Flatten and exclude parent managers
     const members = memberRows
       .map((item: any) => item.member)
-      .filter((m: any) => m && !parentManagerIds.has(m.id));
+      .filter((m: any) => m && !parentManagerIds.has(m.id) && isActiveUser(m.email));
 
     res.json(members);
   } catch (error: any) {
@@ -83,11 +83,12 @@ export const getAllUsers = async (req: Request, res: Response) => {
 
     const managerIds = new Set(managers.map((m: any) => m.manager_id));
 
-    // Append is_manager flag
+    // Append is_manager and is_active flags
     const usersWithManagerStatus = users
       .map((u: any) => ({
         ...u,
-        is_manager: managerIds.has(u.id)
+        is_manager: managerIds.has(u.id),
+        is_active: isActiveUser(u.email)
       }));
 
     res.json(usersWithManagerStatus);
