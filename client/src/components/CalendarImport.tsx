@@ -93,18 +93,40 @@ export default function CalendarImport({ userId, month, onSuccess }: { userId: s
 
       // Initialize events with default client, category, and event title as notes
       const initializedEvents = data.map((ev: any, index: number) => {
-        // Look for a matching client by checking if client name is in the event title
-        const matchedClient = clients.find(c => {
-          const clientNameLower = c.name.toLowerCase().trim();
+        let bestMatch: typeof clients[0] | null = null;
+        let maxMatchedWords = 0;
+
+        for (const c of clients) {
+          const clientNameLower = c.name.toLowerCase();
           const titleLower = ev.title.toLowerCase();
-          if (clientNameLower.length <= 2) return false; // skip extremely short names to avoid false matches on common words
-          return titleLower.includes(clientNameLower);
-        });
+
+          // 1. Direct match gets highest priority
+          if (titleLower.includes(clientNameLower)) {
+            bestMatch = c;
+            break;
+          }
+
+          // 2. Multi-word match (e.g. "Tech Catchup - Internal" matching "Internal Tech")
+          // Split the client name into words of length > 1 (ignores "-" or single letters)
+          const clientWords = clientNameLower.split(/[\s_\-\/]+/).filter(w => w.length > 1);
+          if (clientWords.length > 0) {
+            const matchingWords = clientWords.filter(word => titleLower.includes(word));
+            
+            // If ALL words of the client name exist in the event title
+            if (matchingWords.length === clientWords.length) {
+              // The client with the most matching words is the most specific match
+              if (matchingWords.length > maxMatchedWords) {
+                maxMatchedWords = matchingWords.length;
+                bestMatch = c;
+              }
+            }
+          }
+        }
 
         return {
           ...ev,
           id: `${ev.title}_${ev.start}_${index}`,
-          client_id: matchedClient ? matchedClient.id : fallbackClientId,
+          client_id: bestMatch ? bestMatch.id : fallbackClientId,
           category: '', // Empty default
           notes: ev.title // Default notes to event title
         };
