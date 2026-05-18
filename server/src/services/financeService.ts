@@ -90,9 +90,9 @@ export const getCoreMasterAllocations = async (opts: {
 
   const byMember = new Map<string, any>();
 
-  // Pre-populate all active registered users
+  // Pre-populate all registered users from database to ensure 100% visibility
   allUsers.forEach((u: any) => {
-    if (!isActiveUser(u.email)) return;
+    if (!u.email) return;
 
     // Safe read for salary (if column doesn't exist yet, fall back to 0)
     const sal = u.salary !== undefined ? Number(u.salary) : 0;
@@ -109,30 +109,11 @@ export const getCoreMasterAllocations = async (opts: {
     });
   });
 
-  // Ensure EVERY single email in ACTIVE_EMAILS has a row, even if they aren't registered/in DB yet!
-  const existingEmails = new Set(Array.from(byMember.values()).map(u => u.email.toLowerCase()));
-  getActiveEmailsList().forEach(email => {
-    const normEmail = email.toLowerCase();
-    if (!existingEmails.has(normEmail)) {
-      const dummyId = `unregistered_${normEmail}`;
-      byMember.set(dummyId, {
-        id: dummyId,
-        email: normEmail,
-        name: normEmail.split('@')[0],
-        salary: 0,
-        allocations: {},
-        totalHours: 0,
-        isRegistered: false,
-        firstAllocationMonth: null
-      });
-    }
-  });
-
   const clientObjs = new Map<string, any>();
 
   allocations.forEach((r: any) => {
     const u = r.users;
-    if (!u || !isActiveUser(u.email)) return;
+    if (!u) return;
 
     const firstMonth = firstMonthByUser[u.id] || null;
     if (!firstMonth || firstMonth > month) return;

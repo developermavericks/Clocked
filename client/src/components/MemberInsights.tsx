@@ -5,87 +5,7 @@ import { Search, User, Clock, Briefcase, Calendar, AlertCircle, Loader2 } from '
 import { apiFetch } from '@/lib/api';
 import SearchableSelect from '@/components/SearchableSelect';
 
-const MASTER_EMAILS = [
-  'aashna@themavericksindia.com',
-  'abhilasha@themavericksindia.com',
-  'aditya.s@themavericksindia.com',
-  'akshay@themavericksindia.com',
-  'alisha@themavericksindia.com',
-  'ananya@themavericksindia.com',
-  'ananya.gulati@themavericksindia.com',
-  'anil@themavericksindia.com',
-  'anoushka.aristotle@themavericksindia.com',
-  'apurva@themavericksindia.com',
-  'archana@themavericksindia.com',
-  'ariba@themavericksindia.com',
-  'arunkumar@themavericksindia.com',
-  'avarna@themavericksindia.com',
-  'avinash@themavericksindia.com',
-  'bhavya@themavericksindia.com',
-  'brinda@themavericksindia.com',
-  'chetan@themavericksindia.com',
-  'chhavi.a@themavericksindia.com',
-  'disha.kalra@themavericksindia.com',
-  'divyanshsharma@themavericksindia.com',
-  'drishti.c@themavericksindia.com',
-  'gaurav@themavericksindia.com',
-  'grishma@themavericksindia.com',
-  'harprateek@themavericksindia.com',
-  'harshita@themavericksindia.com',
-  'ila@themavericksindia.com',
-  'ishmeet@themavericksindia.com',
-  'joyeta.debnath@themavericksindia.com',
-  'jyoshitha@themavericksindia.com',
-  'kashish@themavericksindia.com',
-  'kavita@themavericksindia.com',
-  'khushi@themavericksindia.com',
-  'kyle@themavericksindia.com',
-  'laveena@themavericksindia.com',
-  'mahek.chacha@themavericksindia.com',
-  'mahek@themavericksindia.com',
-  'manaswi@themavericksindia.com',
-  'mansi@themavericksindia.com',
-  'manvi@themavericksindia.com',
-  'mitali.p@themavericksindia.com',
-  'mohamed.hisham@themavericksindia.com',
-  'muskaan.bhardwaj@themavericksindia.com',
-  'muskaan.harjai@themavericksindia.com',
-  'muskaan@themavericksindia.com',
-  'neha@themavericksindia.com',
-  'nikita.hooper@themavericksindia.com',
-  'pavithra@themavericksindia.com',
-  'pooja@themavericksindia.com',
-  'pratyasha@themavericksindia.com',
-  'priyadarshini@themavericksindia.com',
-  'rajvi@themavericksindia.com',
-  'ridhi@themavericksindia.com',
-  'rishika@themavericksindia.com',
-  'ritik@themavericksindia.com',
-  'ritika@themavericksindia.com',
-  'riya.rupani@themavericksindia.com',
-  'rohan.jolly@themavericksindia.com',
-  'samrat@themavericksindia.com',
-  'sanya.p@themavericksindia.com',
-  'satyam.singh@themavericksindia.com',
-  'shinjini@themavericksindia.com',
-  'shreshtha.chaturvedi@themavericksindia.com',
-  'smita@themavericksindia.com',
-  'smriti@themavericksindia.com',
-  'snigdha@themavericksindia.com',
-  'srishtee@themavericksindia.com',
-  'srishti.chanda@themavericksindia.com',
-  'surya@themavericksindia.com',
-  'sushant@themavericksindia.com',
-  'tech@themavericksindia.com',
-  'tonmoyee@themavericksindia.com',
-  'triyanshi@themavericksindia.com',
-  'udita@themavericksindia.com',
-  'vanshika@themavericksindia.com',
-  'varun@themavericksindia.com',
-  'vibhu@themavericksindia.com',
-  'vibhuti@themavericksindia.com',
-  'vishakha@themavericksindia.com'
-];
+
 
 export default function MemberInsights({ month: initialMonth }: { month: string }) {
   const [internalMonth, setInternalMonth] = useState(initialMonth);
@@ -160,14 +80,16 @@ export default function MemberInsights({ month: initialMonth }: { month: string 
   const [zeroHourMembers, setZeroHourMembers] = useState<string[]>([]);
   
   useEffect(() => {
-    fetchZeroHourMembers();
-  }, [internalMonth]);
+    if (dbUsers.length > 0) {
+      fetchZeroHourMembers();
+    }
+  }, [internalMonth, dbUsers]);
 
   const fetchZeroHourMembers = async () => {
     try {
       const res = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/reports/zero-hours?month=${internalMonth}`);
       const activeEmails = await res.json();
-      const zeroList = MASTER_EMAILS.filter(email => !activeEmails.includes(email));
+      const zeroList = dbUsers.filter(email => !activeEmails.includes(email));
       setZeroHourMembers(zeroList);
     } catch (err) {
       console.error('Failed to fetch zero hour members:', err);
@@ -184,9 +106,9 @@ export default function MemberInsights({ month: initialMonth }: { month: string 
           <div className="space-y-3">
             <label className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] ml-1">Select Member</label>
               <SearchableSelect 
-                options={MASTER_EMAILS.sort().map(email => ({ 
+                options={[...dbUsers].sort().map(email => ({ 
                   value: email, 
-                  label: `${email} ${dbUsers.includes(email.toLowerCase()) ? '✓' : '(Not logged in)'}` 
+                  label: email
                 }))}
                 value={selectedEmail}
                 onChange={(val) => setSelectedEmail(val)}

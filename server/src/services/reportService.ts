@@ -42,20 +42,28 @@ export const getMasterReportData = async (month: string, options: any = {}) => {
   const byMember: Record<string, any> = {};
   const clientSet = new Set<string>();
 
-  // Pre-populate all active emails to ensure 100% of active employees appear
-  getActiveEmailsList().forEach(email => {
-    const normEmail = email.toLowerCase();
-    byMember[normEmail] = {
-      name: normEmail.split('@')[0],
-      email: normEmail,
-      allocations: {},
-      totalHours: 0
-    };
-  });
+  // Fetch all registered users from database
+  const { data: dbUsers, error: uError } = await supabase
+    .from('users')
+    .select('name, email');
+  if (uError) throw uError;
+
+  // Pre-populate all registered users to ensure 100% visibility
+  if (dbUsers) {
+    dbUsers.forEach(u => {
+      if (!u.email) return;
+      const normEmail = u.email.toLowerCase();
+      byMember[normEmail] = {
+        name: u.name || normEmail.split('@')[0],
+        email: normEmail,
+        allocations: {},
+        totalHours: 0
+      };
+    });
+  }
 
   allocations.forEach((r: any) => {
     const email = r.users.email.toLowerCase();
-    if (!isActiveUser(email)) return;
     const name = r.users.name;
     let client = normalizeClientForMaster(r.clients.name, groupBd);
 
