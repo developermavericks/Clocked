@@ -1,7 +1,9 @@
+import React from 'react';
+
 interface StatsCardProps {
   label: string;
   value: string | number;
-  subtext?: string;
+  subtext?: string | React.ReactNode;
   icon: any;
   color: string;
 }

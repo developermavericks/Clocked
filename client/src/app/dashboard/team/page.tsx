@@ -153,7 +153,11 @@ export default function TeamPortal() {
         <StatsCard 
           label="Total Hours" 
           value={data.reduce((acc, curr) => acc + curr.hours, 0).toFixed(1)} 
-          subtext={`of 160h (${((data.reduce((acc, curr) => acc + curr.hours, 0) / 160) * 100).toFixed(1)}%)`} 
+          subtext={
+            <span className="text-slate-600 font-semibold">
+              of 160h (<strong className="font-extrabold text-blue-600 text-sm">{((data.reduce((acc, curr) => acc + curr.hours, 0) / 160) * 100).toFixed(1)}%</strong>)
+            </span>
+          } 
           icon={Clock} 
           color="bg-blue-600" 
         />
