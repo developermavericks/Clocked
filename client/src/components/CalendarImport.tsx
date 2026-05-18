@@ -232,12 +232,35 @@ export default function CalendarImport({ userId, month, onSuccess }: { userId: s
         <div className="flex flex-wrap items-center gap-4">
           <div className="flex flex-col">
             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 mb-1">Selected Period</span>
-            <input 
-              type="month" 
-              value={selectedMonth}
-              onChange={(e) => setSelectedMonth(e.target.value)}
-              className="bg-white border border-slate-200 rounded-xl px-4 py-2 text-sm font-black text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none w-48 shadow-sm h-[38px] lg:h-[42px] cursor-pointer"
-            />
+            <div className="flex bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm h-[38px] lg:h-[42px] items-center">
+               <select 
+                 value={selectedMonth.split('-')[1]} 
+                 onChange={(e) => {
+                   const newMonth = e.target.value;
+                   const year = selectedMonth.split('-')[0];
+                   setSelectedMonth(`${year}-${newMonth}`);
+                 }}
+                 className="pl-4 pr-2 py-2 text-sm font-bold text-slate-900 bg-transparent border-none focus:ring-0 outline-none cursor-pointer"
+               >
+                 {['01','02','03','04','05','06','07','08','09','10','11','12'].map(m => (
+                   <option key={m} value={m}>{new Date(2025, parseInt(m)-1).toLocaleString('en-US', { month: 'short' })}</option>
+                 ))}
+               </select>
+               <div className="w-[1px] bg-slate-200 h-5 my-auto" />
+               <select 
+                 value={selectedMonth.split('-')[0]} 
+                 onChange={(e) => {
+                   const newYear = e.target.value;
+                   const mon = selectedMonth.split('-')[1];
+                   setSelectedMonth(`${newYear}-${mon}`);
+                 }}
+                 className="pl-2 pr-4 py-2 text-sm font-bold text-blue-600 bg-transparent border-none focus:ring-0 outline-none cursor-pointer"
+               >
+                 {[2024, 2025, 2026, 2027, 2028, 2029, 2030].map(y => (
+                   <option key={y} value={y}>{y}</option>
+                 ))}
+               </select>
+            </div>
           </div>
           <button 
             onClick={handleFetch}
