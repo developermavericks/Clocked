@@ -136,10 +136,7 @@ export const getActiveEmails = async (req: Request, res: Response) => {
       fetchActiveUserIds('allocations_monthly')
     ]);
 
-    if (weeklyLogs.error) throw weeklyLogs.error;
-    if (monthlyLogs.error) throw monthlyLogs.error;
-
-    const allLogs = [...(weeklyLogs.data || []), ...(monthlyLogs.data || [])];
+    const allLogs = [...weeklyLogs, ...monthlyLogs];
     const userIds = [...new Set(allLogs.map(l => l.user_id))];
 
     if (userIds.length === 0) return res.json([]);
