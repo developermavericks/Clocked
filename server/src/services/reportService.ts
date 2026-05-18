@@ -1,6 +1,59 @@
 import { supabase } from '../config/supabase';
 import { isActiveUser, getActiveEmailsList } from '../config/activeUsers';
 
+export const getEffectiveExitMonthsMap = async (): Promise<{
+  byUserId: Record<string, string>;
+  byEmail: Record<string, string>;
+}> => {
+  const { data: exitedUsers, error: uErr } = await supabase
+    .from('users')
+    .select('id, email, exit_date')
+    .not('exit_date', 'is', null);
+    
+  const byUserId: Record<string, string> = {};
+  const byEmail: Record<string, string> = {};
+  
+  if (uErr || !exitedUsers || exitedUsers.length === 0) {
+    return { byUserId, byEmail };
+  }
+  
+  // Fetch all allocations with hours > 0
+  let logs: any[] = [];
+  let page = 0;
+  const pageSize = 1000;
+  while (true) {
+    const { data, error } = await supabase
+      .from('allocations_weekly')
+      .select('user_id, month, hours')
+      .gt('hours', 0)
+      .range(page * pageSize, (page + 1) * pageSize - 1);
+      
+    if (error) break;
+    if (!data || data.length === 0) break;
+    logs = logs.concat(data);
+    if (data.length < pageSize) break;
+    page++;
+  }
+  
+  exitedUsers.forEach((u: any) => {
+    const exitMonth = u.exit_date.substring(0, 7);
+    const userLogs = logs.filter(l => l.user_id === u.id && l.month <= exitMonth && l.month >= '2025-11');
+    
+    let effMonth = '2025-10'; // Default: exclude starting Nov 2025
+    if (userLogs.length > 0) {
+      const months = userLogs.map(l => l.month).sort();
+      effMonth = months[months.length - 1]; // Maximum active month
+    }
+    
+    byUserId[u.id] = effMonth;
+    if (u.email) {
+      byEmail[u.email.toLowerCase()] = effMonth;
+    }
+  });
+  
+  return { byUserId, byEmail };
+};
+
 const normalizeClientForMaster = (client: string, groupBd: boolean) => {
   const s = String(client || '').trim();
   const low = s.toLowerCase();
@@ -20,6 +73,7 @@ const normalizeClientForMaster = (client: string, groupBd: boolean) => {
 
 export const getMasterReportData = async (month: string, options: any = {}) => {
   const { groupBd = true, groupLeave = true, groupInternal = true } = options;
+  const { byEmail } = await getEffectiveExitMonthsMap();
 
   // Fetch all allocations for the month (paginated)
   let allocations: any[] = [];
@@ -53,10 +107,11 @@ export const getMasterReportData = async (month: string, options: any = {}) => {
     dbUsers.forEach(u => {
       if (!u.email) return;
 
-      // Exclude if exit date is set and prior to this month
+      // Exclude if exit date is set and their last active month is prior to this month
       if (u.exit_date) {
-        const exitMonth = u.exit_date.substring(0, 7);
-        if (exitMonth < month) return;
+        const normEmail = u.email.toLowerCase();
+        const effExitMonth = byEmail[normEmail] || '2025-10';
+        if (effExitMonth < month) return;
       }
 
       const normEmail = u.email.toLowerCase();
@@ -73,11 +128,10 @@ export const getMasterReportData = async (month: string, options: any = {}) => {
     const email = r.users?.email?.toLowerCase();
     if (!email) return;
 
-    // Exclude if exit date is set and prior to this month
-    const exitDate = r.users?.exit_date;
-    if (exitDate) {
-      const exitMonth = exitDate.substring(0, 7);
-      if (exitMonth < month) return;
+    // Exclude if exit date is set and their last active month is prior to this month
+    if (r.users?.exit_date) {
+      const effExitMonth = byEmail[email] || '2025-10';
+      if (effExitMonth < month) return;
     }
 
     const name = r.users.name;
@@ -122,6 +176,7 @@ export const getMasterReportData = async (month: string, options: any = {}) => {
 };
 
 export const getClientSummary = async (month: string, view: 'weekly' | 'projected' = 'weekly') => {
+  const { byEmail } = await getEffectiveExitMonthsMap();
   const table = view === 'weekly' ? 'allocations_weekly' : 'allocations_projected';
   
   let allocations: any[] = [];
@@ -146,11 +201,10 @@ export const getClientSummary = async (month: string, view: 'weekly' | 'projecte
     const email = r.users?.email;
     if (!isActiveUser(email)) return;
 
-    // Exclude if exit date is set and prior to this month
-    const exitDate = r.users?.exit_date;
-    if (exitDate) {
-      const exitMonth = exitDate.substring(0, 7);
-      if (exitMonth < month) return;
+    // Exclude if exit date is set and their last active month is prior to this month
+    if (r.users?.exit_date) {
+      const effExitMonth = byEmail[email.toLowerCase()] || '2025-10';
+      if (effExitMonth < month) return;
     }
 
     const clientName = r.clients?.name || 'Unknown';
@@ -163,6 +217,7 @@ export const getClientSummary = async (month: string, view: 'weekly' | 'projecte
 };
 
 export const getClientRoster = async (month: string, clientName: string, view: 'weekly' | 'projected' = 'weekly') => {
+  const { byEmail } = await getEffectiveExitMonthsMap();
   const table = view === 'weekly' ? 'allocations_weekly' : 'allocations_projected';
   
   let allocations: any[] = [];
@@ -189,11 +244,10 @@ export const getClientRoster = async (month: string, clientName: string, view: '
     const email = r.users?.email || 'unknown';
     if (!isActiveUser(email)) return;
 
-    // Exclude if exit date is set and prior to this month
-    const exitDate = r.users?.exit_date;
-    if (exitDate) {
-      const exitMonth = exitDate.substring(0, 7);
-      if (exitMonth < month) return;
+    // Exclude if exit date is set and their last active month is prior to this month
+    if (r.users?.exit_date) {
+      const effExitMonth = byEmail[email.toLowerCase()] || '2025-10';
+      if (effExitMonth < month) return;
     }
 
     const name = r.users?.name || 'Unknown';

@@ -1,6 +1,7 @@
 import { supabase } from '../config/supabase';
 import ExcelJS from 'exceljs';
 import { isActiveUser, getActiveEmailsList } from '../config/activeUsers';
+import { getEffectiveExitMonthsMap } from './reportService';
 
 const normalizeClientForMaster = (client: string, groupBd: boolean) => {
   const s = String(client || '').trim();
@@ -88,16 +89,19 @@ export const getCoreMasterAllocations = async (opts: {
 
   if (usersError) throw usersError;
 
+  // Fetch the effective exit months map
+  const { byUserId } = await getEffectiveExitMonthsMap();
+
   const byMember = new Map<string, any>();
 
   // Pre-populate all registered users from database to ensure 100% visibility
   allUsers.forEach((u: any) => {
     if (!u.email) return;
 
-    // Exclude if exit date is set and prior to this month
+    // Exclude if exit date is set and their last active month is prior to this month
     if (u.exit_date) {
-      const exitMonth = u.exit_date.substring(0, 7);
-      if (exitMonth < month) return;
+      const effExitMonth = byUserId[u.id] || '2025-10';
+      if (effExitMonth < month) return;
     }
 
     // Safe read for salary (if column doesn't exist yet, fall back to 0)
@@ -121,10 +125,10 @@ export const getCoreMasterAllocations = async (opts: {
     const u = r.users;
     if (!u) return;
 
-    // Exclude if exit date is set and prior to this month
+    // Exclude if exit date is set and their last active month is prior to this month
     if (u.exit_date) {
-      const exitMonth = u.exit_date.substring(0, 7);
-      if (exitMonth < month) return;
+      const effExitMonth = byUserId[u.id] || '2025-10';
+      if (effExitMonth < month) return;
     }
 
     const firstMonth = firstMonthByUser[u.id] || null;

@@ -30,6 +30,11 @@ export default function CorePortal() {
     });
   }, [users, exitSearch]);
 
+  const activeUsersOnly = useMemo(() => {
+    if (!users) return [];
+    return users.filter(u => !u.exit_date);
+  }, [users]);
+
   const handleExitDateChange = async (userId: string, date: string | null) => {
     // Optimistic local state update for instant, seamless UX
     setUsers(prevUsers => 
@@ -238,7 +243,7 @@ export default function CorePortal() {
           {activeTab === 'admin' && (
             <div className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <StatsCard label="Active Users" value={users.length.toString()} icon={Settings} color="bg-orange-600" />
+                <StatsCard label="Active Users" value={activeUsersOnly.length.toString()} icon={Settings} color="bg-orange-600" />
                 <StatsCard label="System Health" value="Optimal" icon={ShieldCheck} color="bg-emerald-600" />
               </div>
               
@@ -255,7 +260,7 @@ export default function CorePortal() {
                   <tbody className="divide-y divide-slate-100">
                     {loading ? (
                        <tr><td colSpan={4} className="text-center py-10"><div className="animate-spin inline-block w-6 h-6 border-b-2 border-orange-600 rounded-full"></div></td></tr>
-                    ) : users.map(u => {
+                    ) : activeUsersOnly.map(u => {
                       // Role priority: Core > Manager > Team
                       let displayRole = u.role?.toUpperCase() || 'TEAM';
                       if (u.role === 'core') displayRole = 'CORE';
