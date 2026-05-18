@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Users, User, Settings, LogOut, Calendar, Loader2, Moon, Sun } from 'lucide-react';
+import { LayoutDashboard, Users, User, Settings, LogOut, Calendar, Loader2, Moon, Sun, IndianRupee } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { apiFetch } from '@/lib/api';
 
@@ -11,7 +11,7 @@ const menuItems = [
   { name: 'My Allocations', icon: Users, href: '/dashboard/team', color: 'text-emerald-600' },
   { name: 'Core Portal', icon: Settings, href: '/dashboard/core', color: 'text-orange-600' },
   { name: 'Manager Portal', icon: LayoutDashboard, href: '/dashboard/manager', color: 'text-indigo-600' },
-  { name: 'Finance Portal', icon: LayoutDashboard, href: '/dashboard/finance', color: 'text-blue-600' },
+  { name: 'Finance Portal', icon: IndianRupee, href: '/dashboard/finance', color: 'text-blue-600' },
 ];
 
 const CORE_EMAILS = [

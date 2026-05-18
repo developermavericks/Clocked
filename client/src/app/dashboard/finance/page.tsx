@@ -3,7 +3,7 @@
 export const dynamic = 'force-dynamic';
 
 import { useState, useEffect, useMemo } from 'react';
-import { DollarSign, Download, Users, Briefcase, RefreshCw, Layers, Sliders, CheckCircle2, AlertCircle, Edit2 } from 'lucide-react';
+import { IndianRupee, Download, Users, Briefcase, RefreshCw, Layers, Sliders, CheckCircle2, AlertCircle, Edit2 } from 'lucide-react';
 import StatsCard from '@/components/StatsCard';
 import { apiFetch } from '@/lib/api';
 
@@ -191,7 +191,7 @@ export default function FinancePortal() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
           <h1 className="text-3xl font-display font-black text-slate-900 dark:text-white flex items-center gap-2">
-            <DollarSign className="w-8 h-8 text-blue-600" />
+            <IndianRupee className="w-8 h-8 text-blue-600" />
             Finance Allocation Portal
           </h1>
           <p className="text-slate-500 dark:text-slate-400 mt-1 font-medium">
