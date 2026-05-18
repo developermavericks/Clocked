@@ -62,13 +62,13 @@ async function seed() {
   console.log('--- Seeding Teams ---');
   const teamSheet = workbook.getWorksheet('teams');
   const { data: dbUsers } = await supabase.from('users').select('id, email');
-  const emailToId = dbUsers.reduce((acc, u) => ({ ...acc, [u.email]: u.id }), {});
+  const emailToId = dbUsers.reduce((acc, u) => ({ ...acc, [u.email.toLowerCase().trim()]: u.id }), {});
 
   const teams = [];
   teamSheet.eachRow((row, i) => {
     if (i === 1) return;
-    const managerEmail = row.getCell(2).text;
-    const memberEmail = row.getCell(4).text;
+    const managerEmail = row.getCell(2).text.toLowerCase().trim();
+    const memberEmail = row.getCell(4).text.toLowerCase().trim();
     if (emailToId[managerEmail] && emailToId[memberEmail]) {
       teams.push({ manager_id: emailToId[managerEmail], member_id: emailToId[memberEmail] });
     }
@@ -79,13 +79,13 @@ async function seed() {
   console.log('--- Seeding Weekly Allocations ---');
   const weeklySheet = workbook.getWorksheet('allocations_weekly');
   const { data: dbClients } = await supabase.from('clients').select('id, name');
-  const clientToId = dbClients.reduce((acc, c) => ({ ...acc, [c.name.toLowerCase()]: c.id }), {});
+  const clientToId = dbClients.reduce((acc, c) => ({ ...acc, [c.name.toLowerCase().trim()]: c.id }), {});
 
   const weeklyAllocations = [];
   weeklySheet.eachRow((row, i) => {
     if (i === 1) return;
-    const email = row.getCell(5).text;
-    const clientName = row.getCell(7).text;
+    const email = row.getCell(5).text.toLowerCase().trim();
+    const clientName = row.getCell(7).text.toLowerCase().trim();
     const category = row.getCell(8).text;
     const hours = parseFloat(row.getCell(9).text);
     const notes = row.getCell(10).text;
@@ -93,11 +93,11 @@ async function seed() {
     const startDate = row.getCell(13).value;
     const endDate = row.getCell(14).value;
 
-    if (emailToId[email] && clientToId[clientName.toLowerCase()] && !isNaN(hours)) {
+    if (emailToId[email] && clientToId[clientName] && !isNaN(hours)) {
       weeklyAllocations.push({
         user_id: emailToId[email],
         month: monthRaw instanceof Date ? monthRaw.toISOString().slice(0, 7) : String(monthRaw).slice(0, 7),
-        client_id: clientToId[clientName.toLowerCase()],
+        client_id: clientToId[clientName],
         category,
         hours,
         notes,

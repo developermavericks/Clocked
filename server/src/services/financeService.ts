@@ -36,7 +36,8 @@ export const getCoreMasterAllocations = async (opts: {
   // 1. Fetch first allocation month for every user to handle Join Month Logic
   const { data: allWeeklyLogs, error: logsError } = await supabase
     .from('allocations_weekly')
-    .select('user_id, month');
+    .select('user_id, month')
+    .limit(50000);
   
   if (logsError) throw logsError;
 
@@ -57,7 +58,8 @@ export const getCoreMasterAllocations = async (opts: {
   const { data: allocations, error: allocError } = await supabase
     .from('allocations_weekly')
     .select('*, users(*), clients(*)')
-    .eq('month', month);
+    .eq('month', month)
+    .limit(20000);
 
   if (allocError) throw allocError;
 

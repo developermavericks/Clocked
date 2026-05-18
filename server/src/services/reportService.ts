@@ -24,7 +24,8 @@ export const getMasterReportData = async (month: string, options: any = {}) => {
   const { data: allocations, error } = await supabase
     .from('allocations_weekly')
     .select('*, users(name, email), clients(name, core_owner)')
-    .eq('month', month);
+    .eq('month', month)
+    .limit(20000);
 
   if (error) throw error;
 
@@ -80,7 +81,8 @@ export const getClientSummary = async (month: string, view: 'weekly' | 'projecte
   const { data: allocations, error } = await supabase
     .from(table)
     .select('hours, clients(name)')
-    .eq('month', month);
+    .eq('month', month)
+    .limit(20000);
 
   if (error) throw error;
 
@@ -101,7 +103,8 @@ export const getClientRoster = async (month: string, clientName: string, view: '
   const { data: allocations, error } = await supabase
     .from(table)
     .select('hours, users(name, email), clients(name)')
-    .eq('month', month);
+    .eq('month', month)
+    .limit(20000);
 
   if (error) throw error;
 
