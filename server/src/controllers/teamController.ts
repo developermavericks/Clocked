@@ -149,18 +149,39 @@ export const createUser = async (req: Request, res: Response) => {
     return res.status(400).json({ error: 'Email is required' });
   }
   
+  const payload: any = {
+    name: name || email.split('@')[0],
+    email: email.trim().toLowerCase(),
+    role: 'team'
+  };
+  
   try {
+    // 1. Try to insert with joining_date
     const { data, error } = await supabase
       .from('users')
       .insert([{
-        name: name || email.split('@')[0],
-        email: email.trim().toLowerCase(),
-        joining_date: joiningDate || '2025-11-01',
-        role: 'team'
+        ...payload,
+        joining_date: joiningDate || '2025-11-01'
       }])
       .select();
       
     if (error) {
+      // If error is due to missing joining_date column, try fallback insert
+      if (error.message && error.message.includes('joining_date')) {
+        const { data: fbData, error: fbError } = await supabase
+          .from('users')
+          .insert([payload])
+          .select();
+          
+        if (fbError) {
+          if (fbError.code === '23505') {
+            return res.status(400).json({ error: 'User with this email already exists.' });
+          }
+          throw fbError;
+        }
+        return res.status(201).json(fbData[0]);
+      }
+      
       if (error.code === '23505') {
         return res.status(400).json({ error: 'User with this email already exists.' });
       }
