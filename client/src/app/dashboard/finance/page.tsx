@@ -9,7 +9,7 @@ import { apiFetch } from '@/lib/api';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 
 export default function FinancePortal() {
-  const [activeWorkspace, setActiveWorkspace] = useState<'pivot' | 'manager' | 'analytics'>('pivot');
+  const [activeWorkspace, setActiveWorkspace] = useState<'pivot' | 'manager'>('pivot');
   const [currentViewMode, setCurrentViewMode] = useState<'hours' | 'percent' | 'salary'>('hours');
   const [month, setMonth] = useState(new Date().toISOString().slice(0, 7)); // YYYY-MM
   const [loading, setLoading] = useState(false);
@@ -345,17 +345,6 @@ export default function FinancePortal() {
           >
             <Layers className="w-4 h-4" />
             Financial Pivot Analyzer
-          </button>
-          <button
-            onClick={() => setActiveWorkspace('analytics')}
-            className={`px-6 py-4 text-sm font-bold border-b-2 transition-all flex items-center gap-2 ${
-              activeWorkspace === 'analytics'
-                ? 'border-blue-600 text-blue-600'
-                : 'border-transparent text-slate-500 hover:text-slate-700'
-            }`}
-          >
-            <BarChart3 className="w-4 h-4" />
-            Visual Analytics Dashboard
           </button>
           <button
             onClick={() => setActiveWorkspace('manager')}
@@ -860,122 +849,6 @@ export default function FinancePortal() {
             </div>
           )}
 
-          {/* TAB 3: VISUAL ANALYTICS DASHBOARD */}
-          {activeWorkspace === 'analytics' && (
-            <div className="space-y-8 animate-in fade-in duration-500">
-              {loading || !analyticsData ? (
-                <div className="flex justify-center items-center py-32">
-                  <div className="animate-spin w-8 h-8 border-b-2 border-blue-600 rounded-full"></div>
-                </div>
-              ) : (
-                <>
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    
-                    {/* Chart 1: Budget vs Actual */}
-                    <div className="bg-slate-50 border border-slate-100 rounded-2xl p-6 shadow-sm">
-                      <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest mb-6">Budget vs Actual Spend</h3>
-                      <div className="h-[300px] w-full">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <BarChart data={analyticsData.budgetVsActual} margin={{ top: 10, right: 10, left: 0, bottom: 20 }}>
-                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                            <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#64748b' }} angle={-45} textAnchor="end" />
-                            <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#64748b' }} tickFormatter={(val) => `₹${(val/1000).toFixed(0)}k`} />
-                            <RechartsTooltip 
-                              cursor={{ fill: '#f8fafc' }}
-                              contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
-                              formatter={(value: any) => [fmtCurrency(Number(value) || 0), '']}
-                            />
-                            <Legend wrapperStyle={{ fontSize: '12px', fontWeight: 'bold', paddingTop: '20px' }} />
-                            <Bar dataKey="Budget" fill="#10b981" radius={[4, 4, 0, 0]} />
-                            <Bar dataKey="Actual" fill="#3b82f6" radius={[4, 4, 0, 0]} />
-                          </BarChart>
-                        </ResponsiveContainer>
-                      </div>
-                    </div>
-
-                    {/* Chart 2: Efficiency Donut */}
-                    <div className="bg-slate-50 border border-slate-100 rounded-2xl p-6 shadow-sm flex flex-col">
-                      <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest mb-2">Resource Utilization Efficiency</h3>
-                      <div className="h-[300px] w-full flex-grow relative">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <PieChart>
-                            <Pie
-                              data={analyticsData.efficiencyData}
-                              cx="50%"
-                              cy="50%"
-                              innerRadius={80}
-                              outerRadius={120}
-                              paddingAngle={5}
-                              dataKey="value"
-                              stroke="none"
-                            >
-                              {analyticsData.efficiencyData.map((entry, index) => (
-                                <Cell key={`cell-${index}`} fill={entry.color} />
-                              ))}
-                            </Pie>
-                            <RechartsTooltip 
-                              contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
-                              formatter={(value: any) => [fmtCurrency(Number(value) || 0), 'Spend']}
-                            />
-                            <Legend wrapperStyle={{ fontSize: '12px', fontWeight: 'bold' }} />
-                          </PieChart>
-                        </ResponsiveContainer>
-                        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none pb-8">
-                          <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">Total Payroll</span>
-                          <span className="text-xl font-black text-slate-900">{fmtCurrency(stats.payroll)}</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Chart 3: Core Vertical Distribution */}
-                    <div className="bg-slate-50 border border-slate-100 rounded-2xl p-6 shadow-sm">
-                      <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest mb-6">Payroll by Core Vertical</h3>
-                      <div className="h-[300px] w-full">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <BarChart data={analyticsData.coreVerticalData} layout="vertical" margin={{ top: 10, right: 30, left: 40, bottom: 10 }}>
-                            <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e2e8f0" />
-                            <XAxis type="number" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#64748b' }} tickFormatter={(val) => `₹${(val/1000).toFixed(0)}k`} />
-                            <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#334155', fontWeight: 'bold' }} width={100} />
-                            <RechartsTooltip 
-                              cursor={{ fill: '#f8fafc' }}
-                              contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
-                              formatter={(value: any) => [fmtCurrency(Number(value) || 0), 'Spend']}
-                            />
-                            <Bar dataKey="Spend" fill="#8b5cf6" radius={[0, 4, 4, 0]}>
-                              {analyticsData.coreVerticalData.map((entry, index) => (
-                                <Cell key={`cell-${index}`} fill={['#8b5cf6', '#ec4899', '#06b6d4', '#f59e0b', '#10b981'][index % 5]} />
-                              ))}
-                            </Bar>
-                          </BarChart>
-                        </ResponsiveContainer>
-                      </div>
-                    </div>
-
-                    {/* Chart 4: Top Expensive Clients */}
-                    <div className="bg-slate-50 border border-slate-100 rounded-2xl p-6 shadow-sm">
-                      <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest mb-6">Top 5 Expensive Accounts (Actual Spend)</h3>
-                      <div className="h-[300px] w-full">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <BarChart data={analyticsData.topExpensiveClients} margin={{ top: 10, right: 10, left: 0, bottom: 20 }}>
-                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                            <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#64748b' }} angle={-45} textAnchor="end" />
-                            <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#64748b' }} tickFormatter={(val) => `₹${(val/1000).toFixed(0)}k`} />
-                            <RechartsTooltip 
-                              cursor={{ fill: '#f8fafc' }}
-                              contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
-                              formatter={(value: any) => [fmtCurrency(Number(value) || 0), 'Actual Spend']}
-                            />
-                            <Bar dataKey="Actual" fill="#f43f5e" radius={[4, 4, 0, 0]} />
-                          </BarChart>
-                        </ResponsiveContainer>
-                      </div>
-                    </div>
-
-                  </div>
-                </>
-              )}
-            </div>
-          )}
 
         </div>
       </div>

@@ -54,6 +54,11 @@ export default function CalendarImport({ userId, month, onSuccess }: { userId: s
 
   const [clients, setClients] = useState<{id: string, name: string}[]>([]);
   
+  const selectOptions = [
+    { value: '', label: 'Select Client...' },
+    ...clients.map(c => ({ value: c.id, label: c.name }))
+  ];
+  
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setUser(data.user));
     fetchClients();
@@ -196,22 +201,24 @@ export default function CalendarImport({ userId, month, onSuccess }: { userId: s
       
       if (selected.length === 0) return;
 
-      const missingClient = selected.find(e => !e.isCustomBd && !e.client_id);
-      if (missingClient) {
-        throw new Error(`Please select a client for "${missingClient.title}" before saving.`);
+      // Validate both populated
+      const bothPopulated = selected.find(e => e.client_id && e.customBdName?.trim());
+      if (bothPopulated) {
+        throw new Error(`For event "${bothPopulated.title}", you have selected a client from the dropdown AND entered a custom BD client name. Please use only one of these options.`);
       }
 
-      const emptyCustomBd = selected.find(e => e.isCustomBd && !e.customBdName?.trim());
-      if (emptyCustomBd) {
-        throw new Error(`Please enter a BD client name for "${emptyCustomBd.title}".`);
+      // Validate neither populated
+      const neitherPopulated = selected.find(e => !e.client_id && !e.customBdName?.trim());
+      if (neitherPopulated) {
+        throw new Error(`Please select a client or enter a custom BD name for "${neitherPopulated.title}".`);
       }
 
       const eventsToSave = [...selected];
       const updatedClientsList = [...clients];
 
       for (const event of eventsToSave) {
-        if (event.isCustomBd) {
-          const bdName = `BD - ${event.customBdName!.trim()}`;
+        if (event.customBdName?.trim()) {
+          const bdName = `BD - ${event.customBdName.trim()}`;
           
           const createRes = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/clients`, {
             method: 'POST',
@@ -459,61 +466,43 @@ export default function CalendarImport({ userId, month, onSuccess }: { userId: s
                     </button>
                   </div>
                 </div>
-
                 {selectedEvents.has(event.id) && (
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 animate-in fade-in slide-in-from-top-2 duration-200" onClick={(e) => e.stopPropagation()}>
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4 animate-in fade-in slide-in-from-top-2 duration-200" onClick={(e) => e.stopPropagation()}>
                     <div className="space-y-1">
-                      <div className="flex justify-between items-center ml-1">
-                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Client</label>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const isCustom = !event.isCustomBd;
-                            setEvents(prev => prev.map(ev => 
-                              ev.id === event.id 
-                                ? { ...ev, isCustomBd: isCustom, customBdName: isCustom ? '' : undefined } 
-                                : ev
-                            ));
-                          }}
-                          className="text-[10px] font-bold text-blue-600 hover:text-blue-700 transition-colors"
-                        >
-                          {event.isCustomBd ? "Select Existing" : "Add as BD"}
-                        </button>
-                      </div>
-
-                      {event.isCustomBd ? (
-                        <div className="relative">
-                          <span className="absolute left-3 top-2 text-xs font-bold text-slate-400">BD -</span>
-                          <input 
-                            type="text" 
-                            value={event.customBdName || ''} 
-                            onChange={(e) => updateEventDetails(event.id, 'customBdName', e.target.value)} 
-                            placeholder="Client Name" 
-                            className="w-full bg-white border border-slate-200 rounded-xl pl-10 pr-3 py-2 text-xs font-bold text-slate-900 outline-none focus:border-blue-500 h-[38px]"
-                          />
-                        </div>
-                      ) : (
-                        <SearchableSelect 
-                          options={clients.map(c => ({ value: c.id, label: c.name }))}
-                          value={event.client_id || ''}
-                          onChange={(val) => updateEventDetails(event.id, 'client_id', val)}
-                          placeholder="Select Client"
-                          className="text-xs"
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-1">Client (Dropdown)</label>
+                      <SearchableSelect 
+                        options={selectOptions}
+                        value={event.client_id || ''}
+                        onChange={(val) => updateEventDetails(event.id, 'client_id', val)}
+                        placeholder="Select Client"
+                        className="text-xs"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-1">Or Add as BD (Manual)</label>
+                      <div className="relative">
+                        <span className="absolute left-3 top-2 text-xs font-bold text-slate-400">BD -</span>
+                        <input 
+                          type="text" 
+                          value={event.customBdName || ''} 
+                          onChange={(e) => updateEventDetails(event.id, 'customBdName', e.target.value)} 
+                          placeholder="Client Name" 
+                          className="w-full bg-white border border-slate-200 rounded-xl pl-10 pr-3 py-2 text-xs font-bold text-slate-900 outline-none focus:border-blue-500 h-[38px]"
                         />
-                      )}
+                      </div>
                     </div>
                     <div className="space-y-1">
                       <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-1">Category</label>
-                      <input type="text" value={event.category} onChange={(e) => updateEventDetails(event.id, 'category', e.target.value)} placeholder="Meeting / Internal / Billable" className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 outline-none" />
+                      <input type="text" value={event.category} onChange={(e) => updateEventDetails(event.id, 'category', e.target.value)} placeholder="Meeting / Internal / Billable" className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 outline-none h-[38px]" />
                     </div>
                     <div className="space-y-1">
                       <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-1">Notes (Optional)</label>
-                      <input type="text" value={event.notes} onChange={(e) => updateEventDetails(event.id, 'notes', e.target.value)} placeholder="Notes" className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 outline-none" />
+                      <input type="text" value={event.notes} onChange={(e) => updateEventDetails(event.id, 'notes', e.target.value)} placeholder="Notes" className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 outline-none h-[38px]" />
                     </div>
                   </div>
                 )}
               </div>
-            ))}
+            ))}`
             
             <div className="pt-6 border-t border-slate-100 flex items-center justify-between">
               <div className="flex items-center gap-2 text-amber-600 bg-amber-50 px-3 py-1.5 rounded-lg border border-amber-100">
