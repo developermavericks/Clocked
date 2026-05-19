@@ -362,15 +362,8 @@ export default function CorePortal() {
                               </div>
                             )}
                             <div>
-                              <span className={`text-sm leading-tight block ${
-                                hasLoggedIn 
-                                  ? 'font-bold text-slate-900' 
-                                  : 'font-medium text-slate-400 italic flex items-center gap-1.5'
-                              }`}>
+                              <span className="text-sm font-bold text-slate-900 block leading-tight">
                                 {u.name || u.email.split('@')[0]}
-                                {!hasLoggedIn && (
-                                  <span className="text-[8px] bg-slate-100 text-slate-500 font-black px-1.5 py-0.5 rounded uppercase tracking-wider normal-case not-italic">Pending</span>
-                                )}
                               </span>
                               <span className="text-[10px] text-slate-400 font-medium uppercase tracking-wider">{u.email.split('@')[1]}</span>
                             </div>
