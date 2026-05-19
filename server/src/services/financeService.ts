@@ -116,7 +116,9 @@ const CLIENT_CORES: Record<string, string> = {
   "LEAVE": "",
   "Personal Commitments": "",
   "BD - BD": "",
-  "BD - Innovist": ""
+  "BD - Innovist": "",
+  "Haystack": "Mitali",
+  "Lunch Break": ""
 };
 
 const LOWERCASE_CLIENT_CORES: Record<string, { originalName: string; core: string }> = {};
@@ -155,6 +157,58 @@ const isInternalClient = (name: string) => {
   ];
   return internalGroupList.includes(low);
 };
+
+const getNormalizedClientNameAndCore = (rawName: string): { name: string; core: string } => {
+  const clean = rawName.trim();
+  const low = clean.toLowerCase();
+
+  const directMatch = LOWERCASE_CLIENT_CORES[low];
+  if (directMatch) {
+    return { name: directMatch.originalName, core: directMatch.core };
+  }
+
+  if (low === 'chargezone') {
+    return { name: 'Chargezone (TECSO)', core: 'Archana' };
+  }
+  if (low === 'omnicom global') {
+    return { name: 'Omnicom Global Solutions', core: 'Archana' };
+  }
+  if (low === 'pixel') {
+    return { name: 'Pixxel', core: 'Smriti' };
+  }
+  if (low === 'olster') {
+    return { name: 'Oister', core: 'Smriti' };
+  }
+  if (low === 'optimus infrastructure') {
+    return { name: 'Optiemus Infracom', core: 'Chetan' };
+  }
+  if (low === 'people matteras') {
+    return { name: 'People Matters', core: 'Mitali' };
+  }
+  if (low === 'haystack') {
+    return { name: 'Haystack', core: 'Mitali' };
+  }
+  if (low.startsWith('astra security')) {
+    return { name: 'Astra Security', core: 'Smriti' };
+  }
+
+  if (isBdClient(clean)) {
+    return { name: 'BD', core: '' };
+  }
+  if (isInternalClient(clean) || low.startsWith('internal')) {
+    return { name: 'Internal - CS', core: '' };
+  }
+  if (isLeaveClient(clean) || low.startsWith('leave')) {
+    return { name: 'LEAVE', core: '' };
+  }
+  if (low.includes('lunch')) {
+    return { name: 'Lunch Break', core: '' };
+  }
+
+  return { name: 'FREE_TIME', core: '' };
+};
+
+
 
 const normalizeClientForMaster = (client: string, groupBd: boolean) => {
   const s = String(client || '').trim();
@@ -335,11 +389,9 @@ export const getCoreMasterAllocations = async (opts: {
 
     const rawClientName = String(r.clients?.name || 'Unknown Client').trim();
     
-    // Strict lookup: if it's not in our allowed client map, filter it out!
-    const match = LOWERCASE_CLIENT_CORES[rawClientName.toLowerCase()];
-    if (!match) return;
-
-    const clientName = match.originalName;
+    // Normalize client name (handles spelling variants and rolls up unrecognized clients to base categories)
+    const norm = getNormalizedClientNameAndCore(rawClientName);
+    const clientName = norm.name;
     const hours = Number(r.hours) || 0;
 
     if (!byMember.has(u.id)) {
