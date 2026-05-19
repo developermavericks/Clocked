@@ -285,6 +285,15 @@ export const getCoreMasterAllocations = async (opts: {
 
   // Pre-populate only the strict client list from our reference map
   Object.entries(CLIENT_CORES).forEach(([clientName, core]) => {
+    const isBd = isBdClient(clientName);
+    const isInternal = isInternalClient(clientName);
+    const isLeave = isLeaveClient(clientName);
+
+    // If grouping is enabled for this category, hide the individual columns!
+    if (groupBd && isBd) return;
+    if (groupInternal && isInternal) return;
+    if (groupLeave && isLeave) return;
+
     // Find budget from DB if it exists
     const dbClient = allClients.find((c: any) => c.name.toLowerCase() === clientName.toLowerCase());
     const budget = dbClient?.budget !== undefined ? Number(dbClient.budget) : 0;
@@ -348,19 +357,19 @@ export const getCoreMasterAllocations = async (opts: {
     }
 
     const m = byMember.get(u.id);
-    m.allocations[clientName] = (m.allocations[clientName] || 0) + hours;
-    m.totalHours += hours;
 
-    // Accumulate to special group columns if enabled
+    // Determine target column name for this allocation based on grouping checkboxes
+    let targetColumn = clientName;
     if (groupBd && isBdClient(clientName)) {
-      m.allocations['Group BD'] = (m.allocations['Group BD'] || 0) + hours;
+      targetColumn = 'Group BD';
+    } else if (groupInternal && isInternalClient(clientName)) {
+      targetColumn = 'Group Internal';
+    } else if (groupLeave && isLeaveClient(clientName)) {
+      targetColumn = 'Group LEAVE';
     }
-    if (groupInternal && isInternalClient(clientName)) {
-      m.allocations['Group Internal'] = (m.allocations['Group Internal'] || 0) + hours;
-    }
-    if (groupLeave && isLeaveClient(clientName)) {
-      m.allocations['Group LEAVE'] = (m.allocations['Group LEAVE'] || 0) + hours;
-    }
+
+    m.allocations[targetColumn] = (m.allocations[targetColumn] || 0) + hours;
+    m.totalHours += hours;
   });
 
   // Sort clients: cores grouped, alphabetical name. Grouped columns (Group BD, Group Internal, Group LEAVE) go to the absolute end.
