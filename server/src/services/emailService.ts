@@ -3,10 +3,10 @@ import { supabase } from '../config/supabase';
 
 // Executive / CEO CC Emails
 const CEO_EMAILS = [
+  'chetan@themavericksindia.com',
   'archana@themavericksindia.com',
-  'arunkumar@themavericksindia.com',
-  'avinash@themavericksindia.com',
-  'chetan@themavericksindia.com'
+  'mitali.p@themavericksindia.com',
+  'smriti@themavericksindia.com'
 ];
 
 let transporterInstance: nodemailer.Transporter | null = null;
