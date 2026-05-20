@@ -458,7 +458,8 @@ export const getCoreMasterAllocations = async (opts: {
   return {
     month,
     clients: clientsFull,
-    rows
+    rows,
+    rawAllocations: allocations
   };
 };
 

@@ -6,10 +6,10 @@ import { useState, useEffect, useMemo } from 'react';
 import { IndianRupee, Download, Users, Briefcase, RefreshCw, Layers, Sliders, CheckCircle2, AlertCircle, Edit2, BarChart3 } from 'lucide-react';
 import StatsCard from '@/components/StatsCard';
 import { apiFetch } from '@/lib/api';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 
 export default function FinancePortal() {
-  const [activeWorkspace, setActiveWorkspace] = useState<'pivot' | 'manager'>('pivot');
+  const [activeWorkspace, setActiveWorkspace] = useState<'pivot' | 'manager' | 'analysis'>('pivot');
   const [currentViewMode, setCurrentViewMode] = useState<'hours' | 'percent' | 'salary'>('hours');
   const [month, setMonth] = useState(new Date().toISOString().slice(0, 7)); // YYYY-MM
   const [loading, setLoading] = useState(false);
@@ -263,6 +263,179 @@ export default function FinancePortal() {
     };
   }, [reportData]);
 
+  // ============================================================================
+  // Analysis Tab States & Memo Helpers
+  // ============================================================================
+  const [analysisView, setAnalysisView] = useState<'employee' | 'client'>('employee');
+  const [selectedEntities, setSelectedEntities] = useState<string[]>([]);
+
+  const daysInMonth = useMemo(() => {
+    const [year, m] = month.split('-').map(Number);
+    return new Date(year, m, 0).getDate();
+  }, [month]);
+
+  const getNormalizedClientName = (rawName: string) => {
+    const s = String(rawName || '').trim();
+    const low = s.toLowerCase();
+    
+    const isBd = low === 'bd' || low.startsWith('bd ') || low.startsWith('bd-') || low.startsWith('bd -') || low.startsWith('bd/') || low.startsWith('bd –') || low.startsWith('bd —');
+    const isInternal = ['internal – cs', 'internal - cs', 'internal creative', 'internal finance', 'internal hr', 'internal marketing', 'internal tech', 'internal training'].includes(low) || low.startsWith('internal');
+    const isLeave = ['leave', 'personal commitments'].includes(low) || low.startsWith('leave');
+
+    if (groupBD && isBd) return 'Group BD';
+    if (groupInternal && isInternal) return 'Group Internal';
+    if (groupLeave && isLeave) return 'Group LEAVE';
+
+    if (low === 'chargezone') return 'Chargezone (TECSO)';
+    if (low === 'omnicom global') return 'Omnicom Global Solutions';
+    if (low === 'pixel') return 'Pixxel';
+    if (low === 'olster') return 'Oister';
+    if (low === 'optimus infrastructure') return 'Optiemus Infracom';
+    if (low === 'people matteras') return 'People Matters';
+    if (low === 'haystack') return 'Haystack';
+    if (low.startsWith('astra security')) return 'Astra Security';
+    if (low.includes('lunch')) return 'Lunch Break';
+    if (low.includes('free_time')) return 'FREE_TIME';
+    
+    return s;
+  };
+
+  const getDailyDistribution = (startDateStr: string, endDateStr: string, totalHours: number) => {
+    if (startDateStr === endDateStr) {
+      return { [startDateStr]: totalHours };
+    }
+    const start = new Date(startDateStr);
+    const end = new Date(endDateStr);
+    const dates: string[] = [];
+    
+    let curr = new Date(start);
+    while (curr <= end) {
+      const day = curr.getDay();
+      if (day !== 0 && day !== 6) { // Weekdays only
+        const yyyy = curr.getFullYear();
+        const mm = String(curr.getMonth() + 1).padStart(2, '0');
+        const dd = String(curr.getDate()).padStart(2, '0');
+        dates.push(`${yyyy}-${mm}-${dd}`);
+      }
+      curr.setDate(curr.getDate() + 1);
+    }
+
+    if (dates.length === 0) {
+      curr = new Date(start);
+      while (curr <= end) {
+        const yyyy = curr.getFullYear();
+        const mm = String(curr.getMonth() + 1).padStart(2, '0');
+        const dd = String(curr.getDate()).padStart(2, '0');
+        dates.push(`${yyyy}-${mm}-${dd}`);
+        curr.setDate(curr.getDate() + 1);
+      }
+    }
+
+    const dailyHours: Record<string, number> = {};
+    if (dates.length > 0) {
+      const share = totalHours / dates.length;
+      dates.forEach(d => {
+        dailyHours[d] = share;
+      });
+    }
+    return dailyHours;
+  };
+
+  const barChartData = useMemo(() => {
+    if (!reportData || !reportData.rawAllocations) return [];
+
+    const totals: Record<string, number> = {};
+
+    reportData.rawAllocations.forEach((alloc: any) => {
+      const uName = alloc.users?.name || alloc.users?.email?.split('@')[0] || 'Unknown';
+      const cName = getNormalizedClientName(alloc.clients?.name || 'Unknown Client');
+      const key = analysisView === 'employee' ? uName : cName;
+      
+      totals[key] = (totals[key] || 0) + (Number(alloc.hours) || 0);
+    });
+
+    return Object.keys(totals)
+      .map(name => ({
+        name,
+        Hours: Math.round(totals[name] * 10) / 10
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [reportData, analysisView, groupBD, groupLeave, groupInternal]);
+
+  const dailyLineChartData = useMemo(() => {
+    if (!reportData || !reportData.rawAllocations) return { chartData: [], entities: [] };
+
+    const [yearStr, monthStr] = month.split('-');
+    const year = parseInt(yearStr);
+    const monthInt = parseInt(monthStr);
+
+    const entityDailyHours: Record<string, Record<number, number>> = {};
+    const uniqueEntities = new Set<string>();
+
+    reportData.rawAllocations.forEach((alloc: any) => {
+      const uName = alloc.users?.name || alloc.users?.email?.split('@')[0] || 'Unknown';
+      const cName = getNormalizedClientName(alloc.clients?.name || 'Unknown Client');
+      const key = analysisView === 'employee' ? uName : cName;
+      const hours = Number(alloc.hours) || 0;
+
+      if (hours <= 0) return;
+
+      uniqueEntities.add(key);
+
+      if (!entityDailyHours[key]) {
+        entityDailyHours[key] = {};
+      }
+
+      const dailyDistribution = getDailyDistribution(alloc.start_date, alloc.end_date, hours);
+      Object.entries(dailyDistribution).forEach(([dateStr, dailyHour]) => {
+        const date = new Date(dateStr);
+        if (date.getFullYear() === year && (date.getMonth() + 1) === monthInt) {
+          const d = date.getDate();
+          entityDailyHours[key][d] = (entityDailyHours[key][d] || 0) + dailyHour;
+        }
+      });
+    });
+
+    const sortedEntities = Array.from(uniqueEntities).sort((a, b) => a.localeCompare(b));
+
+    const chartData = [];
+    for (let d = 1; d <= daysInMonth; d++) {
+      const row: Record<string, any> = { day: d };
+      sortedEntities.forEach(entity => {
+        const rawHours = entityDailyHours[entity]?.[d] || 0;
+        row[entity] = Math.round(rawHours * 10) / 10;
+      });
+      chartData.push(row);
+    }
+
+    return {
+      chartData,
+      entities: sortedEntities
+    };
+  }, [reportData, month, daysInMonth, analysisView, groupBD, groupLeave, groupInternal]);
+
+  // Automatically check the top 5 entities to populate line chart without clutter
+  useEffect(() => {
+    if (dailyLineChartData.entities.length > 0) {
+      setSelectedEntities(dailyLineChartData.entities.slice(0, 5));
+    } else {
+      setSelectedEntities([]);
+    }
+  }, [dailyLineChartData.entities]);
+
+  const CHART_COLORS = [
+    '#2563eb', // blue
+    '#10b981', // emerald
+    '#f59e0b', // amber
+    '#ec4899', // pink
+    '#8b5cf6', // purple
+    '#f43f5e', // rose
+    '#06b6d4', // cyan
+    '#84cc16', // lime
+    '#14b8a6', // teal
+    '#f97316', // orange
+  ];
+
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-300">
       
@@ -345,6 +518,17 @@ export default function FinancePortal() {
           >
             <Layers className="w-4 h-4" />
             Financial Pivot Analyzer
+          </button>
+          <button
+            onClick={() => setActiveWorkspace('analysis')}
+            className={`px-6 py-4 text-sm font-bold border-b-2 transition-all flex items-center gap-2 ${
+              activeWorkspace === 'analysis'
+                ? 'border-blue-600 text-blue-600'
+                : 'border-transparent text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            <BarChart3 className="w-4 h-4" />
+            Allocation Analysis Dashboard
           </button>
           <button
             onClick={() => setActiveWorkspace('manager')}
@@ -660,6 +844,240 @@ export default function FinancePortal() {
                     Members highlighted in **red** have zero timesheet hours logged for this period. Finance must reconcile their entries before final monthly salary overhead distributions.
                   </p>
                 </div>
+              </div>
+
+            </div>
+          )}
+
+          {/* TAB 3: ALLOCATION ANALYSIS DASHBOARD */}
+          {activeWorkspace === 'analysis' && (
+            <div className="space-y-8 animate-in fade-in duration-300">
+              
+              {/* Header and Controls Row */}
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-50 p-4 rounded-xl border border-slate-100">
+                <div>
+                  <h3 className="text-sm font-black text-slate-800 uppercase tracking-wider">
+                    Allocation Analysis Workspace
+                  </h3>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Compare employee and client working hour trends side-by-side.
+                  </p>
+                </div>
+
+                {/* Switcher Toggle (Employee / Client View) */}
+                <div className="flex bg-slate-200/60 p-1 rounded-xl">
+                  <button
+                    onClick={() => setAnalysisView('employee')}
+                    className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all uppercase tracking-wider ${
+                      analysisView === 'employee'
+                        ? 'bg-white text-blue-600 shadow-sm'
+                        : 'text-slate-500 hover:text-slate-700'
+                    }`}
+                  >
+                    Employee View
+                  </button>
+                  <button
+                    onClick={() => setAnalysisView('client')}
+                    className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all uppercase tracking-wider ${
+                      analysisView === 'client'
+                        ? 'bg-white text-blue-600 shadow-sm'
+                        : 'text-slate-500 hover:text-slate-700'
+                    }`}
+                  >
+                    Client View
+                  </button>
+                </div>
+              </div>
+
+              {/* Both charts container: Grid 1col on mobile, 2col on desktop for side-by-side */}
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 items-stretch">
+                
+                {/* Chart 1: Bar Graph (Left Side) */}
+                <div className="bg-white border border-slate-100 shadow-xl shadow-slate-100/50 rounded-[24px] p-6 flex flex-col min-h-[480px]">
+                  <div className="mb-4">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">CHART 1</span>
+                    <h4 className="text-base font-bold text-slate-900 mt-0.5">
+                      Total Allocation Hours ({analysisView === 'employee' ? 'by Employee' : 'by Client'})
+                    </h4>
+                    <p className="text-xs text-slate-500">
+                      Alphabetically sorted total logged hours for this month. Scroll horizontally if needed.
+                    </p>
+                  </div>
+
+                  {barChartData.length === 0 ? (
+                    <div className="flex-1 flex items-center justify-center text-slate-400 text-xs font-medium border-2 border-dashed border-slate-100 rounded-xl">
+                      No data to display for this month.
+                    </div>
+                  ) : (
+                    <div className="flex-1 w-full overflow-x-auto custom-scrollbar pt-4">
+                      <div style={{ minWidth: `${Math.max(barChartData.length * 50, 400)}px` }} className="h-[350px]">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart data={barChartData} margin={{ top: 10, right: 10, left: -20, bottom: 20 }}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+                            <XAxis 
+                              dataKey="name" 
+                              stroke="#64748b" 
+                              fontSize={10} 
+                              fontWeight="bold" 
+                              tickLine={false} 
+                              axisLine={false} 
+                              interval={0}
+                              angle={-20}
+                              dx={-5}
+                              dy={5}
+                            />
+                            <YAxis 
+                              stroke="#64748b" 
+                              fontSize={10} 
+                              fontWeight="bold" 
+                              tickLine={false} 
+                              axisLine={false} 
+                              allowDecimals={false}
+                            />
+                            <RechartsTooltip 
+                              contentStyle={{ 
+                                background: '#0f172a', 
+                                border: 'none', 
+                                borderRadius: '12px', 
+                                color: '#fff',
+                                fontSize: '11px',
+                                fontWeight: 'bold',
+                                boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'
+                              }}
+                            />
+                            <Bar 
+                              dataKey="Hours" 
+                              fill="#3b82f6" 
+                              radius={[8, 8, 0, 0]}
+                            >
+                              {barChartData.map((entry, index) => (
+                                <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
+                              ))}
+                            </Bar>
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Chart 2: Line Chart (Right Side) */}
+                <div className="bg-white border border-slate-100 shadow-xl shadow-slate-100/50 rounded-[24px] p-6 flex flex-col min-h-[480px]">
+                  <div className="mb-4">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">CHART 2</span>
+                    <h4 className="text-base font-bold text-slate-900 mt-0.5">
+                      Daily Hours Timeline Trend
+                    </h4>
+                    <p className="text-xs text-slate-500">
+                      Day-by-day allocation curves. Select up to 10 entities to overlay.
+                    </p>
+                  </div>
+
+                  {dailyLineChartData.chartData.length === 0 || dailyLineChartData.entities.length === 0 ? (
+                    <div className="flex-1 flex items-center justify-center text-slate-400 text-xs font-medium border-2 border-dashed border-slate-100 rounded-xl">
+                      No daily records found to map.
+                    </div>
+                  ) : (
+                    <div className="flex-1 flex flex-col lg:flex-row gap-4 min-h-[350px]">
+                      
+                      {/* Checkbox Selector Column */}
+                      <div className="w-full lg:w-44 flex flex-col border border-slate-100 rounded-xl overflow-hidden bg-slate-50/50 flex-shrink-0">
+                        <div className="bg-slate-100 px-3 py-2 text-[10px] font-black uppercase text-slate-600 tracking-wider">
+                          Toggle Lines
+                        </div>
+                        <div className="p-2 overflow-y-auto max-h-[160px] lg:max-h-[300px] space-y-1.5 custom-scrollbar flex-1">
+                          {dailyLineChartData.entities.map((entity, index) => {
+                            const isChecked = selectedEntities.includes(entity);
+                            const color = CHART_COLORS[index % CHART_COLORS.length];
+                            
+                            return (
+                              <label 
+                                key={entity}
+                                className="flex items-center gap-2 cursor-pointer p-1 rounded hover:bg-slate-100 transition-colors select-none"
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={isChecked}
+                                  onChange={(e) => {
+                                    if (e.target.checked) {
+                                      setSelectedEntities(prev => [...prev, entity]);
+                                    } else {
+                                      setSelectedEntities(prev => prev.filter(x => x !== entity));
+                                    }
+                                  }}
+                                  className="peer appearance-none w-3.5 h-3.5 border border-slate-300 rounded checked:bg-blue-600 checked:border-blue-600 cursor-pointer"
+                                />
+                                <span 
+                                  className="w-2 h-2 rounded-full flex-shrink-0"
+                                  style={{ backgroundColor: color }}
+                                />
+                                <span className="text-[10px] font-bold text-slate-600 truncate flex-1" title={entity}>
+                                  {entity}
+                                </span>
+                              </label>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Actual Line Chart Area */}
+                      <div className="flex-1 min-w-0 h-[280px] lg:h-auto">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <LineChart data={dailyLineChartData.chartData} margin={{ top: 10, right: 10, left: -20, bottom: 10 }}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+                            <XAxis 
+                              dataKey="day" 
+                              stroke="#64748b" 
+                              fontSize={10} 
+                              fontWeight="bold" 
+                              tickLine={false} 
+                              axisLine={false}
+                              label={{ value: 'Day of Month', position: 'insideBottom', offset: -5, fill: '#64748b', fontSize: 10, fontWeight: 'bold' }}
+                            />
+                            <YAxis 
+                              stroke="#64748b" 
+                              fontSize={10} 
+                              fontWeight="bold" 
+                              tickLine={false} 
+                              axisLine={false} 
+                              allowDecimals={false}
+                            />
+                            <RechartsTooltip 
+                              contentStyle={{ 
+                                background: '#0f172a', 
+                                border: 'none', 
+                                borderRadius: '12px', 
+                                color: '#fff',
+                                fontSize: '11px',
+                                fontWeight: 'bold',
+                                boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'
+                              }}
+                            />
+                            {selectedEntities.map((entity) => {
+                              const globalIndex = dailyLineChartData.entities.indexOf(entity);
+                              const color = CHART_COLORS[globalIndex % CHART_COLORS.length];
+                              
+                              return (
+                                <Line
+                                  key={entity}
+                                  type="monotone"
+                                  dataKey={entity}
+                                  stroke={color}
+                                  strokeWidth={3}
+                                  dot={{ r: 2 }}
+                                  activeDot={{ r: 4 }}
+                                />
+                              );
+                            })}
+                          </LineChart>
+                        </ResponsiveContainer>
+                      </div>
+
+                    </div>
+                  )}
+
+                </div>
+
               </div>
 
             </div>
