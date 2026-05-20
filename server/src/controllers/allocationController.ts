@@ -35,7 +35,7 @@ export const getMyAllocations = async (req: Request, res: Response) => {
   }
 };
 
-const checkIfMonthLocked = async (month: string, userRole: string): Promise<boolean> => {
+export const checkIfMonthLocked = async (month: string, userRole: string): Promise<boolean> => {
   // 1. Core users are NEVER locked out
   if (userRole === 'core') {
     return false;
@@ -73,6 +73,13 @@ const checkIfMonthLocked = async (month: string, userRole: string): Promise<bool
       .select('month')
       .eq('month', month)
       .maybeSingle();
+    
+    if (error) {
+      if (error.code === 'PGRST205' || error.message?.includes('Could not find the table')) {
+        console.warn('[LOCK] "unlocked_months" table is missing in database. Please run the SQL schema in Supabase Dashboard SQL Editor.');
+        return true;
+      }
+    }
     
     if (data && !error) {
       // Month is explicitly unlocked!
@@ -130,7 +137,7 @@ export const addMonthlyAllocation = async (req: Request, res: Response) => {
 };
 
 export const addWeeklyAllocation = async (req: Request, res: Response) => {
-  const { user_id, month, client_id, category, hours, notes, start_date, end_date, force } = req.body;
+  const { user_id, month, client_id, category, hours, notes, start_date, end_date } = req.body;
   const userRole = (req as any).user_role || 'team';
 
   try {
@@ -161,39 +168,8 @@ export const addWeeklyAllocation = async (req: Request, res: Response) => {
     if (totalHours + Number(hours) > 160) {
       return res.status(400).json({ error: `Monthly cap exceeded. Current total: ${totalHours}h. Adding ${hours}h would exceed 160h.` });
     }
-    // 1. Fetch existing overlaps
-    const { data: existing, error: checkError } = await supabase
-      .from('allocations_weekly')
-      .select('id, user_id, month, client_id, category, hours, notes, start_date, end_date, week_code, source, clients(name)')
-      .eq('user_id', user_id)
-      .filter('start_date', 'lte', end_date)
-      .filter('end_date', 'gte', start_date);
 
-    if (checkError) throw checkError;
-
-    if (existing && existing.length > 0) {
-      // 2. Check for blocking overlaps (Same client + same notes)
-      const hasBlockingOverlap = existing.some(entry => 
-        entry.client_id === client_id && entry.notes === notes
-      );
-
-      if (hasBlockingOverlap) {
-        return res.status(409).json({ 
-          error: 'Blocking overlap: Same client and notes already exist in this period.', 
-          existing 
-        });
-      }
-
-      // 3. If not blocking but force is false, return warning
-      if (!force) {
-        return res.status(409).json({ 
-          error: 'Overlap detected', 
-          existing 
-        });
-      }
-    }
-
-    // 4. Proceed with insertion
+    // Proceed with insertion
     const week_code = calculateWeekCode(month, start_date);
     const { data, error } = await supabase
       .from('allocations_weekly')
@@ -331,7 +307,13 @@ export const getUnlockedMonths = async (req: Request, res: Response) => {
       .select('*')
       .order('month', { ascending: false });
     
-    if (error) throw error;
+    if (error) {
+      if (error.code === 'PGRST205' || error.message?.includes('Could not find the table')) {
+        console.warn('[API] unlocked_months table is missing from Supabase database.');
+        return res.json([]);
+      }
+      throw error;
+    }
     res.json(data || []);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -356,7 +338,14 @@ export const addUnlockedMonth = async (req: Request, res: Response) => {
       .upsert([{ month }])
       .select();
 
-    if (error) throw error;
+    if (error) {
+      if (error.code === 'PGRST205' || error.message?.includes('Could not find the table')) {
+        return res.status(400).json({ 
+          error: 'The "unlocked_months" table is missing from the database. Please run the SQL schema in Supabase Dashboard SQL Editor first.' 
+        });
+      }
+      throw error;
+    }
     res.status(201).json(data[0]);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -377,7 +366,14 @@ export const deleteUnlockedMonth = async (req: Request, res: Response) => {
       .delete()
       .eq('month', month);
 
-    if (error) throw error;
+    if (error) {
+      if (error.code === 'PGRST205' || error.message?.includes('Could not find the table')) {
+        return res.status(400).json({ 
+          error: 'The "unlocked_months" table is missing from the database. Please run the SQL schema in Supabase Dashboard SQL Editor first.' 
+        });
+      }
+      throw error;
+    }
     res.status(204).send();
   } catch (error: any) {
     res.status(500).json({ error: error.message });

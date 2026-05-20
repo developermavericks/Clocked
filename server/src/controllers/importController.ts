@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import ExcelJS from 'exceljs';
 import { supabase } from '../config/supabase';
 import { calculateWeekCode } from '../utils/dateUtils';
+import { checkIfMonthLocked } from './allocationController';
 
 export const importExcel = async (req: Request, res: Response) => {
   if (!req.file) {
@@ -9,9 +10,15 @@ export const importExcel = async (req: Request, res: Response) => {
   }
 
   const { user_id, month, type } = req.body;
+  const userRole = (req as any).user_role || 'team';
   const workbook = new ExcelJS.Workbook();
   
   try {
+    const isLocked = await checkIfMonthLocked(month, userRole);
+    if (isLocked) {
+      return res.status(403).json({ error: `This month (${month}) is locked for editing.` });
+    }
+
     await workbook.xlsx.load(req.file.buffer as any);
     const worksheet = workbook.getWorksheet(1);
     if (!worksheet) throw new Error('Worksheet not found');

@@ -9,7 +9,6 @@ import AllocationsTable from '@/components/AllocationsTable';
 import AddEntryModal from '@/components/AddEntryModal';
 import CalendarImport from '@/components/CalendarImport';
 import ExcelUpload from '@/components/ExcelUpload';
-import OverlapWarningModal from '@/components/OverlapWarningModal';
 import ClientTargetsCard from '@/components/ClientTargetsCard';
 import { useAllocations } from '@/hooks/useAllocations';
 import { supabase } from '@/lib/supabase';
@@ -20,13 +19,6 @@ export default function TeamPortal() {
   const [displayMode, setDisplayMode] = useState<'detailed' | 'summary'>('detailed');
   const [month, setMonth] = useState(new Date().toISOString().slice(0, 7));
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isActionLoading, setIsActionLoading] = useState(false);
-  const [warning, setWarning] = useState<{ isOpen: boolean, overlaps: any[], isBlocking: boolean, retryData: any }>({
-    isOpen: false,
-    overlaps: [],
-    isBlocking: false,
-    retryData: null
-  });
   const [user, setUser] = useState<any>(null);
   const [editData, setEditData] = useState<any>(null);
   const [isEditMode, setIsEditMode] = useState(false);
@@ -123,34 +115,6 @@ export default function TeamPortal() {
   }, [month, userRole, unlockedMonths]);
 
   const { data, loading: isTableLoading, refresh } = useAllocations(user?.id, month, activeTab);
-
-  const handleForceSave = async () => {
-    setIsActionLoading(true);
-    try {
-      const response = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/allocations/weekly`, {
-        method: 'POST',
-        body: JSON.stringify({
-          user_id: user?.id,
-          month,
-          ...warning.retryData,
-          hours: parseFloat(warning.retryData.hours),
-          force: true
-        })
-      });
-      if (response.ok) {
-        refresh();
-        setWarning({ ...warning, isOpen: false });
-        setIsModalOpen(false);
-      } else {
-        const result = await response.json();
-        alert(result.error);
-      }
-    } catch (err: any) {
-      alert(err.message);
-    } finally {
-      setIsActionLoading(false);
-    }
-  };
 
   const handleEdit = (item: any) => {
     setEditData(item);
@@ -273,9 +237,14 @@ export default function TeamPortal() {
           </select>
         </div>
         <button 
-          onClick={() => setIsModalOpen(true)}
-          disabled={isLocked}
-          className="bg-blue-600 disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed disabled:shadow-none text-white px-5 py-2.5 rounded-xl text-sm font-bold hover:bg-blue-700 transition-all flex items-center gap-2 shadow-lg shadow-blue-100"
+          onClick={() => {
+            if (isLocked) {
+              alert("Monthly Submissions Locked: Submissions for previous months get locked on the 5th date of the current month. Please contact a Core admin to unlock this month.");
+              return;
+            }
+            setIsModalOpen(true);
+          }}
+          className="bg-blue-600 text-white px-5 py-2.5 rounded-xl text-sm font-bold hover:bg-blue-700 transition-all flex items-center gap-2 shadow-lg shadow-blue-100"
         >
           <Plus className="w-4 h-4" />
           Add Entry
@@ -338,10 +307,10 @@ export default function TeamPortal() {
             </div>
           </div>
 
-          {activeTab === 'weekly' && user && !isLocked && (
+          {activeTab === 'weekly' && user && (
             <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-8">
               <CalendarImport userId={user.id} month={month} onSuccess={refresh} />
-              <ExcelUpload userId={user.id} month={month} type="weekly" onSuccess={refresh} />
+              <ExcelUpload userId={user.id} month={month} type="weekly" onSuccess={refresh} isLocked={isLocked} />
             </div>
           )}
         </div>
@@ -358,19 +327,8 @@ export default function TeamPortal() {
         month={month} 
         userId={user?.id}
         onSuccess={refresh}
-        onOverlap={(overlaps, isBlocking, retryData) => {
-          setWarning({ isOpen: true, overlaps, isBlocking, retryData });
-        }}
         isEdit={isEditMode}
         initialData={editData}
-      />
-
-      <OverlapWarningModal 
-        isOpen={warning.isOpen}
-        onClose={() => setWarning({ ...warning, isOpen: false })}
-        onForceSave={handleForceSave}
-        overlaps={warning.overlaps}
-        isBlocking={warning.isBlocking}
       />
     </div>
   );

@@ -9,15 +9,20 @@ interface ExcelUploadProps {
   month: string;
   type: 'projected' | 'weekly';
   onSuccess: () => void;
+  isLocked?: boolean;
 }
 
-export default function ExcelUpload({ userId, month, type, onSuccess }: ExcelUploadProps) {
+export default function ExcelUpload({ userId, month, type, onSuccess, isLocked = false }: ExcelUploadProps) {
   const [file, setFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
 
   const handleUpload = async () => {
     if (!file) return;
+    if (isLocked) {
+      alert("Monthly Submissions Locked: Submissions for previous months get locked on the 5th date of the current month. You cannot import data for locked months.");
+      return;
+    }
     setLoading(true);
     setMessage(null);
 

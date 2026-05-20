@@ -35,6 +35,10 @@ export default function CalendarImport({ userId, month, onSuccess }: { userId: s
     return `${month}-${lastDay.toString().padStart(2, '0')}`;
   });
 
+  const [userRole, setUserRole] = useState('team');
+  const [unlockedMonths, setUnlockedMonths] = useState<string[]>([]);
+  const [isLocked, setIsLocked] = useState(false);
+
   useEffect(() => {
     handleMonthChange(month);
   }, [month]);
@@ -58,11 +62,95 @@ export default function CalendarImport({ userId, month, onSuccess }: { userId: s
     { value: '', label: 'Select Client...' },
     ...clients.map(c => ({ value: c.id, label: c.name }))
   ];
+
+  const fetchUserRole = async () => {
+    try {
+      const response = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/teams/me`);
+      if (response.ok) {
+        const resData = await response.json();
+        let role = resData.role || 'team';
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user?.email) {
+          const email = user.email.toLowerCase();
+          const CORE_EMAILS = [
+            'archana@themavericksindia.com', 'arunkumar@themavericksindia.com', 'avinash@themavericksindia.com',
+            'chetan@themavericksindia.com', 'developerteam@themavericksindia.com', 'divyanshsharma@themavericksindia.com',
+            'gaurav@themavericksindia.com', 'mitali.p@themavericksindia.com', 'pooja@themavericksindia.com',
+            'satyam.singh@themavericksindia.com', 'smriti@themavericksindia.com', 'tech@themavericksindia.com'
+          ];
+          const MANAGER_EMAILS = [
+            'aashna@themavericksindia.com', 'akshay@themavericksindia.com', 'alisha@themavericksindia.com',
+            'ananya@themavericksindia.com', 'anil@themavericksindia.com', 'chhavi.a@themavericksindia.com',
+            'ila@themavericksindia.com', 'ishmeet@themavericksindia.com', 'kavita@themavericksindia.com',
+            'mahek@themavericksindia.com', 'manaswi@themavericksindia.com', 'muskaan@themavericksindia.com',
+            'pavithra@themavericksindia.com', 'rajvi@themavericksindia.com', 'samrat@themavericksindia.com',
+            'shrestha@themavericksindia.com', 'srishtee@themavericksindia.com', 'vibhuti@themavericksindia.com'
+          ];
+          if (CORE_EMAILS.includes(email)) role = 'core';
+          else if (MANAGER_EMAILS.includes(email) && role === 'team') role = 'manager';
+        }
+        setUserRole(role);
+      }
+    } catch (err) {
+      console.error('Failed to fetch role:', err);
+    }
+  };
+
+  const fetchUnlockedMonths = async () => {
+    try {
+      const response = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/allocations/unlocked-months`);
+      if (response.ok) {
+        const monthsData = await response.json();
+        setUnlockedMonths(monthsData.map((m: any) => m.month));
+      }
+    } catch (err) {
+      console.error('Failed to fetch unlocked months:', err);
+    }
+  };
   
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => setUser(data.user));
+    supabase.auth.getUser().then(({ data }) => {
+      setUser(data.user);
+      if (data.user?.email) {
+        fetchUserRole();
+        fetchUnlockedMonths();
+      }
+    });
     fetchClients();
   }, []);
+
+  useEffect(() => {
+    if (userRole === 'core') {
+      setIsLocked(false);
+      return;
+    }
+    
+    if (!selectedMonth || !/^\d{4}-\d{2}$/.test(selectedMonth)) {
+      setIsLocked(false);
+      return;
+    }
+    
+    if (unlockedMonths.includes(selectedMonth)) {
+      setIsLocked(false);
+      return;
+    }
+
+    const [targetYear, targetMonth] = selectedMonth.split('-').map(Number);
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth() + 1;
+    const currentDay = now.getDate();
+
+    const diffMonths = (currentYear * 12 + currentMonth) - (targetYear * 12 + targetMonth);
+
+    if (diffMonths <= 0) {
+      setIsLocked(false);
+    } else if (diffMonths === 1) {
+      setIsLocked(currentDay >= 5);
+    } else {
+      setIsLocked(true);
+    }
+  }, [selectedMonth, userRole, unlockedMonths]);
 
   const fetchClients = async () => {
     try {
@@ -247,9 +335,12 @@ export default function CalendarImport({ userId, month, onSuccess }: { userId: s
       setClients(updatedClientsList);
 
       for (const event of eventsToSave) {
-        const { error } = await supabase
-          .from('allocations_weekly')
-          .insert([{
+        const response = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/allocations/weekly`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
             user_id: userId,
             month: selectedMonth,
             client_id: event.client_id, 
@@ -258,9 +349,14 @@ export default function CalendarImport({ userId, month, onSuccess }: { userId: s
             notes: event.notes || '', 
             start_date: event.start.split('T')[0],
             end_date: event.end.split('T')[0],
-            source: 'calendar'
-          }]);
-        if (error) throw error;
+            source: 'calendar',
+            force: true
+          })
+        });
+        if (!response.ok) {
+          const errData = await response.json();
+          throw new Error(errData.error || `Failed to save event "${event.title}"`);
+        }
       }
       onSuccess();
       setSelectedEvents(new Set());
@@ -384,7 +480,13 @@ export default function CalendarImport({ userId, month, onSuccess }: { userId: s
         {/* Fetch Action Button */}
         <div className="flex flex-col w-full md:w-auto mt-2 md:mt-0">
           <button 
-            onClick={handleFetch}
+            onClick={() => {
+              if (isLocked) {
+                alert("Monthly Submissions Locked: The selected month is locked. You cannot import calendar events for locked months.");
+                return;
+              }
+              handleFetch();
+            }}
             disabled={loading}
             className="bg-blue-600 text-white px-8 py-2.5 rounded-xl text-sm font-bold hover:bg-blue-700 transition-all flex items-center justify-center gap-2 shadow-lg shadow-blue-100 disabled:opacity-50 h-[38px] lg:h-[42px] w-full md:w-auto"
           >
@@ -510,7 +612,13 @@ export default function CalendarImport({ userId, month, onSuccess }: { userId: s
                 <span className="text-xs font-bold">Overlap check enabled</span>
               </div>
               <button 
-                onClick={handleSave}
+                onClick={() => {
+                  if (isLocked) {
+                    alert("Monthly Submissions Locked: The selected month is locked. You cannot save calendar events for locked months.");
+                    return;
+                  }
+                  handleSave();
+                }}
                 disabled={saving || selectedEvents.size === 0}
                 className="bg-slate-900 text-white px-8 py-3 rounded-2xl text-sm font-bold hover:bg-slate-800 transition-all shadow-xl shadow-slate-200 disabled:opacity-50 flex items-center gap-2"
               >

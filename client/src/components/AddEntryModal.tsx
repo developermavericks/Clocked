@@ -1,8 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { X, Loader2, Plus } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
+import { X, Loader2 } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 import SearchableSelect from '@/components/SearchableSelect';
 
@@ -13,13 +12,12 @@ interface AddEntryModalProps {
   month: string;
   userId: string;
   onSuccess: () => void;
-  onOverlap: (overlaps: any[], isBlocking: boolean, retryData: any) => void;
   initialData?: any;
   isEdit?: boolean;
 }
 
 export default function AddEntryModal({ 
-  isOpen, onClose, type, month, userId, onSuccess, onOverlap, initialData, isEdit 
+  isOpen, onClose, type, month, userId, onSuccess, initialData, isEdit 
 }: AddEntryModalProps) {
   const [loading, setLoading] = useState(false);
   const [clients, setClients] = useState<{ id: string, name: string }[]>([]);
@@ -75,23 +73,22 @@ export default function AddEntryModal({
     }
   };
 
-
   if (!isOpen) return null;
 
-  const handleSubmit = async (e: React.FormEvent, force = false) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     if (e) e.preventDefault();
     setLoading(true);
 
     // Validate both populated
     if (formData.client_id && formData.customBdName.trim()) {
-      alert("🚨 Error: You have selected a client from the dropdown AND entered a custom BD client name. Please use only one of these options.");
+      alert("Error: You have selected a client from the dropdown AND entered a custom BD client name. Please use only one of these options.");
       setLoading(false);
       return;
     }
 
     // Validate neither populated
     if (!formData.client_id && !formData.customBdName.trim()) {
-      alert("🚨 Error: Please select a client or enter a custom BD name.");
+      alert("Error: Please select a client or enter a custom BD name.");
       setLoading(false);
       return;
     }
@@ -103,9 +100,7 @@ export default function AddEntryModal({
         const bdName = `BD - ${formData.customBdName.trim()}`;
         const createRes = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/clients`, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ name: bdName })
         });
 
@@ -141,36 +136,13 @@ export default function AddEntryModal({
           notes: formData.notes,
           start_date: formData.start_date,
           end_date: formData.end_date,
-          force
+          force: true // Always force-save, no overlap prompts
         })
       });
 
       if (!response.ok) {
-        const errorText = await response.text();
-        if (response.status === 409) {
-          try {
-            const result = JSON.parse(errorText);
-            onOverlap(result.existing, result.error.includes('Blocking'), {
-              client_id: currentClientId,
-              category: formData.category,
-              hours: formData.hours,
-              notes: formData.notes,
-              start_date: formData.start_date,
-              end_date: formData.end_date
-            });
-            setLoading(false);
-            return;
-          } catch (e) {
-             throw new Error("Conflict error, but failed to parse details");
-          }
-        }
-        
-        try {
-          const result = JSON.parse(errorText);
-          throw new Error(result.error || 'Failed to save');
-        } catch {
-          throw new Error(`Server Error: ${response.status} during allocation saving`);
-        }
+        const result = await response.json();
+        throw new Error(result.error || 'Failed to save');
       }
 
       onSuccess();
