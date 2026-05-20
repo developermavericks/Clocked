@@ -1483,7 +1483,7 @@ export default function FinancePortal() {
               {expandedChart === 'team' && (
                 <div className="w-full h-full flex flex-col md:flex-row items-center gap-8">
                   {/* Left Side: Pie Chart */}
-                  <div className="flex-1 w-full h-[80%] min-h-[250px]">
+                  <div className="flex-1 w-full h-[80%] min-h-[250px] relative">
                     <ResponsiveContainer width="100%" height="100%">
                       <PieChart>
                         <Pie
@@ -1511,6 +1511,14 @@ export default function FinancePortal() {
                         />
                       </PieChart>
                     </ResponsiveContainer>
+
+                    {/* Center Stats overlay for donut */}
+                    <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                      <span className="text-xs font-black text-slate-400 uppercase tracking-widest">Total Hours</span>
+                      <span className="text-3xl font-black text-slate-900 dark:text-white mt-0.5">
+                        {coreTeamData.reduce((acc, c) => acc + c.value, 0).toFixed(1)}
+                      </span>
+                    </div>
                   </div>
                   
                   {/* Right Side: Legend Table */}
