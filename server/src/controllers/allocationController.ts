@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { supabase } from '../config/supabase';
 import { calculateWeekCode } from '../utils/dateUtils';
 import { exportUserAllocationsToExcel } from '../services/excelService';
+import { sendAcknowledgmentEmail } from '../services/emailService';
 
 export const getMyAllocations = async (req: Request, res: Response) => {
   const { userId, month, kind } = req.query;
@@ -128,6 +129,12 @@ export const addMonthlyAllocation = async (req: Request, res: Response) => {
       .select();
 
     if (error) throw error;
+
+    // Trigger acknowledgment email asynchronously
+    sendAcknowledgmentEmail(user_id, month).catch(err => {
+      console.error('[EMAIL-ERROR] Failed to send acknowledgment email:', err);
+    });
+
     res.status(201).json(data[0]);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -185,6 +192,12 @@ export const addWeeklyAllocation = async (req: Request, res: Response) => {
       .select();
 
     if (error) throw error;
+
+    // Trigger acknowledgment email asynchronously
+    sendAcknowledgmentEmail(user_id, month).catch(err => {
+      console.error('[EMAIL-ERROR] Failed to send acknowledgment email:', err);
+    });
+
     res.status(201).json(data[0]);
   } catch (error: any) {
     res.status(500).json({ error: error.message });

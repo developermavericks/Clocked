@@ -9,6 +9,7 @@ import importRoutes from './routes/importRoutes';
 import clientRoutes from './routes/clientRoutes';
 import teamRoutes from './routes/teamRoutes';
 import financeRoutes from './routes/financeRoutes';
+import notificationRoutes from './routes/notificationRoutes';
 
 dotenv.config();
 
@@ -31,6 +32,7 @@ app.use('/api/import', importRoutes);
 app.use('/api/clients', clientRoutes);
 app.use('/api/teams', teamRoutes);
 app.use('/api/finance', financeRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 app.get('/', (req: Request, res: Response) => {
   res.send('MavsTracker API is running');

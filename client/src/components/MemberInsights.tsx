@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Search, User, Clock, Briefcase, Calendar, AlertCircle, Loader2 } from 'lucide-react';
+import { Search, User, Clock, Briefcase, Calendar, AlertCircle, Loader2, Mail, Send, CheckCircle2 } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 import SearchableSelect from '@/components/SearchableSelect';
 
@@ -104,6 +104,71 @@ export default function MemberInsights({ month: initialMonth }: { month: string 
       setZeroHourMembers(zeroList);
     } catch (err) {
       console.error('Failed to fetch zero hour members:', err);
+    }
+  };
+
+  // State for email notifications
+  const [sendingAll, setSendingAll] = useState(false);
+  const [sendingIndividual, setSendingIndividual] = useState<Record<string, boolean>>({});
+  const [sentStatus, setSentStatus] = useState<Record<string, boolean>>({});
+
+  const handleSendIndividualReminder = async (email: string) => {
+    setSendingIndividual(prev => ({ ...prev, [email]: true }));
+    try {
+      const response = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/notifications/remind`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ email, month: internalMonth })
+      });
+      if (response.ok) {
+        setSentStatus(prev => ({ ...prev, [email]: true }));
+        setTimeout(() => {
+          setSentStatus(prev => ({ ...prev, [email]: false }));
+        }, 5000);
+      } else {
+        const errData = await response.json();
+        alert(errData.error || 'Failed to send reminder.');
+      }
+    } catch (err: any) {
+      alert(err.message || 'Failed to connect to server.');
+    } finally {
+      setSendingIndividual(prev => ({ ...prev, [email]: false }));
+    }
+  };
+
+  const handleSendBulkReminders = async () => {
+    if (zeroHourMembers.length === 0) return;
+    if (!confirm(`Are you sure you want to send email reminders to all ${zeroHourMembers.length} members with 0 logged hours?`)) return;
+
+    setSendingAll(true);
+    try {
+      const response = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/notifications/remind-all`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ month: internalMonth })
+      });
+      if (response.ok) {
+        alert('All reminders successfully dispatched!');
+        const nextSent: Record<string, boolean> = {};
+        zeroHourMembers.forEach(email => {
+          nextSent[email] = true;
+        });
+        setSentStatus(nextSent);
+        setTimeout(() => {
+          setSentStatus({});
+        }, 5000);
+      } else {
+        const errData = await response.json();
+        alert(errData.error || 'Failed to send bulk reminders.');
+      }
+    } catch (err: any) {
+      alert(err.message || 'Failed to connect to server.');
+    } finally {
+      setSendingAll(false);
     }
   };
 
@@ -271,21 +336,71 @@ export default function MemberInsights({ month: initialMonth }: { month: string 
                 {zeroHourMembers.length}
               </span>
             </div>
-            <div className="p-6 max-h-[600px] overflow-y-auto custom-scrollbar">
+
+            {/* SEND REMINDER TO ALL BUTTON */}
+            {zeroHourMembers.length > 0 && (
+              <div className="px-6 pt-6 pb-2 border-b border-slate-50">
+                <button
+                  onClick={handleSendBulkReminders}
+                  disabled={sendingAll}
+                  className="w-full bg-slate-900 hover:bg-red-600 text-white font-black py-3 rounded-2xl text-xs uppercase tracking-widest transition-all shadow-md hover:shadow-red-200/50 flex items-center justify-center gap-2 disabled:opacity-50 active:scale-95 cursor-pointer"
+                >
+                  {sendingAll ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      SENDING...
+                    </>
+                  ) : (
+                    <>
+                      <Mail className="w-4 h-4" />
+                      REMIND ALL ({zeroHourMembers.length})
+                    </>
+                  )}
+                </button>
+              </div>
+            )}
+
+            <div className="p-6 max-h-[500px] overflow-y-auto custom-scrollbar">
               <div className="space-y-2">
-                {zeroHourMembers.map(email => (
-                  <button 
-                    key={email}
-                    onClick={() => {
-                      setSelectedEmail(email);
-                      // Auto-load report for them? 
-                    }}
-                    className="w-full text-left p-3 rounded-xl hover:bg-slate-50 transition-all flex items-center gap-3 group"
-                  >
-                    <div className="w-2 h-2 rounded-full bg-slate-200 group-hover:bg-red-400 transition-colors" />
-                    <span className="text-xs font-bold text-slate-600 group-hover:text-slate-900 truncate">{email}</span>
-                  </button>
-                ))}
+                {zeroHourMembers.map(email => {
+                  const isSending = sendingIndividual[email];
+                  const isSent = sentStatus[email];
+
+                  return (
+                    <div 
+                      key={email}
+                      className="w-full p-2 rounded-xl hover:bg-slate-50 transition-all flex items-center justify-between group"
+                    >
+                      <button 
+                        onClick={() => setSelectedEmail(email)}
+                        className="flex-1 text-left flex items-center gap-3 min-w-0"
+                      >
+                        <div className="w-2 h-2 rounded-full bg-slate-200 group-hover:bg-red-400 transition-colors flex-shrink-0" />
+                        <span className="text-xs font-bold text-slate-600 group-hover:text-slate-900 truncate">{email}</span>
+                      </button>
+
+                      {/* INDIVIDUAL SEND REMINDER BUTTON */}
+                      <button
+                        onClick={() => handleSendIndividualReminder(email)}
+                        disabled={isSending || isSent}
+                        className={`ml-2 p-1.5 rounded-lg transition-all flex items-center justify-center flex-shrink-0 border cursor-pointer ${
+                          isSent 
+                            ? 'bg-emerald-50 border-emerald-200 text-emerald-600' 
+                            : 'bg-slate-50 hover:bg-red-50 hover:text-red-600 border-slate-100 hover:border-red-100 text-slate-400'
+                        }`}
+                        title="Send email reminder to this member"
+                      >
+                        {isSending ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : isSent ? (
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                        ) : (
+                          <Send className="w-3.5 h-3.5" />
+                        )}
+                      </button>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           </div>
