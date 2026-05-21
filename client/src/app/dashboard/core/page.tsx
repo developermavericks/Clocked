@@ -345,12 +345,7 @@ export default function CorePortal() {
           </button>
         </div>
 
-        <div className="p-8 relative min-h-[400px]">
-          {loading && (
-            <div className="absolute inset-0 bg-white/60 dark:bg-slate-900/60 backdrop-blur-[1px] z-10 flex items-center justify-center rounded-b-2xl animate-in fade-in duration-200">
-              <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
-            </div>
-          )}
+        <div className="p-8">
           {activeTab === 'admin' && (
             <div className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -374,7 +369,13 @@ export default function CorePortal() {
                       </thead>
                       <tbody className="divide-y divide-slate-100">
                         {loading ? (
-                           <tr><td colSpan={4} className="text-center py-10"><div className="animate-spin inline-block w-6 h-6 border-b-2 border-orange-600 rounded-full"></div></td></tr>
+                          <tr>
+                            <td colSpan={4} className="text-center py-10 bg-white dark:bg-slate-900">
+                              <div className="flex items-center justify-center">
+                                <Loader2 className="w-6 h-6 text-orange-600 animate-spin" />
+                              </div>
+                            </td>
+                          </tr>
                         ) : activeUsersOnly.map(u => {
                           // Role priority: Core > Manager > Team
                           let displayRole = u.role?.toUpperCase() || 'TEAM';

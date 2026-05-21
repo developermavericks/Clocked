@@ -193,12 +193,7 @@ export default function ManagerPortal() {
           </button>
         </div>
 
-        <div className="p-8 relative min-h-[400px]">
-          {activeEmailsLoading && (
-            <div className="absolute inset-0 bg-white/60 dark:bg-slate-900/60 backdrop-blur-[1px] z-10 flex items-center justify-center rounded-b-2xl animate-in fade-in duration-200">
-              <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
-            </div>
-          )}
+        <div className="p-8">
           {activeTab === 'self' ? (
             <div className="space-y-6 animate-in slide-in-from-right duration-300">
               <div className="flex items-center justify-between">

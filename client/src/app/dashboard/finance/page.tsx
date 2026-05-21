@@ -1093,7 +1093,12 @@ export default function FinancePortal() {
                 </div>
 
                 {/* Chart 2: Line Chart (Right Side) */}
-                <div className="bg-white border border-slate-100 shadow-xl shadow-slate-100/50 rounded-[24px] p-6 flex flex-col min-h-[480px]">
+                <div className="bg-white border border-slate-100 shadow-xl shadow-slate-100/50 rounded-[24px] p-6 flex flex-col min-h-[480px] relative">
+                  {loading && (
+                    <div className="absolute inset-0 bg-white/60 dark:bg-slate-900/60 backdrop-blur-[1px] z-10 flex items-center justify-center rounded-[24px] animate-in fade-in duration-200">
+                      <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
+                    </div>
+                  )}
                   <div className="flex justify-between items-start mb-4">
                     <div>
                       <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">CHART 2</span>
