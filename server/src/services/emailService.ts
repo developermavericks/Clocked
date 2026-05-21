@@ -1,5 +1,11 @@
 import nodemailer from 'nodemailer';
 import { supabase } from '../config/supabase';
+import dns from 'dns';
+
+// Force dns lookup to use IPv4 (family 4) only, preventing unreachable IPv6 routing on cloud hosts
+const ipv4Lookup = (hostname: string, options: any, callback: any) => {
+  return dns.lookup(hostname, { ...options, family: 4 }, callback);
+};
 
 // Executive / CEO CC Emails
 const CEO_EMAILS = [
@@ -35,8 +41,10 @@ const getTransporter = () => {
       // Increase timeouts to be extra robust
       connectionTimeout: 10000,
       greetingTimeout: 10000,
-      socketTimeout: 10000
-    });
+      socketTimeout: 10000,
+      // Force lookup to use IPv4 only!
+      lookup: ipv4Lookup
+    } as any);
   }
 
   return transporterInstance;

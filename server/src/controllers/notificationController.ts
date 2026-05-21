@@ -40,7 +40,7 @@ export const sendAllReminders = async (req: Request, res: Response) => {
     // 1. Fetch all users
     const { data: dbUsers, error: usersError } = await supabase
       .from('users')
-      .select('id, email, name, is_active, exit_date');
+      .select('id, email, name, exit_date');
 
     if (usersError) throw usersError;
 
@@ -76,8 +76,8 @@ export const sendAllReminders = async (req: Request, res: Response) => {
     // 3. Filter to find the zero-hour members
     const zeroHourMembersList = dbUsers
       .filter((u: any) => {
-        // Must be active and matches the isActiveUser criteria
-        if (!u.is_active || !isActiveUser(u.email)) return false;
+        // Must match the active user domains filter (e.g. @themavericksindia.com)
+        if (!isActiveUser(u.email)) return false;
         
         // Exclude if exited before the target month
         if (u.exit_date) {
