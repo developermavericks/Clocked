@@ -474,7 +474,7 @@ export default function FinancePortal() {
   }, [reportData, month, daysInMonth, analysisView, groupBD, groupLeave, groupInternal]);
 
   // State to track which chart is expanded in modal overlay
-  const [expandedChart, setExpandedChart] = useState<'bar' | 'line' | 'team' | null>(null);
+  const [expandedChart, setExpandedChart] = useState<'bar' | 'line' | 'team' | 'costVsRevenue' | 'profitVsLoss' | 'profitabilityMargin' | null>(null);
 
   // Helper to resolve client names to their core leadership team owners
   const getClientCoreTeam = (rawName: string): string => {
@@ -1367,51 +1367,95 @@ export default function FinancePortal() {
                       
                       {/* Chart 1: Cost vs Revenue Grouped Bar Chart */}
                       <div className="border border-slate-100 rounded-3xl p-6 bg-white space-y-4">
-                        <div>
-                          <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Cost vs Revenue Comparison</span>
-                          <h5 className="text-sm font-bold text-slate-800 mt-0.5">Budgeted Revenue & Distributed Labor Cost</h5>
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Cost vs Revenue Comparison</span>
+                            <h5 className="text-sm font-bold text-slate-800 mt-0.5">Budgeted Revenue & Distributed Labor Cost</h5>
+                          </div>
+                          <button
+                            onClick={() => setExpandedChart('costVsRevenue')}
+                            className="p-2 hover:bg-slate-100 text-slate-400 hover:text-slate-700 rounded-xl transition-all shadow-sm"
+                            title="Enlarge Chart"
+                          >
+                            <Maximize2 className="w-4 h-4" />
+                          </button>
                         </div>
-                        <div className="h-[300px] w-full">
-                          <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={budgetAnalysisData} margin={{ top: 20, right: 10, left: 10, bottom: 20 }}>
-                              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                              <XAxis dataKey="name" stroke="#64748b" fontSize={9} fontWeight="bold" tickLine={false} />
-                              <YAxis stroke="#64748b" fontSize={9} fontWeight="bold" tickLine={false} axisLine={false} tickFormatter={(v) => `₹${v/1000}k`} />
-                              <RechartsTooltip 
-                                formatter={(v) => [fmtCurrency(Number(v)), '']}
-                                contentStyle={{ background: '#0f172a', border: 'none', borderRadius: '12px', color: '#fff', fontSize: '11px', fontWeight: 'bold' }}
-                              />
-                              <Legend verticalAlign="top" height={36} iconType="circle" wrapperStyle={{ fontSize: '11px', fontWeight: 'bold' }} />
-                              <Bar dataKey="revenueFormatted" name="Revenue (Budget)" fill="#10b981" radius={[6, 6, 0, 0]} />
-                              <Bar dataKey="costFormatted" name="Allocated Labor Cost" fill="#3b82f6" radius={[6, 6, 0, 0]} />
-                            </BarChart>
-                          </ResponsiveContainer>
+                        <div className="w-full overflow-x-auto custom-scrollbar select-none pb-2">
+                          <div style={{ minWidth: budgetAnalysisData.length > 0 ? `${Math.max(600, budgetAnalysisData.length * 60)}px` : '100%', height: '300px' }}>
+                            <ResponsiveContainer width="100%" height="100%">
+                              <BarChart data={budgetAnalysisData} margin={{ top: 20, right: 10, left: 10, bottom: 30 }}>
+                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                                <XAxis 
+                                  dataKey="name" 
+                                  stroke="#64748b" 
+                                  fontSize={8} 
+                                  fontWeight="bold" 
+                                  tickLine={false} 
+                                  axisLine={false}
+                                  interval={0}
+                                  angle={-30}
+                                  dx={-8}
+                                  dy={8}
+                                />
+                                <YAxis stroke="#64748b" fontSize={9} fontWeight="bold" tickLine={false} axisLine={false} tickFormatter={(v) => `₹${v/1000}k`} />
+                                <RechartsTooltip 
+                                  formatter={(v) => [fmtCurrency(Number(v)), '']}
+                                  contentStyle={{ background: '#0f172a', border: 'none', borderRadius: '12px', color: '#fff', fontSize: '11px', fontWeight: 'bold' }}
+                                />
+                                <Legend verticalAlign="top" height={36} iconType="circle" wrapperStyle={{ fontSize: '11px', fontWeight: 'bold' }} />
+                                <Bar dataKey="revenueFormatted" name="Revenue (Budget)" fill="#10b981" radius={[6, 6, 0, 0]} />
+                                <Bar dataKey="costFormatted" name="Allocated Labor Cost" fill="#3b82f6" radius={[6, 6, 0, 0]} />
+                              </BarChart>
+                            </ResponsiveContainer>
+                          </div>
                         </div>
                       </div>
 
                       {/* Chart 2: Net Profit Margin per Client */}
                       <div className="border border-slate-100 rounded-3xl p-6 bg-white space-y-4">
-                        <div>
-                          <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Net Profit / Loss per Client</span>
-                          <h5 className="text-sm font-bold text-slate-800 mt-0.5">Absolute Net Margin Generated</h5>
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Net Profit / Loss per Client</span>
+                            <h5 className="text-sm font-bold text-slate-800 mt-0.5">Absolute Net Margin Generated</h5>
+                          </div>
+                          <button
+                            onClick={() => setExpandedChart('profitVsLoss')}
+                            className="p-2 hover:bg-slate-100 text-slate-400 hover:text-slate-700 rounded-xl transition-all shadow-sm"
+                            title="Enlarge Chart"
+                          >
+                            <Maximize2 className="w-4 h-4" />
+                          </button>
                         </div>
-                        <div className="h-[300px] w-full">
-                          <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={budgetAnalysisData} margin={{ top: 20, right: 10, left: 10, bottom: 20 }}>
-                              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                              <XAxis dataKey="name" stroke="#64748b" fontSize={9} fontWeight="bold" tickLine={false} />
-                              <YAxis stroke="#64748b" fontSize={9} fontWeight="bold" tickLine={false} axisLine={false} tickFormatter={(v) => `₹${v/1000}k`} />
-                              <RechartsTooltip 
-                                formatter={(v) => [fmtCurrency(Number(v)), 'Net Profit/Loss']}
-                                contentStyle={{ background: '#0f172a', border: 'none', borderRadius: '12px', color: '#fff', fontSize: '11px', fontWeight: 'bold' }}
-                              />
-                              <Bar dataKey="profitFormatted" name="Net Profit / Loss" radius={[6, 6, 0, 0]}>
-                                {budgetAnalysisData.map((entry, idx) => (
-                                  <Cell key={`cell-${idx}`} fill={entry.profit >= 0 ? '#10b981' : '#ef4444'} />
-                                ))}
-                              </Bar>
-                            </BarChart>
-                          </ResponsiveContainer>
+                        <div className="w-full overflow-x-auto custom-scrollbar select-none pb-2">
+                          <div style={{ minWidth: budgetAnalysisData.length > 0 ? `${Math.max(600, budgetAnalysisData.length * 60)}px` : '100%', height: '300px' }}>
+                            <ResponsiveContainer width="100%" height="100%">
+                              <BarChart data={budgetAnalysisData} margin={{ top: 20, right: 10, left: 10, bottom: 30 }}>
+                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                                <XAxis 
+                                  dataKey="name" 
+                                  stroke="#64748b" 
+                                  fontSize={8} 
+                                  fontWeight="bold" 
+                                  tickLine={false} 
+                                  axisLine={false}
+                                  interval={0}
+                                  angle={-30}
+                                  dx={-8}
+                                  dy={8}
+                                />
+                                <YAxis stroke="#64748b" fontSize={9} fontWeight="bold" tickLine={false} axisLine={false} tickFormatter={(v) => `₹${v/1000}k`} />
+                                <RechartsTooltip 
+                                  formatter={(v) => [fmtCurrency(Number(v)), 'Net Profit/Loss']}
+                                  contentStyle={{ background: '#0f172a', border: 'none', borderRadius: '12px', color: '#fff', fontSize: '11px', fontWeight: 'bold' }}
+                                />
+                                <Bar dataKey="profitFormatted" name="Net Profit / Loss" radius={[6, 6, 0, 0]}>
+                                  {budgetAnalysisData.map((entry, idx) => (
+                                    <Cell key={`cell-${idx}`} fill={entry.profit >= 0 ? '#10b981' : '#ef4444'} />
+                                  ))}
+                                </Bar>
+                              </BarChart>
+                            </ResponsiveContainer>
+                          </div>
                         </div>
                       </div>
 
@@ -1422,23 +1466,45 @@ export default function FinancePortal() {
                       
                       {/* Left: Profit Margin Percentages Line Chart */}
                       <div className="lg:col-span-5 border border-slate-100 rounded-3xl p-6 bg-white space-y-4">
-                        <div>
-                          <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Profitability Margin (%)</span>
-                          <h5 className="text-sm font-bold text-slate-800 mt-0.5">Net Profit Margin by Client</h5>
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Profitability Margin (%)</span>
+                            <h5 className="text-sm font-bold text-slate-800 mt-0.5">Net Profit Margin by Client</h5>
+                          </div>
+                          <button
+                            onClick={() => setExpandedChart('profitabilityMargin')}
+                            className="p-2 hover:bg-slate-100 text-slate-400 hover:text-slate-700 rounded-xl transition-all shadow-sm"
+                            title="Enlarge Chart"
+                          >
+                            <Maximize2 className="w-4 h-4" />
+                          </button>
                         </div>
-                        <div className="h-[250px] w-full">
-                          <ResponsiveContainer width="100%" height="100%">
-                            <LineChart data={budgetAnalysisData.filter(item => item.revenue > 0)} margin={{ top: 20, right: 10, left: 10, bottom: 20 }}>
-                              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                              <XAxis dataKey="name" stroke="#64748b" fontSize={9} fontWeight="bold" tickLine={false} />
-                              <YAxis stroke="#64748b" fontSize={9} fontWeight="bold" tickLine={false} axisLine={false} tickFormatter={(v) => `${v}%`} />
-                              <RechartsTooltip 
-                                formatter={(v) => [`${v}%`, 'Margin']}
-                                contentStyle={{ background: '#0f172a', border: 'none', borderRadius: '12px', color: '#fff', fontSize: '11px', fontWeight: 'bold' }}
-                              />
-                              <Line type="monotone" dataKey="profitMargin" stroke="#8b5cf6" strokeWidth={3} dot={{ r: 3 }} activeDot={{ r: 6 }} />
-                            </LineChart>
-                          </ResponsiveContainer>
+                        <div className="w-full overflow-x-auto custom-scrollbar select-none pb-2">
+                          <div style={{ minWidth: budgetAnalysisData.length > 0 ? `${Math.max(450, budgetAnalysisData.filter(item => item.revenue > 0).length * 60)}px` : '100%', height: '250px' }}>
+                            <ResponsiveContainer width="100%" height="100%">
+                              <LineChart data={budgetAnalysisData.filter(item => item.revenue > 0)} margin={{ top: 20, right: 10, left: 10, bottom: 30 }}>
+                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                                <XAxis 
+                                  dataKey="name" 
+                                  stroke="#64748b" 
+                                  fontSize={8} 
+                                  fontWeight="bold" 
+                                  tickLine={false} 
+                                  axisLine={false}
+                                  interval={0}
+                                  angle={-30}
+                                  dx={-8}
+                                  dy={8}
+                                />
+                                <YAxis stroke="#64748b" fontSize={9} fontWeight="bold" tickLine={false} axisLine={false} tickFormatter={(v) => `${v}%`} />
+                                <RechartsTooltip 
+                                  formatter={(v) => [`${v}%`, 'Margin']}
+                                  contentStyle={{ background: '#0f172a', border: 'none', borderRadius: '12px', color: '#fff', fontSize: '11px', fontWeight: 'bold' }}
+                                />
+                                <Line type="monotone" dataKey="profitMargin" stroke="#8b5cf6" strokeWidth={3} dot={{ r: 3 }} activeDot={{ r: 6 }} />
+                              </LineChart>
+                            </ResponsiveContainer>
+                          </div>
                         </div>
                       </div>
 
@@ -1914,6 +1980,102 @@ export default function FinancePortal() {
                             />
                           );
                         })}
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+              )}
+
+              {expandedChart === 'costVsRevenue' && (
+                <div className="w-full h-full overflow-x-auto custom-scrollbar select-none pt-2">
+                  <div style={{ minWidth: `${Math.max(budgetAnalysisData.length * 90, 1200)}px` }} className="h-[90%]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={budgetAnalysisData} margin={{ top: 20, right: 10, left: 10, bottom: 50 }}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                        <XAxis 
+                          dataKey="name" 
+                          stroke="#64748b" 
+                          fontSize={10} 
+                          fontWeight="bold" 
+                          tickLine={false} 
+                          axisLine={false}
+                          interval={0}
+                          angle={-25}
+                          dx={-10}
+                          dy={10}
+                        />
+                        <YAxis stroke="#64748b" fontSize={10} fontWeight="bold" tickLine={false} axisLine={false} tickFormatter={(v) => `₹${v/1000}k`} />
+                        <RechartsTooltip 
+                          formatter={(v) => [fmtCurrency(Number(v)), '']}
+                          contentStyle={{ background: '#0f172a', border: 'none', borderRadius: '12px', color: '#fff', fontSize: '12px', fontWeight: 'bold' }}
+                        />
+                        <Legend verticalAlign="top" height={36} iconType="circle" wrapperStyle={{ fontSize: '12px', fontWeight: 'bold' }} />
+                        <Bar dataKey="revenueFormatted" name="Revenue (Budget)" fill="#10b981" radius={[8, 8, 0, 0]} />
+                        <Bar dataKey="costFormatted" name="Allocated Labor Cost" fill="#3b82f6" radius={[8, 8, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+              )}
+
+              {expandedChart === 'profitVsLoss' && (
+                <div className="w-full h-full overflow-x-auto custom-scrollbar select-none pt-2">
+                  <div style={{ minWidth: `${Math.max(budgetAnalysisData.length * 90, 1200)}px` }} className="h-[90%]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={budgetAnalysisData} margin={{ top: 20, right: 10, left: 10, bottom: 50 }}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                        <XAxis 
+                          dataKey="name" 
+                          stroke="#64748b" 
+                          fontSize={10} 
+                          fontWeight="bold" 
+                          tickLine={false} 
+                          axisLine={false}
+                          interval={0}
+                          angle={-25}
+                          dx={-10}
+                          dy={10}
+                        />
+                        <YAxis stroke="#64748b" fontSize={10} fontWeight="bold" tickLine={false} axisLine={false} tickFormatter={(v) => `₹${v/1000}k`} />
+                        <RechartsTooltip 
+                          formatter={(v) => [fmtCurrency(Number(v)), 'Net Profit/Loss']}
+                          contentStyle={{ background: '#0f172a', border: 'none', borderRadius: '12px', color: '#fff', fontSize: '12px', fontWeight: 'bold' }}
+                        />
+                        <Bar dataKey="profitFormatted" name="Net Profit / Loss" radius={[8, 8, 0, 0]}>
+                          {budgetAnalysisData.map((entry, idx) => (
+                            <Cell key={`cell-${idx}`} fill={entry.profit >= 0 ? '#10b981' : '#ef4444'} />
+                          ))}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+              )}
+
+              {expandedChart === 'profitabilityMargin' && (
+                <div className="w-full h-full overflow-x-auto custom-scrollbar select-none pt-2">
+                  <div style={{ minWidth: `${Math.max(budgetAnalysisData.filter(item => item.revenue > 0).length * 90, 1200)}px` }} className="h-[90%]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={budgetAnalysisData.filter(item => item.revenue > 0)} margin={{ top: 20, right: 10, left: 10, bottom: 50 }}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                        <XAxis 
+                          dataKey="name" 
+                          stroke="#64748b" 
+                          fontSize={10} 
+                          fontWeight="bold" 
+                          tickLine={false} 
+                          axisLine={false}
+                          interval={0}
+                          angle={-25}
+                          dx={-10}
+                          dy={10}
+                        />
+                        <YAxis stroke="#64748b" fontSize={10} fontWeight="bold" tickLine={false} axisLine={false} tickFormatter={(v) => `${v}%`} />
+                        <RechartsTooltip 
+                          formatter={(v) => [`${v}%`, 'Margin']}
+                          contentStyle={{ background: '#0f172a', border: 'none', borderRadius: '12px', color: '#fff', fontSize: '12px', fontWeight: 'bold' }}
+                        />
+                        <Line type="monotone" dataKey="profitMargin" stroke="#8b5cf6" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 7 }} />
                       </LineChart>
                     </ResponsiveContainer>
                   </div>
