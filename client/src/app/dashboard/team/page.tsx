@@ -163,15 +163,6 @@ export default function TeamPortal() {
 
   return (
     <div className="space-y-8 relative">
-      {/* Month switching loading overlay */}
-      {isTableLoading && (
-        <div className="fixed inset-0 bg-slate-900/10 dark:bg-slate-950/20 backdrop-blur-[2px] z-[9999] flex items-center justify-center animate-in fade-in duration-200">
-          <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md p-6 rounded-3xl shadow-xl border border-white/20 dark:border-white/5 flex flex-col items-center gap-3">
-            <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
-            <p className="text-[10px] font-black text-slate-500 dark:text-slate-400 tracking-[0.2em] uppercase animate-pulse">Loading Month Data...</p>
-          </div>
-        </div>
-      )}
 
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
         <div>
@@ -297,26 +288,25 @@ export default function TeamPortal() {
               </div>
             </div>
 
-            <div className="p-0">
-              {isTableLoading ? (
-                <div className="flex items-center justify-center py-20">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                </div>
-              ) : (
-                <div className="space-y-8">
-                  <AllocationsTable 
-                    data={data} 
-                    type={activeTab} 
-                    displayMode={displayMode} 
-                    onDelete={handleDelete}
-                    onEdit={(id) => {
-                      const item = data.find(d => d.id === id);
-                      if (item) handleEdit(item);
-                    }}
-                    isLocked={isLocked}
-                  />
+            <div className="p-0 relative min-h-[200px]">
+              {isTableLoading && (
+                <div className="absolute inset-0 bg-white/60 dark:bg-slate-900/60 backdrop-blur-[1px] z-10 flex items-center justify-center rounded-2xl animate-in fade-in duration-200">
+                  <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
                 </div>
               )}
+              <div className="space-y-8">
+                <AllocationsTable 
+                  data={data} 
+                  type={activeTab} 
+                  displayMode={displayMode} 
+                  onDelete={handleDelete}
+                  onEdit={(id) => {
+                    const item = data.find(d => d.id === id);
+                    if (item) handleEdit(item);
+                  }}
+                  isLocked={isLocked}
+                />
+              </div>
             </div>
           </div>
 

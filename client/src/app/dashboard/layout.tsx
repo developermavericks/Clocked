@@ -57,13 +57,10 @@ export default function DashboardLayout({
 
   return (
     <div className="flex h-screen bg-slate-50 dark:bg-slate-900 transition-colors relative overflow-hidden">
-      {/* Global premium semi-transparent glassmorphic loader */}
+      {/* Global premium top-screen non-blocking progress loader */}
       {isNavigating && (
-        <div className="absolute inset-0 bg-slate-900/10 dark:bg-slate-950/20 backdrop-blur-[2px] z-[9999] flex items-center justify-center animate-in fade-in duration-300">
-          <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md p-6 rounded-3xl shadow-xl border border-white/20 dark:border-white/5 flex flex-col items-center gap-3">
-            <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
-            <p className="text-[10px] font-black text-slate-500 dark:text-slate-400 tracking-[0.2em] uppercase animate-pulse">Loading Portal...</p>
-          </div>
+        <div className="fixed top-0 left-0 right-0 h-1 bg-blue-100 z-[9999] overflow-hidden">
+          <div className="h-full bg-blue-600 animate-pulse w-full origin-left" style={{ animationDuration: '1s' }} />
         </div>
       )}
 
