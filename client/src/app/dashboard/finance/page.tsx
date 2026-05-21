@@ -601,18 +601,21 @@ export default function FinancePortal() {
           value={fmtCurrency(stats.payroll)}
           icon={Users}
           color="bg-blue-600"
+          tooltip="Sum of monthly salaries of all active employees/consultants in the database"
         />
         <StatsCard
           label="Aggregate Client Budget"
           value={fmtCurrency(stats.totalBudget)}
           icon={Briefcase}
           color="bg-emerald-600"
+          tooltip="Total combined monthly budgets assigned to active client accounts"
         />
         <StatsCard
           label="Target Accounts"
           value={stats.activeClients.toString()}
           icon={Layers}
           color="bg-indigo-600"
+          tooltip="Total count of active client accounts tracked this month"
         />
       </div>
 
