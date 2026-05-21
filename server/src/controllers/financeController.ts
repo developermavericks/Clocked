@@ -56,14 +56,14 @@ export const exportFinanceMaster = async (req: Request, res: Response) => {
 };
 
 export const saveUserSalary = async (req: Request, res: Response) => {
-  const { userId, salary } = req.body;
+  const { userId, salary, month } = req.body;
 
   if (!userId || salary === undefined) {
     return res.status(400).json({ error: 'Missing userId or salary' });
   }
 
   try {
-    const data = await updateUserSalary(userId, Number(salary));
+    const data = await updateUserSalary(userId, Number(salary), month);
     res.json(data);
   } catch (error: any) {
     console.error('saveUserSalary Error:', error);
@@ -72,14 +72,14 @@ export const saveUserSalary = async (req: Request, res: Response) => {
 };
 
 export const saveClientBudgetAndCore = async (req: Request, res: Response) => {
-  const { clientId, budget, core } = req.body;
+  const { clientId, budget, core, month } = req.body;
 
   if (!clientId || budget === undefined || core === undefined) {
     return res.status(400).json({ error: 'Missing clientId, budget, or core' });
   }
 
   try {
-    const data = await updateClientBudgetAndCore(clientId, Number(budget), core as string);
+    const data = await updateClientBudgetAndCore(clientId, Number(budget), core as string, month);
     res.json(data);
   } catch (error: any) {
     console.error('saveClientBudgetAndCore Error:', error);

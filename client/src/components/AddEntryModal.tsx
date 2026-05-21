@@ -65,7 +65,7 @@ export default function AddEntryModal({
 
   const fetchClients = async () => {
     try {
-      const response = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/clients`);
+      const response = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/clients?month=${month}`);
       const data = await response.json();
       setClients(data);
     } catch (err) {

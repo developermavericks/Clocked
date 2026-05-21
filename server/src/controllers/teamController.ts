@@ -65,6 +65,7 @@ export const getMemberAllocations = async (req: Request, res: Response) => {
 };
 
 export const getAllUsers = async (req: Request, res: Response) => {
+  const { month } = req.query;
   try {
     // Fetch users
     const { data: users, error: usersError } = await supabase
@@ -83,13 +84,34 @@ export const getAllUsers = async (req: Request, res: Response) => {
 
     const managerIds = new Set(managers.map((m: any) => m.manager_id));
 
+    // Fetch monthly salary overrides for this month
+    let monthlySalaries: any[] = [];
+    if (month && typeof month === 'string' && /^\d{4}-\d{2}$/.test(month)) {
+      try {
+        const { data: msData, error: msErr } = await supabase
+          .from('monthly_salaries')
+          .select('*')
+          .eq('month', month);
+        if (!msErr && msData) {
+          monthlySalaries = msData;
+        }
+      } catch (err) {
+        console.warn('Could not query monthly_salaries in getAllUsers:', err);
+      }
+    }
+
     // Append is_manager and is_active flags
     const usersWithManagerStatus = users
-      .map((u: any) => ({
-        ...u,
-        is_manager: managerIds.has(u.id),
-        is_active: isActiveUser(u.email)
-      }));
+      .map((u: any) => {
+        const override = monthlySalaries.find((s: any) => s.user_id === u.id);
+        const sal = override ? Number(override.salary) : (u.salary !== undefined ? Number(u.salary) : 0);
+        return {
+          ...u,
+          salary: sal,
+          is_manager: managerIds.has(u.id),
+          is_active: isActiveUser(u.email)
+        };
+      });
 
     res.json(usersWithManagerStatus);
   } catch (error: any) {

@@ -116,8 +116,11 @@ export default function CalendarImport({ userId, month, onSuccess }: { userId: s
         fetchUnlockedMonths();
       }
     });
-    fetchClients();
   }, []);
+
+  useEffect(() => {
+    fetchClients();
+  }, [selectedMonth]);
 
   useEffect(() => {
     if (userRole === 'core') {
@@ -154,7 +157,7 @@ export default function CalendarImport({ userId, month, onSuccess }: { userId: s
 
   const fetchClients = async () => {
     try {
-      const response = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/clients`);
+      const response = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/clients?month=${selectedMonth}`);
       const data = await response.json();
       setClients(data);
     } catch (err) {

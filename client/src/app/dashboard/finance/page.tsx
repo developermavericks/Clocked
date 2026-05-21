@@ -35,12 +35,12 @@ export default function FinancePortal() {
     fetchReport();
   }, [month, groupBD, groupLeave, groupInternal]);
 
-  // Fetch manager settings data when the tab changes
+  // Fetch manager settings data when the tab or month changes
   useEffect(() => {
     if (activeWorkspace === 'manager') {
       fetchUsersAndClients();
     }
-  }, [activeWorkspace]);
+  }, [activeWorkspace, month]);
 
   const fetchReport = async () => {
     setLoading(true);
@@ -65,8 +65,8 @@ export default function FinancePortal() {
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
       const [usersRes, clientsRes] = await Promise.all([
-        apiFetch(`${apiUrl}/api/teams/all`),
-        apiFetch(`${apiUrl}/api/clients`)
+        apiFetch(`${apiUrl}/api/teams/all?month=${month}`),
+        apiFetch(`${apiUrl}/api/clients?month=${month}`)
       ]);
 
       if (usersRes.ok && clientsRes.ok) {
@@ -261,6 +261,65 @@ export default function FinancePortal() {
       coreVerticalData,
       topExpensiveClients
     };
+  }, [reportData]);
+
+  const budgetAnalysisData = useMemo(() => {
+    if (!reportData || !reportData.clients.length || !reportData.rows.length) return [];
+
+    const clientMetrics: Record<string, { name: string; budget: number; cost: number; revenue: number; profit: number }> = {};
+
+    reportData.clients.forEach((c: any) => {
+      const isGroupedName = ['group bd', 'group internal', 'group leave'].includes(c.name.toLowerCase());
+      if (isGroupedName) return;
+
+      clientMetrics[c.name] = {
+        name: c.name,
+        budget: Number(c.budget) || 0,
+        cost: 0,
+        revenue: Number(c.budget) || 0,
+        profit: 0
+      };
+    });
+
+    reportData.rows.forEach((r: any) => {
+      const salary = Number(r.salary) || 0;
+      const totalHours = Number(r.totalHours) || 0;
+      if (salary === 0 || totalHours === 0) return;
+
+      Object.entries(r.allocations).forEach(([clientName, hoursVal]) => {
+        const hours = Number(hoursVal) || 0;
+        if (hours === 0) return;
+
+        const allocatedCost = salary * (hours / totalHours);
+
+        if (!clientMetrics[clientName]) {
+          const isGroupedName = ['group bd', 'group internal', 'group leave'].includes(clientName.toLowerCase());
+          if (isGroupedName) return;
+
+          clientMetrics[clientName] = {
+            name: clientName,
+            budget: 0,
+            cost: 0,
+            revenue: 0,
+            profit: 0
+          };
+        }
+
+        clientMetrics[clientName].cost += allocatedCost;
+      });
+    });
+
+    return Object.values(clientMetrics).map(item => {
+      const profit = item.revenue - item.cost;
+      return {
+        ...item,
+        profit,
+        costFormatted: Math.round(item.cost),
+        revenueFormatted: Math.round(item.revenue),
+        profitFormatted: Math.round(profit),
+        profitMargin: item.revenue > 0 ? ((profit / item.revenue) * 100).toFixed(1) : '0'
+      };
+    }).sort((a, b) => b.profit - a.profit);
   }, [reportData]);
 
   // ============================================================================
@@ -1255,6 +1314,172 @@ export default function FinancePortal() {
                       </div>
                     </div>
                   </div>
+                )}
+              </div>
+
+              {/* FEATURE 2: BUDGET-BASED FINANCIAL ANALYSIS BOARD */}
+              <div className="bg-white border border-slate-100 shadow-xl shadow-slate-100/50 rounded-[32px] p-8 flex flex-col space-y-8">
+                <div>
+                  <span className="text-[10px] font-black text-orange-600 uppercase tracking-widest block">Financial Overview</span>
+                  <h4 className="text-xl font-bold text-slate-900 mt-1">
+                    Client Budget vs Cost & Profitability Analysis
+                  </h4>
+                  <p className="text-sm text-slate-500 font-medium mt-1">
+                    Visualize client-wise cost distribution (based on hours allocated and salary payroll) compared against client budgets for <strong>{month}</strong>.
+                  </p>
+                </div>
+
+                {budgetAnalysisData.length === 0 ? (
+                  <div className="min-h-[200px] flex items-center justify-center text-slate-400 text-xs font-medium border-2 border-dashed border-slate-100 rounded-xl">
+                    No financial data available for this month. Please configure budgets and salaries in the Manager tab.
+                  </div>
+                ) : (
+                  <>
+                    {/* Key Stats Cards */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                      <div className="p-6 bg-slate-50 border border-slate-100 rounded-3xl">
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Total Monthly Budget (Revenue)</span>
+                        <span className="text-2xl font-black text-emerald-600 block mt-1 font-mono">
+                          {fmtCurrency(budgetAnalysisData.reduce((sum, item) => sum + item.revenue, 0))}
+                        </span>
+                      </div>
+                      <div className="p-6 bg-slate-50 border border-slate-100 rounded-3xl">
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Total Allocation Cost</span>
+                        <span className="text-2xl font-black text-rose-600 block mt-1 font-mono">
+                          {fmtCurrency(budgetAnalysisData.reduce((sum, item) => sum + item.cost, 0))}
+                        </span>
+                      </div>
+                      <div className="p-6 bg-slate-50 border border-slate-100 rounded-3xl">
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Net Profit / Loss</span>
+                        {(() => {
+                          const netProfit = budgetAnalysisData.reduce((sum, item) => sum + item.profit, 0);
+                          return (
+                            <span className={`text-2xl font-black block mt-1 font-mono ${netProfit >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                              {fmtCurrency(netProfit)}
+                            </span>
+                          );
+                        })()}
+                      </div>
+                    </div>
+
+                    {/* Gorgeous 2-Column charts layout */}
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 pt-4">
+                      
+                      {/* Chart 1: Cost vs Revenue Grouped Bar Chart */}
+                      <div className="border border-slate-100 rounded-3xl p-6 bg-white space-y-4">
+                        <div>
+                          <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Cost vs Revenue Comparison</span>
+                          <h5 className="text-sm font-bold text-slate-800 mt-0.5">Budgeted Revenue & Distributed Labor Cost</h5>
+                        </div>
+                        <div className="h-[300px] w-full">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={budgetAnalysisData} margin={{ top: 20, right: 10, left: 10, bottom: 20 }}>
+                              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                              <XAxis dataKey="name" stroke="#64748b" fontSize={9} fontWeight="bold" tickLine={false} />
+                              <YAxis stroke="#64748b" fontSize={9} fontWeight="bold" tickLine={false} axisLine={false} tickFormatter={(v) => `₹${v/1000}k`} />
+                              <RechartsTooltip 
+                                formatter={(v) => [fmtCurrency(Number(v)), '']}
+                                contentStyle={{ background: '#0f172a', border: 'none', borderRadius: '12px', color: '#fff', fontSize: '11px', fontWeight: 'bold' }}
+                              />
+                              <Legend verticalAlign="top" height={36} iconType="circle" wrapperStyle={{ fontSize: '11px', fontWeight: 'bold' }} />
+                              <Bar dataKey="revenueFormatted" name="Revenue (Budget)" fill="#10b981" radius={[6, 6, 0, 0]} />
+                              <Bar dataKey="costFormatted" name="Allocated Labor Cost" fill="#3b82f6" radius={[6, 6, 0, 0]} />
+                            </BarChart>
+                          </ResponsiveContainer>
+                        </div>
+                      </div>
+
+                      {/* Chart 2: Net Profit Margin per Client */}
+                      <div className="border border-slate-100 rounded-3xl p-6 bg-white space-y-4">
+                        <div>
+                          <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Net Profit / Loss per Client</span>
+                          <h5 className="text-sm font-bold text-slate-800 mt-0.5">Absolute Net Margin Generated</h5>
+                        </div>
+                        <div className="h-[300px] w-full">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={budgetAnalysisData} margin={{ top: 20, right: 10, left: 10, bottom: 20 }}>
+                              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                              <XAxis dataKey="name" stroke="#64748b" fontSize={9} fontWeight="bold" tickLine={false} />
+                              <YAxis stroke="#64748b" fontSize={9} fontWeight="bold" tickLine={false} axisLine={false} tickFormatter={(v) => `₹${v/1000}k`} />
+                              <RechartsTooltip 
+                                formatter={(v) => [fmtCurrency(Number(v)), 'Net Profit/Loss']}
+                                contentStyle={{ background: '#0f172a', border: 'none', borderRadius: '12px', color: '#fff', fontSize: '11px', fontWeight: 'bold' }}
+                              />
+                              <Bar dataKey="profitFormatted" name="Net Profit / Loss" radius={[6, 6, 0, 0]}>
+                                {budgetAnalysisData.map((entry, idx) => (
+                                  <Cell key={`cell-${idx}`} fill={entry.profit >= 0 ? '#10b981' : '#ef4444'} />
+                                ))}
+                              </Bar>
+                            </BarChart>
+                          </ResponsiveContainer>
+                        </div>
+                      </div>
+
+                    </div>
+
+                    {/* Chart 3 & Details Table Side by Side */}
+                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 pt-4">
+                      
+                      {/* Left: Profit Margin Percentages Line Chart */}
+                      <div className="lg:col-span-5 border border-slate-100 rounded-3xl p-6 bg-white space-y-4">
+                        <div>
+                          <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Profitability Margin (%)</span>
+                          <h5 className="text-sm font-bold text-slate-800 mt-0.5">Net Profit Margin by Client</h5>
+                        </div>
+                        <div className="h-[250px] w-full">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <LineChart data={budgetAnalysisData.filter(item => item.revenue > 0)} margin={{ top: 20, right: 10, left: 10, bottom: 20 }}>
+                              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                              <XAxis dataKey="name" stroke="#64748b" fontSize={9} fontWeight="bold" tickLine={false} />
+                              <YAxis stroke="#64748b" fontSize={9} fontWeight="bold" tickLine={false} axisLine={false} tickFormatter={(v) => `${v}%`} />
+                              <RechartsTooltip 
+                                formatter={(v) => [`${v}%`, 'Margin']}
+                                contentStyle={{ background: '#0f172a', border: 'none', borderRadius: '12px', color: '#fff', fontSize: '11px', fontWeight: 'bold' }}
+                              />
+                              <Line type="monotone" dataKey="profitMargin" stroke="#8b5cf6" strokeWidth={3} dot={{ r: 3 }} activeDot={{ r: 6 }} />
+                            </LineChart>
+                          </ResponsiveContainer>
+                        </div>
+                      </div>
+
+                      {/* Right: Gorgeous Detailed Tabular breakdown */}
+                      <div className="lg:col-span-7 border border-slate-100 rounded-3xl p-6 bg-white space-y-4">
+                        <div>
+                          <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Detailed Financial Breakdown</span>
+                          <h5 className="text-sm font-bold text-slate-800 mt-0.5">Client Profitability Registry</h5>
+                        </div>
+                        <div className="overflow-x-auto rounded-2xl border border-slate-100">
+                          <table className="w-full text-left border-collapse">
+                            <thead className="bg-slate-50">
+                              <tr>
+                                <th className="px-4 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Client</th>
+                                <th className="px-4 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider text-right">Revenue</th>
+                                <th className="px-4 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider text-right">Labor Cost</th>
+                                <th className="px-4 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider text-right">Net Profit</th>
+                                <th className="px-4 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider text-right">Margin</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-50 text-xs">
+                              {budgetAnalysisData.map((item) => (
+                                <tr key={item.name} className="hover:bg-slate-50 transition-colors">
+                                  <td className="px-4 py-3 font-bold text-slate-800">{item.name}</td>
+                                  <td className="px-4 py-3 text-right font-mono font-bold text-slate-700">{fmtCurrency(item.revenue)}</td>
+                                  <td className="px-4 py-3 text-right font-mono font-semibold text-slate-500">{fmtCurrency(item.cost)}</td>
+                                  <td className={`px-4 py-3 text-right font-mono font-bold ${item.profit >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                                    {fmtCurrency(item.profit)}
+                                  </td>
+                                  <td className={`px-4 py-3 text-right font-bold ${item.profit >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
+                                    {item.profitMargin}%
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+
+                    </div>
+                  </>
                 )}
               </div>
 

@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { supabase } from '../config/supabase';
 
 export const getClients = async (req: Request, res: Response) => {
+  const { month } = req.query;
   try {
     const { data, error } = await supabase
       .from('clients')
@@ -9,7 +10,47 @@ export const getClients = async (req: Request, res: Response) => {
       .order('name', { ascending: true });
 
     if (error) throw error;
-    res.json(data);
+
+    let filtered = data;
+    if (month && typeof month === 'string' && /^\d{4}-\d{2}$/.test(month)) {
+      // Fetch monthly budget overrides for this month
+      let monthlyBudgets: any[] = [];
+      try {
+        const { data: mbData, error: mbErr } = await supabase
+          .from('monthly_budgets')
+          .select('*')
+          .eq('month', month);
+        if (!mbErr && mbData) {
+          monthlyBudgets = mbData;
+        }
+      } catch (err) {
+        console.warn('Could not query monthly_budgets in getClients:', err);
+      }
+
+      filtered = data
+        .filter((c: any) => {
+          // Handle join date constraint
+          const joinMonth = c.joining_date ? c.joining_date.substring(0, 7) : '2025-11';
+          if (joinMonth > month) return false;
+
+          // Handle exit date constraint
+          if (c.exit_date) {
+            const exitMonth = c.exit_date.substring(0, 7);
+            if (exitMonth < month) return false;
+          }
+
+          return true;
+        })
+        .map((c: any) => {
+          const override = monthlyBudgets.find((b: any) => b.client_id === c.id);
+          return {
+            ...c,
+            budget: override ? Number(override.budget) : (c.budget !== undefined ? Number(c.budget) : 0)
+          };
+        });
+    }
+
+    res.json(filtered);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
@@ -17,6 +58,7 @@ export const getClients = async (req: Request, res: Response) => {
 
 export const createClient = async (req: Request, res: Response) => {
   const name = req.body.name?.trim();
+  const joiningDate = req.body.joiningDate || '2025-11-01';
 
   if (!name) {
     return res.status(400).json({ error: 'Client name is required' });
@@ -25,7 +67,7 @@ export const createClient = async (req: Request, res: Response) => {
   try {
     const { data, error } = await supabase
       .from('clients')
-      .insert([{ name }])
+      .insert([{ name, joining_date: joiningDate }])
       .select();
 
     if (error) {
@@ -44,6 +86,27 @@ export const createClient = async (req: Request, res: Response) => {
       throw error;
     }
     res.status(201).json(data[0]);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+export const updateClientDates = async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const { joiningDate, exitDate } = req.body;
+
+  try {
+    const { data, error } = await supabase
+      .from('clients')
+      .update({
+        joining_date: joiningDate === undefined ? undefined : joiningDate,
+        exit_date: exitDate === undefined ? undefined : (exitDate === '' ? null : exitDate)
+      })
+      .eq('id', id)
+      .select();
+
+    if (error) throw error;
+    res.json(data[0]);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }

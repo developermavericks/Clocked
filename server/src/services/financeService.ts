@@ -304,6 +304,34 @@ export const getCoreMasterAllocations = async (opts: {
   // Fetch the effective exit months map
   const { byUserId } = await getEffectiveExitMonthsMap();
 
+  // Fetch monthly salary overrides for the selected month
+  let monthlySalaries: any[] = [];
+  try {
+    const { data, error } = await supabase
+      .from('monthly_salaries')
+      .select('*')
+      .eq('month', month);
+    if (!error && data) {
+      monthlySalaries = data;
+    }
+  } catch (err) {
+    console.warn('Could not query monthly_salaries:', err);
+  }
+
+  // Fetch monthly budget overrides for the selected month
+  let monthlyBudgets: any[] = [];
+  try {
+    const { data, error } = await supabase
+      .from('monthly_budgets')
+      .select('*')
+      .eq('month', month);
+    if (!error && data) {
+      monthlyBudgets = data;
+    }
+  } catch (err) {
+    console.warn('Could not query monthly_budgets:', err);
+  }
+
   const byMember = new Map<string, any>();
 
   // Pre-populate all registered users from database to ensure 100% visibility
@@ -320,8 +348,9 @@ export const getCoreMasterAllocations = async (opts: {
       if (effExitMonth < month) return;
     }
 
-    // Safe read for salary (if column doesn't exist yet, fall back to 0)
-    const sal = u.salary !== undefined ? Number(u.salary) : 0;
+    // Find monthly salary override if it exists, otherwise fall back to base salary
+    const override = monthlySalaries.find((s: any) => s.user_id === u.id);
+    const sal = override ? Number(override.salary) : (u.salary !== undefined ? Number(u.salary) : 0);
 
     byMember.set(u.id, {
       id: u.id,
@@ -350,7 +379,26 @@ export const getCoreMasterAllocations = async (opts: {
 
     // Find budget from DB if it exists
     const dbClient = allClients.find((c: any) => c.name.toLowerCase() === clientName.toLowerCase());
-    const budget = dbClient?.budget !== undefined ? Number(dbClient.budget) : 0;
+    
+    // Filter client based on join/exit date constraints
+    if (dbClient) {
+      const joinMonth = dbClient.joining_date ? dbClient.joining_date.substring(0, 7) : '2025-11';
+      if (joinMonth > month) return;
+
+      if (dbClient.exit_date) {
+        const exitMonth = dbClient.exit_date.substring(0, 7);
+        if (exitMonth < month) return;
+      }
+    }
+
+    // Find monthly budget override if it exists, otherwise fall back to base budget
+    let budget = dbClient?.budget !== undefined ? Number(dbClient.budget) : 0;
+    if (dbClient) {
+      const budgetOverride = monthlyBudgets.find((b: any) => b.client_id === dbClient.id);
+      if (budgetOverride) {
+        budget = Number(budgetOverride.budget);
+      }
+    }
 
     clientObjs.set(clientName, {
       name: clientName,
@@ -418,6 +466,26 @@ export const getCoreMasterAllocations = async (opts: {
       targetColumn = 'Group Internal';
     } else if (groupLeave && isLeaveClient(clientName)) {
       targetColumn = 'Group LEAVE';
+    }
+
+    // Ensure the client is in clientObjs so historical allocations are kept visible
+    if (!clientObjs.has(targetColumn)) {
+      const dbClient = allClients.find((c: any) => c.name.toLowerCase() === clientName.toLowerCase());
+      const core = norm.core || dbClient?.core || '';
+      
+      let budget = dbClient?.budget !== undefined ? Number(dbClient.budget) : 0;
+      if (dbClient) {
+        const budgetOverride = monthlyBudgets.find((b: any) => b.client_id === dbClient.id);
+        if (budgetOverride) {
+          budget = Number(budgetOverride.budget);
+        }
+      }
+
+      clientObjs.set(targetColumn, {
+        name: targetColumn,
+        core: core,
+        budget: budget
+      });
     }
 
     m.allocations[targetColumn] = (m.allocations[targetColumn] || 0) + hours;
@@ -644,7 +712,39 @@ export const exportCoreMasterAllocationsToExcel = async (opts: {
 };
 
 // Admin updates for Salary
-export const updateUserSalary = async (userId: string, salary: number) => {
+export const updateUserSalary = async (userId: string, salary: number, month?: string) => {
+  if (month) {
+    try {
+      const { data: existing, error: qErr } = await supabase
+        .from('monthly_salaries')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('month', month)
+        .maybeSingle();
+
+      if (qErr) throw qErr;
+
+      if (existing) {
+        const { data, error } = await supabase
+          .from('monthly_salaries')
+          .update({ salary })
+          .eq('id', existing.id)
+          .select();
+        if (error) throw error;
+        return data[0];
+      } else {
+        const { data, error } = await supabase
+          .from('monthly_salaries')
+          .insert([{ user_id: userId, month, salary }])
+          .select();
+        if (error) throw error;
+        return data[0];
+      }
+    } catch (err) {
+      console.warn('Upserting into monthly_salaries failed, falling back to base user salary update:', err);
+    }
+  }
+
   const { data, error } = await supabase
     .from('users')
     .update({ salary })
@@ -655,7 +755,37 @@ export const updateUserSalary = async (userId: string, salary: number) => {
 };
 
 // Admin updates for Client Budget & Core
-export const updateClientBudgetAndCore = async (clientId: string, budget: number, core: string) => {
+export const updateClientBudgetAndCore = async (clientId: string, budget: number, core: string, month?: string) => {
+  if (month) {
+    try {
+      const { data: existing, error: qErr } = await supabase
+        .from('monthly_budgets')
+        .select('id')
+        .eq('client_id', clientId)
+        .eq('month', month)
+        .maybeSingle();
+
+      if (qErr) throw qErr;
+
+      if (existing) {
+        const { data, error } = await supabase
+          .from('monthly_budgets')
+          .update({ budget })
+          .eq('id', existing.id)
+          .select();
+        if (error) throw error;
+      } else {
+        const { data, error } = await supabase
+          .from('monthly_budgets')
+          .insert([{ client_id: clientId, month, budget }])
+          .select();
+        if (error) throw error;
+      }
+    } catch (err) {
+      console.warn('Upserting into monthly_budgets failed:', err);
+    }
+  }
+
   const { data, error } = await supabase
     .from('clients')
     .update({ budget, core })
