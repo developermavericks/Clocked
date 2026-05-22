@@ -29,6 +29,7 @@ export default function CorePortal() {
   const [showAddForm, setShowAddForm] = useState(false);
   const [newEmployeeName, setNewEmployeeName] = useState('');
   const [newEmployeeEmail, setNewEmployeeEmail] = useState('');
+  const [newEmployeeJoinDate, setNewEmployeeJoinDate] = useState('2025-11-01');
   const [formError, setFormError] = useState('');
   const [formSuccess, setFormSuccess] = useState('');
 
@@ -66,6 +67,23 @@ export default function CorePortal() {
     }
   };
 
+  const handleJoiningDateChange = async (userId: string, date: string | null) => {
+    // Optimistic local state update for instant, seamless UX
+    setUsers(prevUsers => 
+      prevUsers.map(u => u.id === userId ? { ...u, joining_date: date } : u)
+    );
+    try {
+      await apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/teams/users/${userId}/joining-date`, {
+        method: 'PATCH',
+        body: JSON.stringify({ joiningDate: date })
+      });
+      await fetchUsers(false);
+    } catch (err) {
+      console.error('Failed to update joining date:', err);
+      fetchUsers(true);
+    }
+  };
+
   const handleAddEmployee = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError('');
@@ -82,7 +100,7 @@ export default function CorePortal() {
         body: JSON.stringify({
           name: newEmployeeName.trim(),
           email: newEmployeeEmail.trim().toLowerCase(),
-          joiningDate: '2025-11-01'
+          joiningDate: newEmployeeJoinDate
         })
       });
       
@@ -95,6 +113,7 @@ export default function CorePortal() {
       setFormSuccess('Employee added successfully!');
       setNewEmployeeName('');
       setNewEmployeeEmail('');
+      setNewEmployeeJoinDate('2025-11-01');
       setShowAddForm(false);
       fetchUsers(false);
     } catch (err) {
@@ -727,7 +746,7 @@ export default function CorePortal() {
                     </div>
                   )}
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="space-y-1.5">
                       <label className="text-[10px] font-black uppercase text-slate-500 tracking-wider">Full Name</label>
                       <input 
@@ -746,6 +765,16 @@ export default function CorePortal() {
                         value={newEmployeeEmail}
                         onChange={(e) => setNewEmployeeEmail(e.target.value)}
                         className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl focus:ring-2 focus:ring-orange-600 focus:border-transparent outline-none bg-white font-medium text-slate-800"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black uppercase text-slate-500 tracking-wider">Joining Date</label>
+                      <input 
+                        type="date"
+                        required
+                        value={newEmployeeJoinDate}
+                        onChange={(e) => setNewEmployeeJoinDate(e.target.value)}
+                        className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl focus:ring-2 focus:ring-orange-600 focus:border-transparent outline-none bg-white font-semibold text-slate-800"
                       />
                     </div>
                   </div>
@@ -768,15 +797,16 @@ export default function CorePortal() {
                       <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase">Employee</th>
                       <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase">Email</th>
                       <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase">Status</th>
+                      <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase">Joining Date</th>
                       <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase">Exit Date</th>
                       <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase text-right">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
                     {loading ? (
-                       <tr><td colSpan={5} className="text-center py-10"><div className="animate-spin inline-block w-6 h-6 border-b-2 border-orange-600 rounded-full"></div></td></tr>
+                       <tr><td colSpan={6} className="text-center py-10"><div className="animate-spin inline-block w-6 h-6 border-b-2 border-orange-600 rounded-full"></div></td></tr>
                     ) : filteredExitUsers.length === 0 ? (
-                       <tr><td colSpan={5} className="text-center py-10 text-slate-400 font-medium">No employees found.</td></tr>
+                       <tr><td colSpan={6} className="text-center py-10 text-slate-400 font-medium">No employees found.</td></tr>
                     ) : filteredExitUsers.map(u => {
                       const initial = (u.name?.[0] || u.email?.[0] || '?').toUpperCase();
                       const hasLoggedIn = !!(u.last_login || u.picture || u.sub);
@@ -807,6 +837,14 @@ export default function CorePortal() {
                             ) : (
                               <span className="bg-emerald-100 text-emerald-700 text-[10px] font-black px-2.5 py-1 rounded-lg uppercase tracking-wider">Active</span>
                             )}
+                          </td>
+                          <td className="px-6 py-4 text-sm">
+                            <input 
+                              type="date"
+                              value={u.joining_date ? u.joining_date.substring(0, 10) : '2025-11-01'}
+                              onChange={(e) => handleJoiningDateChange(u.id, e.target.value)}
+                              className="px-3 py-1.5 text-xs font-bold text-slate-700 border border-slate-200 rounded-lg focus:ring-2 focus:ring-orange-600 outline-none bg-white cursor-pointer"
+                            />
                           </td>
                           <td className="px-6 py-4 text-sm">
                             <input 

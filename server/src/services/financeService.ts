@@ -2,6 +2,7 @@ import { supabase } from '../config/supabase';
 import ExcelJS from 'exceljs';
 import { isActiveUser, getActiveEmailsList } from '../config/activeUsers';
 import { getEffectiveExitMonthsMap } from './reportService';
+import { getEmployeeJoiningDate } from '../config/employeeJoiningDates';
 
 const CLIENT_CORES: Record<string, string> = {
   "Adda Education": "Archana",
@@ -208,6 +209,52 @@ const getNormalizedClientNameAndCore = (rawName: string): { name: string; core: 
   return { name: 'FREE_TIME', core: '' };
 };
 
+const getProRatedRatio = (
+  monthStr: string, // YYYY-MM
+  startDateStr?: string | null, // YYYY-MM-DD
+  endDateStr?: string | null // YYYY-MM-DD
+): number => {
+  if (!monthStr || !/^\d{4}-\d{2}$/.test(monthStr)) {
+    return 1;
+  }
+  const [year, month] = monthStr.split('-').map(Number);
+  const totalDays = new Date(year, month, 0).getDate();
+
+  const monthStart = new Date(Date.UTC(year, month - 1, 1));
+  const monthEnd = new Date(Date.UTC(year, month - 1, totalDays));
+
+  let activeStart = monthStart;
+  if (startDateStr) {
+    const start = new Date(startDateStr);
+    if (!isNaN(start.getTime())) {
+      const startUTC = new Date(Date.UTC(start.getFullYear(), start.getMonth(), start.getDate()));
+      if (startUTC > activeStart) {
+        activeStart = startUTC;
+      }
+    }
+  }
+
+  let activeEnd = monthEnd;
+  if (endDateStr) {
+    const end = new Date(endDateStr);
+    if (!isNaN(end.getTime())) {
+      const endUTC = new Date(Date.UTC(end.getFullYear(), end.getMonth(), end.getDate()));
+      if (endUTC < activeEnd) {
+        activeEnd = endUTC;
+      }
+    }
+  }
+
+  if (activeStart > monthEnd || activeEnd < monthStart || activeStart > activeEnd) {
+    return 0;
+  }
+
+  const diffTime = activeEnd.getTime() - activeStart.getTime();
+  const activeDays = Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1;
+
+  return activeDays / totalDays;
+};
+
 
 
 const normalizeClientForMaster = (client: string, groupBd: boolean) => {
@@ -338,8 +385,10 @@ export const getCoreMasterAllocations = async (opts: {
   allUsers.forEach((u: any) => {
     if (!u.email) return;
 
+    const joiningDate = getEmployeeJoiningDate(u.email) || u.joining_date;
+
     // Exclude if joining month is in the future relative to the target report month
-    const joinMonth = u.joining_date ? u.joining_date.substring(0, 7) : '2025-11';
+    const joinMonth = joiningDate ? joiningDate.substring(0, 7) : '2025-11';
     if (joinMonth > month) return;
 
     // Exclude if exit date is set and their last active month is prior to this month
@@ -350,7 +399,9 @@ export const getCoreMasterAllocations = async (opts: {
 
     // Find monthly salary override if it exists, otherwise fall back to base salary
     const override = monthlySalaries.find((s: any) => s.user_id === u.id);
-    const sal = override ? Number(override.salary) : (u.salary !== undefined ? Number(u.salary) : 0);
+    const baseSal = override ? Number(override.salary) : (u.salary !== undefined ? Number(u.salary) : 0);
+    const ratio = getProRatedRatio(month, joiningDate, u.exit_date);
+    const sal = baseSal * ratio;
 
     byMember.set(u.id, {
       id: u.id,
@@ -392,13 +443,15 @@ export const getCoreMasterAllocations = async (opts: {
     }
 
     // Find monthly budget override if it exists, otherwise fall back to base budget
-    let budget = dbClient?.budget !== undefined ? Number(dbClient.budget) : 0;
+    let baseBudget = dbClient?.budget !== undefined ? Number(dbClient.budget) : 0;
     if (dbClient) {
       const budgetOverride = monthlyBudgets.find((b: any) => b.client_id === dbClient.id);
       if (budgetOverride) {
-        budget = Number(budgetOverride.budget);
+        baseBudget = Number(budgetOverride.budget);
       }
     }
+    const clientRatio = dbClient ? getProRatedRatio(month, dbClient.joining_date, dbClient.exit_date) : 1;
+    const budget = baseBudget * clientRatio;
 
     clientObjs.set(clientName, {
       name: clientName,
@@ -443,7 +496,10 @@ export const getCoreMasterAllocations = async (opts: {
     const hours = Number(r.hours) || 0;
 
     if (!byMember.has(u.id)) {
-      const sal = u.salary !== undefined ? Number(u.salary) : 0;
+      const joiningDate = getEmployeeJoiningDate(u.email) || u.joining_date;
+      const baseSal = u.salary !== undefined ? Number(u.salary) : 0;
+      const ratio = getProRatedRatio(month, joiningDate, u.exit_date);
+      const sal = baseSal * ratio;
       byMember.set(u.id, {
         id: u.id,
         email: u.email,
@@ -473,13 +529,15 @@ export const getCoreMasterAllocations = async (opts: {
       const dbClient = allClients.find((c: any) => c.name.toLowerCase() === clientName.toLowerCase());
       const core = norm.core || dbClient?.core || '';
       
-      let budget = dbClient?.budget !== undefined ? Number(dbClient.budget) : 0;
+      let baseBudget = dbClient?.budget !== undefined ? Number(dbClient.budget) : 0;
       if (dbClient) {
         const budgetOverride = monthlyBudgets.find((b: any) => b.client_id === dbClient.id);
         if (budgetOverride) {
-          budget = Number(budgetOverride.budget);
+          baseBudget = Number(budgetOverride.budget);
         }
       }
+      const clientRatio = dbClient ? getProRatedRatio(month, dbClient.joining_date, dbClient.exit_date) : 1;
+      const budget = baseBudget * clientRatio;
 
       clientObjs.set(targetColumn, {
         name: targetColumn,

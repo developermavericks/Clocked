@@ -26,6 +26,52 @@ const getClientCoreTeam = (rawName: string): string => {
   return "Unassigned";
 };
 
+const getClientProRatedRatio = (
+  monthStr: string, // YYYY-MM
+  startDateStr?: string | null, // YYYY-MM-DD
+  endDateStr?: string | null // YYYY-MM-DD
+): { ratio: number; activeDays: number; totalDays: number } => {
+  if (!monthStr || !/^\d{4}-\d{2}$/.test(monthStr)) {
+    return { ratio: 1, activeDays: 30, totalDays: 30 };
+  }
+  const [year, month] = monthStr.split('-').map(Number);
+  const totalDays = new Date(year, month, 0).getDate();
+
+  const monthStart = new Date(Date.UTC(year, month - 1, 1));
+  const monthEnd = new Date(Date.UTC(year, month - 1, totalDays));
+
+  let activeStart = monthStart;
+  if (startDateStr) {
+    const start = new Date(startDateStr);
+    if (!isNaN(start.getTime())) {
+      const startUTC = new Date(Date.UTC(start.getFullYear(), start.getMonth(), start.getDate()));
+      if (startUTC > activeStart) {
+        activeStart = startUTC;
+      }
+    }
+  }
+
+  let activeEnd = monthEnd;
+  if (endDateStr) {
+    const end = new Date(endDateStr);
+    if (!isNaN(end.getTime())) {
+      const endUTC = new Date(Date.UTC(end.getFullYear(), end.getMonth(), end.getDate()));
+      if (endUTC < activeEnd) {
+        activeEnd = endUTC;
+      }
+    }
+  }
+
+  if (activeStart > monthEnd || activeEnd < monthStart || activeStart > activeEnd) {
+    return { ratio: 0, activeDays: 0, totalDays };
+  }
+
+  const diffTime = activeEnd.getTime() - activeStart.getTime();
+  const activeDays = Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1;
+
+  return { ratio: activeDays / totalDays, activeDays, totalDays };
+};
+
 export default function FinancePortal() {
   const [activeWorkspace, setActiveWorkspace] = useState<'pivot' | 'manager' | 'analysis'>('pivot');
   const [currentViewMode, setCurrentViewMode] = useState<'hours' | 'percent' | 'salary'>('hours');
@@ -1096,6 +1142,8 @@ export default function FinancePortal() {
                                 fontWeight: 'bold',
                                 boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'
                               }}
+                              itemStyle={{ color: '#fff' }}
+                              labelStyle={{ color: '#fff' }}
                             />
                             <Bar 
                               dataKey="Hours" 
@@ -1218,6 +1266,8 @@ export default function FinancePortal() {
                                 fontWeight: 'bold',
                                 boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'
                               }}
+                              itemStyle={{ color: '#fff' }}
+                              labelStyle={{ color: '#fff' }}
                             />
                             {selectedEntities.map((entity) => {
                               const globalIndex = dailyLineChartData.entities.indexOf(entity);
@@ -1310,6 +1360,8 @@ export default function FinancePortal() {
                               fontWeight: 'bold',
                               boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'
                             }}
+                            itemStyle={{ color: '#fff' }}
+                            labelStyle={{ color: '#fff' }}
                           />
                         </PieChart>
                       </ResponsiveContainer>
@@ -1421,7 +1473,7 @@ export default function FinancePortal() {
                         <div className="flex items-center justify-between">
                           <div>
                             <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Cost vs Revenue Comparison</span>
-                            <h5 className="text-sm font-bold text-slate-800 mt-0.5">Budgeted Revenue & Distributed Labor Cost</h5>
+                            <h5 className="text-sm font-bold text-slate-800 mt-0.5">Budgeted Revenue & Distributed Resource Cost</h5>
                           </div>
                           <button
                             onClick={() => setExpandedChart('costVsRevenue')}
@@ -1434,7 +1486,7 @@ export default function FinancePortal() {
                         <div className="w-full overflow-x-auto custom-scrollbar select-none pb-2">
                           <div style={{ minWidth: budgetAnalysisData.length > 0 ? `${Math.max(600, budgetAnalysisData.length * 60)}px` : '100%', height: '300px' }}>
                             <ResponsiveContainer width="100%" height="100%">
-                              <BarChart data={budgetAnalysisData} margin={{ top: 20, right: 10, left: 10, bottom: 30 }}>
+                              <BarChart data={budgetAnalysisData} margin={{ top: 20, right: 10, left: 10, bottom: 70 }}>
                                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                                 <XAxis 
                                   dataKey="name" 
@@ -1452,10 +1504,12 @@ export default function FinancePortal() {
                                 <RechartsTooltip 
                                   formatter={(v) => [fmtCurrency(Number(v)), '']}
                                   contentStyle={{ background: '#0f172a', border: 'none', borderRadius: '12px', color: '#fff', fontSize: '11px', fontWeight: 'bold' }}
+                                  itemStyle={{ color: '#fff' }}
+                                  labelStyle={{ color: '#fff' }}
                                 />
                                 <Legend verticalAlign="top" height={36} iconType="circle" wrapperStyle={{ fontSize: '11px', fontWeight: 'bold' }} />
                                 <Bar dataKey="revenueFormatted" name="Revenue (Budget)" fill="#10b981" radius={[6, 6, 0, 0]} />
-                                <Bar dataKey="costFormatted" name="Allocated Labor Cost" fill="#3b82f6" radius={[6, 6, 0, 0]} />
+                                <Bar dataKey="costFormatted" name="Allocated Resource Cost" fill="#3b82f6" radius={[6, 6, 0, 0]} />
                               </BarChart>
                             </ResponsiveContainer>
                           </div>
@@ -1480,7 +1534,7 @@ export default function FinancePortal() {
                         <div className="w-full overflow-x-auto custom-scrollbar select-none pb-2">
                           <div style={{ minWidth: budgetAnalysisData.length > 0 ? `${Math.max(600, budgetAnalysisData.length * 60)}px` : '100%', height: '300px' }}>
                             <ResponsiveContainer width="100%" height="100%">
-                              <BarChart data={budgetAnalysisData} margin={{ top: 20, right: 10, left: 10, bottom: 30 }}>
+                              <BarChart data={budgetAnalysisData} margin={{ top: 20, right: 10, left: 10, bottom: 70 }}>
                                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                                 <XAxis 
                                   dataKey="name" 
@@ -1498,6 +1552,8 @@ export default function FinancePortal() {
                                 <RechartsTooltip 
                                   formatter={(v) => [fmtCurrency(Number(v)), 'Net Profit/Loss']}
                                   contentStyle={{ background: '#0f172a', border: 'none', borderRadius: '12px', color: '#fff', fontSize: '11px', fontWeight: 'bold' }}
+                                  itemStyle={{ color: '#fff' }}
+                                  labelStyle={{ color: '#fff' }}
                                 />
                                 <Bar dataKey="profitFormatted" name="Net Profit / Loss" radius={[6, 6, 0, 0]}>
                                   {budgetAnalysisData.map((entry, idx) => (
@@ -1551,6 +1607,8 @@ export default function FinancePortal() {
                                 <RechartsTooltip 
                                   formatter={(v) => [`${v}%`, 'Margin']}
                                   contentStyle={{ background: '#0f172a', border: 'none', borderRadius: '12px', color: '#fff', fontSize: '11px', fontWeight: 'bold' }}
+                                  itemStyle={{ color: '#fff' }}
+                                  labelStyle={{ color: '#fff' }}
                                 />
                                 <Line type="monotone" dataKey="profitMargin" stroke="#8b5cf6" strokeWidth={3} dot={{ r: 3 }} activeDot={{ r: 6 }} />
                               </LineChart>
@@ -1571,7 +1629,7 @@ export default function FinancePortal() {
                               <tr>
                                 <th className="px-4 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Client</th>
                                 <th className="px-4 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider text-right">Revenue</th>
-                                <th className="px-4 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider text-right">Labor Cost</th>
+                                <th className="px-4 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider text-right">Resource Cost</th>
                                 <th className="px-4 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider text-right">Net Profit</th>
                                 <th className="px-4 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider text-right">Margin</th>
                               </tr>
@@ -1654,7 +1712,21 @@ export default function FinancePortal() {
                                   autoFocus
                                 />
                               ) : (
-                                u.salary ? fmtCurrency(u.salary) : '₹0.00'
+                                <>
+                                  <div className="text-slate-900">{u.salary ? fmtCurrency(u.salary) : '₹0.00'}</div>
+                                  {(() => {
+                                    const { ratio, activeDays, totalDays } = getClientProRatedRatio(month, u.joining_date, u.exit_date);
+                                    if (ratio < 1 && u.salary) {
+                                      const proRated = u.salary * ratio;
+                                      return (
+                                        <div className="text-[10px] text-blue-600 font-bold mt-1 bg-blue-50 border border-blue-100 rounded-lg px-2 py-0.5 inline-block select-none">
+                                          Pro-rated: {fmtCurrency(proRated)} ({activeDays}/{totalDays} days)
+                                        </div>
+                                      );
+                                    }
+                                    return null;
+                                  })()}
+                                </>
                               )}
                             </td>
                             <td className="px-4 py-3 text-sm text-right">
@@ -1742,7 +1814,21 @@ export default function FinancePortal() {
                                   className="w-28 px-2 py-1 border border-slate-300 rounded focus:ring-1 focus:ring-blue-600 text-right bg-white text-slate-950"
                                 />
                               ) : (
-                                c.budget ? fmtCurrency(c.budget) : '₹0.00'
+                                <>
+                                  <div className="text-slate-900">{c.budget ? fmtCurrency(c.budget) : '₹0.00'}</div>
+                                  {(() => {
+                                    const { ratio, activeDays, totalDays } = getClientProRatedRatio(month, c.joining_date, c.exit_date);
+                                    if (ratio < 1 && c.budget) {
+                                      const proRated = c.budget * ratio;
+                                      return (
+                                        <div className="text-[10px] text-emerald-600 font-bold mt-1 bg-emerald-50 border border-emerald-100 rounded-lg px-2 py-0.5 inline-block select-none">
+                                          Pro-rated: {fmtCurrency(proRated)} ({activeDays}/{totalDays} days)
+                                        </div>
+                                      );
+                                    }
+                                    return null;
+                                  })()}
+                                </>
                               )}
                             </td>
                             <td className="px-4 py-3 text-sm text-right">
@@ -1858,6 +1944,8 @@ export default function FinancePortal() {
                             fontSize: '11px',
                             fontWeight: 'bold'
                           }}
+                          itemStyle={{ color: '#fff' }}
+                          labelStyle={{ color: '#fff' }}
                         />
                       </PieChart>
                     </ResponsiveContainer>
@@ -1955,6 +2043,8 @@ export default function FinancePortal() {
                             fontSize: '12px',
                             fontWeight: 'bold'
                           }}
+                          itemStyle={{ color: '#fff' }}
+                          labelStyle={{ color: '#fff' }}
                         />
                         <Bar 
                           dataKey="Hours" 
@@ -2044,6 +2134,8 @@ export default function FinancePortal() {
                             fontSize: '12px',
                             fontWeight: 'bold'
                           }}
+                          itemStyle={{ color: '#fff' }}
+                          labelStyle={{ color: '#fff' }}
                         />
                         {selectedEntities.map((entity) => {
                           const globalIndex = dailyLineChartData.entities.indexOf(entity);
@@ -2071,7 +2163,7 @@ export default function FinancePortal() {
                 <div className="w-full h-full overflow-x-auto custom-scrollbar select-none pt-2">
                   <div style={{ minWidth: `${Math.max(budgetAnalysisData.length * 90, 1200)}px` }} className="h-[90%]">
                     <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={budgetAnalysisData} margin={{ top: 20, right: 10, left: 10, bottom: 50 }}>
+                      <BarChart data={budgetAnalysisData} margin={{ top: 20, right: 10, left: 10, bottom: 80 }}>
                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                         <XAxis 
                           dataKey="name" 
@@ -2089,10 +2181,12 @@ export default function FinancePortal() {
                         <RechartsTooltip 
                           formatter={(v) => [fmtCurrency(Number(v)), '']}
                           contentStyle={{ background: '#0f172a', border: 'none', borderRadius: '12px', color: '#fff', fontSize: '12px', fontWeight: 'bold' }}
+                          itemStyle={{ color: '#fff' }}
+                          labelStyle={{ color: '#fff' }}
                         />
                         <Legend verticalAlign="top" height={36} iconType="circle" wrapperStyle={{ fontSize: '12px', fontWeight: 'bold' }} />
                         <Bar dataKey="revenueFormatted" name="Revenue (Budget)" fill="#10b981" radius={[8, 8, 0, 0]} />
-                        <Bar dataKey="costFormatted" name="Allocated Labor Cost" fill="#3b82f6" radius={[8, 8, 0, 0]} />
+                        <Bar dataKey="costFormatted" name="Allocated Resource Cost" fill="#3b82f6" radius={[8, 8, 0, 0]} />
                       </BarChart>
                     </ResponsiveContainer>
                   </div>
@@ -2103,7 +2197,7 @@ export default function FinancePortal() {
                 <div className="w-full h-full overflow-x-auto custom-scrollbar select-none pt-2">
                   <div style={{ minWidth: `${Math.max(budgetAnalysisData.length * 90, 1200)}px` }} className="h-[90%]">
                     <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={budgetAnalysisData} margin={{ top: 20, right: 10, left: 10, bottom: 50 }}>
+                      <BarChart data={budgetAnalysisData} margin={{ top: 20, right: 10, left: 10, bottom: 80 }}>
                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                         <XAxis 
                           dataKey="name" 
@@ -2121,6 +2215,8 @@ export default function FinancePortal() {
                         <RechartsTooltip 
                           formatter={(v) => [fmtCurrency(Number(v)), 'Net Profit/Loss']}
                           contentStyle={{ background: '#0f172a', border: 'none', borderRadius: '12px', color: '#fff', fontSize: '12px', fontWeight: 'bold' }}
+                          itemStyle={{ color: '#fff' }}
+                          labelStyle={{ color: '#fff' }}
                         />
                         <Bar dataKey="profitFormatted" name="Net Profit / Loss" radius={[8, 8, 0, 0]}>
                           {budgetAnalysisData.map((entry, idx) => (
@@ -2137,7 +2233,7 @@ export default function FinancePortal() {
                 <div className="w-full h-full overflow-x-auto custom-scrollbar select-none pt-2">
                   <div style={{ minWidth: `${Math.max(budgetAnalysisData.filter(item => item.revenue > 0).length * 90, 1200)}px` }} className="h-[90%]">
                     <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={budgetAnalysisData.filter(item => item.revenue > 0)} margin={{ top: 20, right: 10, left: 10, bottom: 50 }}>
+                      <LineChart data={budgetAnalysisData.filter(item => item.revenue > 0)} margin={{ top: 20, right: 10, left: 10, bottom: 80 }}>
                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                         <XAxis 
                           dataKey="name" 
@@ -2155,6 +2251,8 @@ export default function FinancePortal() {
                         <RechartsTooltip 
                           formatter={(v) => [`${v}%`, 'Margin']}
                           contentStyle={{ background: '#0f172a', border: 'none', borderRadius: '12px', color: '#fff', fontSize: '12px', fontWeight: 'bold' }}
+                          itemStyle={{ color: '#fff' }}
+                          labelStyle={{ color: '#fff' }}
                         />
                         <Line type="monotone" dataKey="profitMargin" stroke="#8b5cf6" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 7 }} />
                       </LineChart>
@@ -2180,7 +2278,7 @@ export default function FinancePortal() {
                   {selectedDrillDownCoreTeam} Team Detailed Breakdown
                 </h3>
                 <p className="text-xs text-slate-500 font-medium mt-1">
-                  Financial performance and labor allocation costs for clients owned by {selectedDrillDownCoreTeam} Team during <strong>{month}</strong>.
+                  Financial performance and resource allocation spend for clients owned by {selectedDrillDownCoreTeam} Team during <strong>{month}</strong>.
                 </p>
               </div>
               <button
@@ -2209,7 +2307,7 @@ export default function FinancePortal() {
                     </span>
                   </div>
                   <div className="p-6 bg-slate-50 border border-slate-100 rounded-3xl">
-                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Total Allocated Labor Cost</span>
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Total Allocated Resource Cost</span>
                     <span className="text-2xl font-black text-rose-600 block mt-1 font-mono">
                       {fmtCurrency(drillDownData.reduce((sum, item) => sum + item.cost, 0))}
                     </span>
@@ -2231,39 +2329,75 @@ export default function FinancePortal() {
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                   {/* Chart 1: Revenue vs Cost */}
                   <div className="border border-slate-100 rounded-3xl p-6 bg-white space-y-4">
-                    <h5 className="text-sm font-bold text-slate-800">Budgeted Revenue & Distributed Labor Cost</h5>
-                    <div className="h-[280px] w-full">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={drillDownData} margin={{ top: 20, right: 10, left: 10, bottom: 20 }}>
-                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                          <XAxis dataKey="name" stroke="#64748b" fontSize={9} fontWeight="bold" tickLine={false} axisLine={false} />
-                          <YAxis stroke="#64748b" fontSize={9} fontWeight="bold" tickLine={false} axisLine={false} tickFormatter={(v) => `₹${v/1000}k`} />
-                          <RechartsTooltip formatter={(v) => [fmtCurrency(Number(v)), '']} contentStyle={{ background: '#0f172a', border: 'none', borderRadius: '12px', color: '#fff', fontSize: '11px', fontWeight: 'bold' }} />
-                          <Legend verticalAlign="top" height={36} iconType="circle" wrapperStyle={{ fontSize: '11px', fontWeight: 'bold' }} />
-                          <Bar dataKey="revenueFormatted" name="Revenue (Budget)" fill="#10b981" radius={[6, 6, 0, 0]} />
-                          <Bar dataKey="costFormatted" name="Allocated Labor Cost" fill="#3b82f6" radius={[6, 6, 0, 0]} />
-                        </BarChart>
-                      </ResponsiveContainer>
+                    <h5 className="text-sm font-bold text-slate-800">Budgeted Revenue & Distributed Resource Cost</h5>
+                    <div className="w-full overflow-x-auto custom-scrollbar select-none pb-2">
+                      <div style={{ minWidth: drillDownData.length > 0 ? `${Math.max(600, drillDownData.length * 60)}px` : '100%', height: '280px' }}>
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart data={drillDownData} margin={{ top: 20, right: 10, left: 10, bottom: 70 }}>
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                            <XAxis 
+                              dataKey="name" 
+                              stroke="#64748b" 
+                              fontSize={8} 
+                              fontWeight="bold" 
+                              tickLine={false} 
+                              axisLine={false}
+                              interval={0}
+                              angle={-30}
+                              dx={-8}
+                              dy={8}
+                            />
+                            <YAxis stroke="#64748b" fontSize={9} fontWeight="bold" tickLine={false} axisLine={false} tickFormatter={(v) => `₹${v/1000}k`} />
+                            <RechartsTooltip 
+                              formatter={(v) => [fmtCurrency(Number(v)), '']} 
+                              contentStyle={{ background: '#0f172a', border: 'none', borderRadius: '12px', color: '#fff', fontSize: '11px', fontWeight: 'bold' }} 
+                              itemStyle={{ color: '#fff' }}
+                              labelStyle={{ color: '#fff' }}
+                            />
+                            <Legend verticalAlign="top" height={36} iconType="circle" wrapperStyle={{ fontSize: '11px', fontWeight: 'bold' }} />
+                            <Bar dataKey="revenueFormatted" name="Revenue (Budget)" fill="#10b981" radius={[6, 6, 0, 0]} />
+                            <Bar dataKey="costFormatted" name="Allocated Resource Cost" fill="#3b82f6" radius={[6, 6, 0, 0]} />
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
                     </div>
                   </div>
 
                   {/* Chart 2: Net Profit / Loss */}
                   <div className="border border-slate-100 rounded-3xl p-6 bg-white space-y-4">
                     <h5 className="text-sm font-bold text-slate-800">Absolute Net Margin Generated</h5>
-                    <div className="h-[280px] w-full">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={drillDownData} margin={{ top: 20, right: 10, left: 10, bottom: 20 }}>
-                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                          <XAxis dataKey="name" stroke="#64748b" fontSize={9} fontWeight="bold" tickLine={false} axisLine={false} />
-                          <YAxis stroke="#64748b" fontSize={9} fontWeight="bold" tickLine={false} axisLine={false} tickFormatter={(v) => `₹${v/1000}k`} />
-                          <RechartsTooltip formatter={(v) => [fmtCurrency(Number(v)), 'Net Profit/Loss']} contentStyle={{ background: '#0f172a', border: 'none', borderRadius: '12px', color: '#fff', fontSize: '11px', fontWeight: 'bold' }} />
-                          <Bar dataKey="profitFormatted" name="Net Profit / Loss" radius={[6, 6, 0, 0]}>
-                            {drillDownData.map((entry, idx) => (
-                              <Cell key={`cell-${idx}`} fill={entry.profit >= 0 ? '#10b981' : '#ef4444'} />
-                            ))}
-                          </Bar>
-                        </BarChart>
-                      </ResponsiveContainer>
+                    <div className="w-full overflow-x-auto custom-scrollbar select-none pb-2">
+                      <div style={{ minWidth: drillDownData.length > 0 ? `${Math.max(600, drillDownData.length * 60)}px` : '100%', height: '280px' }}>
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart data={drillDownData} margin={{ top: 20, right: 10, left: 10, bottom: 70 }}>
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                            <XAxis 
+                              dataKey="name" 
+                              stroke="#64748b" 
+                              fontSize={8} 
+                              fontWeight="bold" 
+                              tickLine={false} 
+                              axisLine={false}
+                              interval={0}
+                              angle={-30}
+                              dx={-8}
+                              dy={8}
+                            />
+                            <YAxis stroke="#64748b" fontSize={9} fontWeight="bold" tickLine={false} axisLine={false} tickFormatter={(v) => `₹${v/1000}k`} />
+                            <RechartsTooltip 
+                              formatter={(v) => [fmtCurrency(Number(v)), 'Net Profit/Loss']} 
+                              contentStyle={{ background: '#0f172a', border: 'none', borderRadius: '12px', color: '#fff', fontSize: '11px', fontWeight: 'bold' }} 
+                              itemStyle={{ color: '#fff' }}
+                              labelStyle={{ color: '#fff' }}
+                            />
+                            <Bar dataKey="profitFormatted" name="Net Profit / Loss" radius={[6, 6, 0, 0]}>
+                              {drillDownData.map((entry, idx) => (
+                                <Cell key={`cell-${idx}`} fill={entry.profit >= 0 ? '#10b981' : '#ef4444'} />
+                              ))}
+                            </Bar>
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -2275,7 +2409,7 @@ export default function FinancePortal() {
                       <tr className="bg-slate-50 border-b border-slate-200">
                         <th className="px-6 py-3 text-xs font-bold text-slate-500 uppercase tracking-wider">Client Name</th>
                         <th className="px-6 py-3 text-xs font-bold text-slate-500 uppercase tracking-wider text-right">Budget (Revenue)</th>
-                        <th className="px-6 py-3 text-xs font-bold text-slate-500 uppercase tracking-wider text-right">Allocated Labor Cost</th>
+                        <th className="px-6 py-3 text-xs font-bold text-slate-500 uppercase tracking-wider text-right">Allocated Resource Cost</th>
                         <th className="px-6 py-3 text-xs font-bold text-slate-500 uppercase tracking-wider text-right">Net Profit / Loss</th>
                         <th className="px-6 py-3 text-xs font-bold text-slate-500 uppercase tracking-wider text-right">Profit Margin</th>
                       </tr>

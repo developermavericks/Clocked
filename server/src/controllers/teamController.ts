@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { supabase } from '../config/supabase';
 import { isActiveUser } from '../config/activeUsers';
+import { getEmployeeJoiningDate, setEmployeeJoiningDate } from '../config/employeeJoiningDates';
 
 export const getTeamMembers = async (req: Request, res: Response) => {
   const { managerId } = req.query;
@@ -105,9 +106,11 @@ export const getAllUsers = async (req: Request, res: Response) => {
       .map((u: any) => {
         const override = monthlySalaries.find((s: any) => s.user_id === u.id);
         const sal = override ? Number(override.salary) : (u.salary !== undefined ? Number(u.salary) : 0);
+        const joinDate = getEmployeeJoiningDate(u.email);
         return {
           ...u,
           salary: sal,
+          joining_date: joinDate,
           is_manager: managerIds.has(u.id),
           is_active: isActiveUser(u.email)
         };
@@ -165,6 +168,35 @@ export const updateUserExitDate = async (req: Request, res: Response) => {
   }
 };
 
+export const updateUserJoiningDate = async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const { joiningDate } = req.body; // Expecting 'YYYY-MM-DD' or null
+  try {
+    // 1. Fetch user email to store in JSON
+    const { data: u, error: uErr } = await supabase
+      .from('users')
+      .select('email')
+      .eq('id', id)
+      .single();
+      
+    if (!uErr && u) {
+      setEmployeeJoiningDate(u.email, joiningDate);
+    }
+    
+    // 2. Try to update DB column in case schema has it
+    try {
+      await supabase
+        .from('users')
+        .update({ joining_date: joiningDate || null })
+        .eq('id', id);
+    } catch (_) {}
+
+    res.json({ success: true });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
 export const createUser = async (req: Request, res: Response) => {
   const { name, email, joiningDate } = req.body;
   
@@ -179,6 +211,9 @@ export const createUser = async (req: Request, res: Response) => {
   };
   
   try {
+    // Store in local JSON configuration
+    setEmployeeJoiningDate(email, joiningDate || '2025-11-01');
+
     // 1. Try to insert with joining_date
     const { data, error } = await supabase
       .from('users')
