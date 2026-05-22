@@ -1116,6 +1116,7 @@ export default function FinancePortal() {
                               tickLine={false} 
                               axisLine={false} 
                               allowDecimals={false}
+                              ticks={analysisView === 'employee' ? [0, 40, 80, 120, 160, 200] : undefined}
                             />
                             {analysisView === 'employee' && (
                               <ReferenceLine 
@@ -2018,6 +2019,7 @@ export default function FinancePortal() {
                           tickLine={false} 
                           axisLine={false} 
                           allowDecimals={false}
+                          ticks={analysisView === 'employee' ? [0, 40, 80, 120, 160, 200] : undefined}
                         />
                         {analysisView === 'employee' && (
                           <ReferenceLine 

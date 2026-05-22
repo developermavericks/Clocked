@@ -8,6 +8,7 @@ import { supabase } from '@/lib/supabase';
 import { apiFetch } from '@/lib/api';
 import StatsCard from '@/components/StatsCard';
 import AllocationsTable from '@/components/AllocationsTable';
+import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip as RechartsTooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 
 export default function ManagerPortal() {
   const [activeTab, setActiveTab] = useState<'self' | 'members'>('members');
@@ -264,9 +265,213 @@ export default function ManagerPortal() {
                       <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-600"></div>
                     </div>
                   ) : (
-                    <div className="space-y-4">
-                      <h4 className="text-sm font-black text-slate-900 uppercase tracking-widest px-1">Detailed Logs - {new Date(month + '-02').toLocaleString('en-US', { month: 'long', year: 'numeric' })}</h4>
-                      <AllocationsTable data={memberAllocations} type={reportKind} />
+                    <div className="space-y-8 animate-in fade-in duration-300">
+                      {/* Dynamic Detailed Analysis Dashboard */}
+                      {(() => {
+                        // Aggregate hours per client
+                        const clientDataMap: Record<string, number> = {};
+                        memberAllocations.forEach(item => {
+                          const clientName = item.clients?.name || 'Unknown';
+                          clientDataMap[clientName] = (clientDataMap[clientName] || 0) + item.hours;
+                        });
+                        const clientChartData = Object.entries(clientDataMap).map(([name, value]) => ({
+                          name,
+                          value: parseFloat(value.toFixed(2))
+                        })).sort((a, b) => b.value - a.value);
+
+                        const COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6', '#06b6d4'];
+
+                        return (
+                          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                            
+                            {/* Performance Stats Cards */}
+                            <div className="lg:col-span-3 grid grid-cols-1 md:grid-cols-3 gap-6">
+                              {/* Card 1: Total Hours & Benchmark progress */}
+                              <div className="bg-gradient-to-br from-indigo-50 to-white p-6 rounded-3xl border border-indigo-100/50 shadow-sm relative overflow-hidden">
+                                <div className="absolute right-4 top-4 bg-indigo-500/10 p-3 rounded-2xl text-indigo-600">
+                                  <Calendar className="w-6 h-6" />
+                                </div>
+                                <span className="text-xs font-black uppercase tracking-widest text-indigo-500">Contributed Hours</span>
+                                <div className="mt-4 flex items-baseline gap-2">
+                                  <span className="text-4xl font-black text-slate-900">{totalMemberHours.toFixed(1)}h</span>
+                                  <span className="text-xs font-bold text-slate-400">/ 160h benchmark</span>
+                                </div>
+                                <div className="mt-4 w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+                                  <div 
+                                    className="bg-indigo-600 h-full rounded-full transition-all duration-500" 
+                                    style={{ width: `${Math.min((totalMemberHours / 160) * 100, 100)}%` }}
+                                  />
+                                </div>
+                                <div className="mt-2 text-xs font-bold text-slate-500 flex justify-between">
+                                  <span>{((totalMemberHours / 160) * 100).toFixed(0)}% of monthly target</span>
+                                  <span className={`${totalMemberHours >= 160 ? 'text-emerald-600' : 'text-amber-500'}`}>
+                                    {totalMemberHours >= 160 ? 'Benchmark Met! 🎉' : `${(160 - totalMemberHours).toFixed(1)}h remaining`}
+                                  </span>
+                                </div>
+                              </div>
+
+                              {/* Card 2: Engaged Clients count */}
+                              <div className="bg-gradient-to-br from-emerald-50 to-white p-6 rounded-3xl border border-emerald-100/50 shadow-sm relative overflow-hidden">
+                                <div className="absolute right-4 top-4 bg-emerald-500/10 p-3 rounded-2xl text-emerald-600">
+                                  <Users className="w-6 h-6" />
+                                </div>
+                                <span className="text-xs font-black uppercase tracking-widest text-emerald-500">Client Engagements</span>
+                                <div className="mt-4 flex items-baseline gap-2">
+                                  <span className="text-4xl font-black text-slate-900">{clientChartData.length}</span>
+                                  <span className="text-xs font-bold text-slate-400">active clients</span>
+                                </div>
+                                <p className="mt-6 text-xs text-slate-500 font-bold leading-relaxed">
+                                  {clientChartData.length > 0 ? (
+                                    <>Allocated across {clientChartData.length} distinct clients this month.</>
+                                  ) : (
+                                    <>No active allocations recorded for this month.</>
+                                  )}
+                                </p>
+                              </div>
+
+                              {/* Card 3: Key Client Focus */}
+                              <div className="bg-gradient-to-br from-amber-50 to-white p-6 rounded-3xl border border-amber-100/50 shadow-sm relative overflow-hidden">
+                                <div className="absolute right-4 top-4 bg-amber-500/10 p-3 rounded-2xl text-amber-600">
+                                  <LayoutDashboard className="w-6 h-6" />
+                                </div>
+                                <span className="text-xs font-black uppercase tracking-widest text-amber-500">Primary Account Focus</span>
+                                <div className="mt-4">
+                                  {clientChartData.length > 0 ? (
+                                    <>
+                                      <span className="text-lg font-black text-slate-900 block truncate max-w-[200px]" title={clientChartData[0].name}>
+                                        {clientChartData[0].name}
+                                      </span>
+                                      <span className="text-xs font-bold text-slate-400 block mt-1">
+                                        {clientChartData[0].value.toFixed(1)}h logged ({((clientChartData[0].value / (totalMemberHours || 1)) * 100).toFixed(0)}% focus)
+                                      </span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <span className="text-lg font-black text-slate-900 block">N/A</span>
+                                      <span className="text-xs font-bold text-slate-400 block mt-1">No core focus identified</span>
+                                    </>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Client distribution pie chart */}
+                            <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex flex-col justify-between min-h-[380px] lg:col-span-1">
+                              <div>
+                                <h4 className="text-sm font-black text-slate-900 uppercase tracking-widest">Client Distribution</h4>
+                                <p className="text-xs text-slate-400 font-bold mt-1">Split of logged working hours</p>
+                              </div>
+                              
+                              {clientChartData.length === 0 ? (
+                                <div className="flex-1 flex flex-col items-center justify-center text-slate-400 italic text-sm">
+                                  No client distribution available
+                                </div>
+                              ) : (
+                                <div className="flex-1 flex flex-col items-center justify-center min-h-[220px] mt-4">
+                                  <ResponsiveContainer width="100%" height={160}>
+                                    <PieChart>
+                                      <Pie
+                                        data={clientChartData}
+                                        cx="50%"
+                                        cy="50%"
+                                        innerRadius={45}
+                                        outerRadius={65}
+                                        paddingAngle={3}
+                                        dataKey="value"
+                                      >
+                                        {clientChartData.map((entry, index) => (
+                                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                        ))}
+                                      </Pie>
+                                      <RechartsTooltip 
+                                        contentStyle={{ backgroundColor: '#0f172a', border: 'none', borderRadius: '12px' }}
+                                        itemStyle={{ color: '#fff', fontSize: '11px', fontWeight: 'bold' }}
+                                        labelStyle={{ color: '#fff', fontSize: '11px', fontWeight: 'bold' }}
+                                        formatter={(value: any) => [`${parseFloat(value || 0).toFixed(1)} hrs`, 'Logged']}
+                                      />
+                                    </PieChart>
+                                  </ResponsiveContainer>
+                                  
+                                  {/* Legend */}
+                                  <div className="flex flex-wrap gap-x-3 gap-y-1.5 justify-center mt-3 max-h-[60px] overflow-y-auto w-full px-1">
+                                    {clientChartData.slice(0, 4).map((entry, index) => (
+                                      <div key={entry.name} className="flex items-center gap-1 min-w-[70px]">
+                                        <div className="w-2 h-2 rounded-full" style={{ backgroundColor: COLORS[index % COLORS.length] }} />
+                                        <span className="text-[10px] font-black text-slate-600 truncate max-w-[80px]" title={entry.name}>
+                                          {entry.name}: {((entry.value / (totalMemberHours || 1)) * 100).toFixed(0)}%
+                                        </span>
+                                      </div>
+                                    ))}
+                                    {clientChartData.length > 4 && (
+                                      <span className="text-[10px] font-black text-slate-400">+{clientChartData.length - 4} more</span>
+                                    )}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Client hours bar chart */}
+                            <div className="lg:col-span-2 bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex flex-col justify-between min-h-[380px]">
+                              <div>
+                                <h4 className="text-sm font-black text-slate-900 uppercase tracking-widest">Client Hours & Engagement</h4>
+                                <p className="text-xs text-slate-400 font-bold mt-1">Total contributed hours by account</p>
+                              </div>
+
+                              {clientChartData.length === 0 ? (
+                                <div className="flex-1 flex flex-col items-center justify-center text-slate-400 italic text-sm">
+                                  No client allocations recorded
+                                </div>
+                              ) : (
+                                <div className="flex-1 min-h-[240px] mt-4 flex items-end">
+                                  <ResponsiveContainer width="100%" height={240}>
+                                    <BarChart data={clientChartData} margin={{ top: 10, right: 10, left: -25, bottom: 25 }}>
+                                      <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+                                      <XAxis 
+                                        dataKey="name" 
+                                        stroke="#64748b" 
+                                        fontSize={9} 
+                                        fontWeight="bold" 
+                                        tickLine={false} 
+                                        axisLine={false}
+                                        interval={0}
+                                        angle={-20}
+                                        dx={-5}
+                                        dy={5}
+                                      />
+                                      <YAxis 
+                                        stroke="#64748b" 
+                                        fontSize={9} 
+                                        fontWeight="bold" 
+                                        tickLine={false} 
+                                        axisLine={false}
+                                        allowDecimals={false}
+                                      />
+                                      <RechartsTooltip 
+                                        contentStyle={{ backgroundColor: '#0f172a', border: 'none', borderRadius: '12px' }}
+                                        itemStyle={{ color: '#fff', fontSize: '11px', fontWeight: 'bold' }}
+                                        labelStyle={{ color: '#fff', fontSize: '11px', fontWeight: 'bold' }}
+                                        formatter={(value: any) => [`${parseFloat(value || 0).toFixed(1)} hrs`, 'Logged']}
+                                      />
+                                      <Bar dataKey="value" radius={[8, 8, 0, 0]} maxBarSize={40}>
+                                        {clientChartData.map((entry, index) => (
+                                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                        ))}
+                                      </Bar>
+                                    </BarChart>
+                                  </ResponsiveContainer>
+                                </div>
+                              )}
+                            </div>
+
+                          </div>
+                        );
+                      })()}
+
+                      {/* Detailed logs table directly below */}
+                      <div className="space-y-4 pt-4 border-t border-slate-100">
+                        <h4 className="text-sm font-black text-slate-900 uppercase tracking-widest px-1">Detailed Logs - {new Date(month + '-02').toLocaleString('en-US', { month: 'long', year: 'numeric' })}</h4>
+                        <AllocationsTable data={memberAllocations} type={reportKind} />
+                      </div>
                     </div>
                   )}
                 </div>
