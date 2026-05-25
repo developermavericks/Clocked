@@ -25,6 +25,7 @@ interface CalendarEvent {
     start: string;
     end: string;
     hours: number;
+    isAlreadySaved?: boolean;
   }[];
   isClientGrouped?: boolean;
   originalEvents?: CalendarEvent[];
