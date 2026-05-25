@@ -182,29 +182,42 @@ export const addWeeklyAllocation = async (req: Request, res: Response) => {
       return res.status(400).json({ error: `Monthly cap exceeded. Current total: ${totalHours}h. Adding ${hours}h would exceed 160h.` });
     }
 
-    // Prevent duplicate entries for weekly allocations
-    const { data: duplicateCheck, error: dError } = await supabase
-      .from('allocations_weekly')
-      .select('id, notes, hours')
-      .eq('user_id', user_id)
-      .eq('start_date', start_date);
+    // Prevent duplicate entries for weekly allocations (unless force is true)
+    if (!req.body.force) {
+      const { data: duplicateCheck, error: dError } = await supabase
+        .from('allocations_weekly')
+        .select('id, notes, hours')
+        .eq('user_id', user_id)
+        .eq('start_date', start_date);
 
-    if (dError) throw dError;
+      if (dError) throw dError;
 
-    if (duplicateCheck && duplicateCheck.length > 0) {
-      const isDuplicate = duplicateCheck.some(alloc => {
-        const hoursMatch = Math.abs(Number(alloc.hours) - Number(hours)) < 0.05;
-        const allocNotesLower = (alloc.notes || '').toLowerCase().trim();
-        const incomingNotesLower = (notes || '').toLowerCase().trim();
-        const notesMatch = allocNotesLower === incomingNotesLower || 
-                           allocNotesLower.includes(incomingNotesLower) || 
-                           incomingNotesLower.includes(allocNotesLower);
-        return hoursMatch && notesMatch;
-      });
+      if (duplicateCheck && duplicateCheck.length > 0) {
+        const isDuplicate = duplicateCheck.some(alloc => {
+          const hoursMatch = Math.abs(Number(alloc.hours) - Number(hours)) < 0.05;
+          const allocNotesLower = (alloc.notes || '').toLowerCase().trim();
+          const incomingNotesLower = (notes || '').toLowerCase().trim();
+          
+          // Strip out hidden tags for clean comparison
+          const cleanAllocNotes = allocNotesLower.replace(/\n\[cal: .*?\]/g, '').trim();
+          const cleanIncomingNotes = incomingNotesLower.replace(/\n\[cal: .*?\]/g, '').trim();
 
-      if (isDuplicate) {
-        console.log(`[DUPLICATE] Prevented duplicate allocation insertion for user ${user_id} on ${start_date}`);
-        return res.status(201).json(duplicateCheck[0]);
+          // Check if either notes field has a calendar tag containing the other's text
+          const hasHiddenTag = (cleanIncomingNotes && allocNotesLower.includes(`[cal: ${cleanIncomingNotes}]`)) ||
+                               (cleanAllocNotes && incomingNotesLower.includes(`[cal: ${cleanAllocNotes}]`));
+
+          const notesMatch = hasHiddenTag ||
+                             cleanAllocNotes === cleanIncomingNotes || 
+                             cleanAllocNotes.includes(cleanIncomingNotes) || 
+                             cleanIncomingNotes.includes(cleanAllocNotes);
+
+          return hoursMatch && notesMatch;
+        });
+
+        if (isDuplicate) {
+          console.log(`[DUPLICATE] Prevented duplicate allocation insertion for user ${user_id} on ${start_date}`);
+          return res.status(201).json(duplicateCheck[0]);
+        }
       }
     }
 

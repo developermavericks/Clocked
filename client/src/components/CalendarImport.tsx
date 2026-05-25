@@ -418,8 +418,8 @@ export default function CalendarImport({ userId, month, onSuccess }: { userId: s
           }
         }
 
-        // Filter occurrences to avoid duplicates
-        const remainingOccurrences = (ev.occurrences || []).filter((occ: any) => {
+        // Map occurrences and determine which ones are already saved
+        const processedOccurrences = (ev.occurrences || []).map((occ: any) => {
           const occDateStr = occ.start.split('T')[0];
           const occHours = Number(occ.hours);
           const occTitleLower = (occ.title || ev.title || '').toLowerCase().trim();
@@ -431,19 +431,26 @@ export default function CalendarImport({ userId, month, onSuccess }: { userId: s
 
             const datesMatch = allocDateStr === occDateStr;
             const hoursMatch = Math.abs(allocHours - occHours) < 0.05;
-            const notesMatch = allocNotesLower === occTitleLower || 
+            
+            // Check for hidden [cal: title] tag or direct matching
+            const hasHiddenTag = allocNotesLower.includes(`[cal: ${occTitleLower}]`);
+            const notesMatch = hasHiddenTag ||
+                               allocNotesLower === occTitleLower || 
                                allocNotesLower.includes(occTitleLower) || 
                                occTitleLower.includes(allocNotesLower);
 
             return datesMatch && hoursMatch && notesMatch;
           });
 
-          return !isAlreadySaved;
+          return {
+            ...occ,
+            isAlreadySaved
+          };
         });
 
         // Recalculate duration and count
-        const totalHours = remainingOccurrences.reduce((sum: number, o: any) => sum + Number(o.hours), 0);
-        const count = remainingOccurrences.length;
+        const totalHours = processedOccurrences.reduce((sum: number, o: any) => sum + Number(o.hours), 0);
+        const count = processedOccurrences.length;
 
         return {
           ...ev,
@@ -452,11 +459,11 @@ export default function CalendarImport({ userId, month, onSuccess }: { userId: s
           category: '', // Empty default
           notes: ev.title, // Default notes to event title
           originalDefaultNotes: ev.title,
-          occurrences: remainingOccurrences,
+          occurrences: processedOccurrences,
           hours: totalHours,
           count: count
         };
-      }).filter((ev: any) => ev.count > 0);
+      });
 
       setEvents(initializedEvents);
       setHasFetched(true);
@@ -473,6 +480,26 @@ export default function CalendarImport({ userId, month, onSuccess }: { userId: s
       const selected = events.filter(e => selectedEvents.has(e.id));
       
       if (selected.length === 0) return;
+
+      // Check for already allocated events and show confirmation popup
+      const alreadySavedList: string[] = [];
+      for (const event of selected) {
+        if (event.occurrences && event.occurrences.length > 0) {
+          for (const occ of event.occurrences) {
+            if (occ.isAlreadySaved) {
+              alreadySavedList.push(`• "${occ.title || event.title}" on ${occ.start.split('T')[0]}`);
+            }
+          }
+        }
+      }
+
+      if (alreadySavedList.length > 0) {
+        const confirmMessage = `The following event(s) are already allocated:\n\n${alreadySavedList.join('\n')}\n\nDo you still want to add them anyway?`;
+        if (!window.confirm(confirmMessage)) {
+          setSaving(false);
+          return;
+        }
+      }
 
       const totalSavedCount = selected.reduce((sum, e) => sum + (e.count || 1), 0);
 
@@ -525,7 +552,8 @@ export default function CalendarImport({ userId, month, onSuccess }: { userId: s
         if (event.occurrences && event.occurrences.length > 0) {
           for (const occ of event.occurrences) {
             const isNotesCustomized = event.notes !== event.originalDefaultNotes;
-            const finalNotes = isNotesCustomized ? (event.notes || '') : (occ.notes || occ.title || event.title);
+            const baseNotes = isNotesCustomized ? (event.notes || '') : (occ.notes || occ.title || event.title);
+            const finalNotes = `${baseNotes}\n[Cal: ${occ.title || event.title}]`;
 
             const response = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/allocations/weekly`, {
               method: 'POST',
@@ -551,6 +579,7 @@ export default function CalendarImport({ userId, month, onSuccess }: { userId: s
             }
           }
         } else {
+          const finalNotes = `${event.notes || event.title}\n[Cal: ${event.title}]`;
           const response = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/allocations/weekly`, {
             method: 'POST',
             headers: {
@@ -562,7 +591,7 @@ export default function CalendarImport({ userId, month, onSuccess }: { userId: s
               client_id: event.client_id, 
               category: event.category,
               hours: event.hours,
-              notes: event.notes || '', 
+              notes: finalNotes, 
               start_date: event.start.split('T')[0],
               end_date: event.end.split('T')[0],
               source: 'calendar',
