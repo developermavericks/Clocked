@@ -1,5 +1,5 @@
 -- ==========================================
--- MAVSTRACKER EXIT DATE SCHEMA MIGRATION
+-- CLOCKED EXIT DATE SCHEMA MIGRATION
 -- Run this block inside your Supabase SQL Editor
 -- ==========================================
 

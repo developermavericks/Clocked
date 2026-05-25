@@ -145,7 +145,8 @@ export default function CalendarImport({ userId, month, onSuccess }: { userId: s
           notes: occ.notes || e.notes || e.title,
           start: occ.start,
           end: occ.end,
-          hours: occ.hours
+          hours: occ.hours,
+          isAlreadySaved: occ.isAlreadySaved
         }));
         mergedOccurrences.push(...mapped);
       } else {
@@ -154,7 +155,8 @@ export default function CalendarImport({ userId, month, onSuccess }: { userId: s
           notes: e.notes || e.title,
           start: e.start,
           end: e.end,
-          hours: e.hours
+          hours: e.hours,
+          isAlreadySaved: (e as any).isAlreadySaved
         });
       }
     });

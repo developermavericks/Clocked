@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: mavstracker-api
+    name: clocked-api
     env: node
     plan: free
     rootDir: server

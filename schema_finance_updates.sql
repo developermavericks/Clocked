@@ -1,5 +1,5 @@
 -- ==========================================
--- MAVSTRACKER FINANCE PORTAL SCHEMA MIGRATIONS
+-- CLOCKED FINANCE PORTAL SCHEMA MIGRATIONS
 -- Run this block inside your Supabase SQL Editor
 -- ==========================================
 

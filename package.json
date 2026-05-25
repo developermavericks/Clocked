@@ -1,5 +1,5 @@
 {
-  "name": "mavstracker-root",
+  "name": "clocked-root",
   "private": true,
   "scripts": {
     "dev": "npm --prefix client run dev",

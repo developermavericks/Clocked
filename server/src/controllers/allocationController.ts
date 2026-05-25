@@ -102,27 +102,6 @@ export const addMonthlyAllocation = async (req: Request, res: Response) => {
       return res.status(403).json({ error: `This month (${month}) is locked for editing.` });
     }
 
-    // Check monthly cap
-    const { data: existingMonthly, error: mError } = await supabase
-      .from('allocations_monthly')
-      .select('hours')
-      .eq('user_id', user_id)
-      .eq('month', month);
-    
-    const { data: existingWeekly, error: wError } = await supabase
-      .from('allocations_weekly')
-      .select('hours')
-      .eq('user_id', user_id)
-      .eq('month', month);
-
-    if (mError || wError) throw (mError || wError);
-
-    const totalHours = [...(existingMonthly || []), ...(existingWeekly || [])]
-      .reduce((acc, curr) => acc + Number(curr.hours), 0);
-
-    if (totalHours + Number(hours) > 160) {
-      return res.status(400).json({ error: `Monthly cap exceeded. Current total: ${totalHours}h. Adding ${hours}h would exceed 160h.` });
-    }
     const { data, error } = await supabase
       .from('allocations_monthly')
       .insert([{ user_id, month, client_id, category, hours, notes }])
@@ -160,27 +139,6 @@ export const addWeeklyAllocation = async (req: Request, res: Response) => {
       return res.status(403).json({ error: `This month (${month}) is locked for editing.` });
     }
 
-    // Check monthly cap
-    const { data: existingMonthly, error: mError } = await supabase
-      .from('allocations_monthly')
-      .select('hours')
-      .eq('user_id', user_id)
-      .eq('month', month);
-    
-    const { data: existingWeekly, error: wError } = await supabase
-      .from('allocations_weekly')
-      .select('hours')
-      .eq('user_id', user_id)
-      .eq('month', month);
-
-    if (mError || wError) throw (mError || wError);
-
-    const totalHours = [...(existingMonthly || []), ...(existingWeekly || [])]
-      .reduce((acc, curr) => acc + Number(curr.hours), 0);
-
-    if (totalHours + Number(hours) > 160) {
-      return res.status(400).json({ error: `Monthly cap exceeded. Current total: ${totalHours}h. Adding ${hours}h would exceed 160h.` });
-    }
 
     // Prevent duplicate entries for weekly allocations (unless force is true)
     if (!req.body.force) {

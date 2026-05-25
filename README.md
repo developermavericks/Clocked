@@ -1,4 +1,4 @@
-# 🚀 MavsTracker — Time Allocation & Analytics Platform
+# 🚀 Clocked — Time Allocation & Analytics Platform
 
 [![Node.js](https://img.shields.io/badge/Node.js-v18+-339933?style=for-the-badge&logo=node.js&logoColor=white)](https://nodejs.org/)
 [![Next.js](https://img.shields.io/badge/Next.js-v15-000000?style=for-the-badge&logo=next.js&logoColor=white)](https://nextjs.org/)
@@ -91,7 +91,7 @@ Time-Allocation-Project/
 
 ## 🗃️ Database Architecture & Schema
 
-MavsTracker is engineered on top of a highly optimized PostgreSQL relational schema in Supabase with foreign keys enforcing absolute data integrity:
+Clocked is engineered on top of a highly optimized PostgreSQL relational schema in Supabase with foreign keys enforcing absolute data integrity:
 
 ### 1. Core Tables
 *   **`users`**: Represents company employees. Holds Google sub IDs, emails, names, profile pictures, and active role scopes (`team`, `manager`, `core`).
@@ -113,7 +113,7 @@ The database has ironclad security policies active, preventing malicious or cros
 
 ## 💻 Operations & Roster Workflows
 
-MavsTracker is designed with role-based features optimized for corporate efficiency:
+Clocked is designed with role-based features optimized for corporate efficiency:
 
 ### 👤 1. Core Members (Super Admins)
 *   **Roster Administration:** Add new team members, manage direct manager mappings, and assign database roles.
@@ -133,7 +133,7 @@ MavsTracker is designed with role-based features optimized for corporate efficie
 
 ## 📅 Google Calendar Sync Engine
 
-The calendar integration in MavsTracker goes far beyond basic event loading. It includes a custom grouping and processing engine:
+The calendar integration in Clocked goes far beyond basic event loading. It includes a custom grouping and processing engine:
 
 1.  **IST Grouping & Time Parsing:** Dates are parsed and queried matching India Standard Time (IST).
 2.  **Decimal Hour Calculation:** Converts calendar durations seamlessly into decimal hours (e.g., a 45-minute standup is converted into exactly `0.75` hours).

@@ -116,6 +116,35 @@ export default function TeamPortal() {
 
   const { data, loading: isTableLoading, refresh } = useAllocations(user?.id, month, activeTab);
 
+  const [projectedHours, setProjectedHours] = useState<number>(160);
+
+  const fetchProjectedHours = async () => {
+    if (!user?.id || !month) return;
+    try {
+      const { data: projData, error } = await supabase
+        .from('allocations_monthly')
+        .select('hours')
+        .eq('user_id', user.id)
+        .eq('month', month);
+
+      if (error) throw error;
+      
+      const total = (projData || []).reduce((sum, item) => sum + Number(item.hours), 0);
+      setProjectedHours(total > 0 ? total : 160);
+    } catch (err) {
+      console.warn('Failed to fetch projected hours:', err);
+    }
+  };
+
+  useEffect(() => {
+    fetchProjectedHours();
+  }, [user?.id, month]);
+
+  const handleRefreshAll = () => {
+    refresh();
+    fetchProjectedHours();
+  };
+
   const handleEdit = (item: any) => {
     setEditData(item);
     setIsEditMode(true);
@@ -129,7 +158,7 @@ export default function TeamPortal() {
         method: 'DELETE',
       });
       if (response.ok) {
-        refresh();
+        handleRefreshAll();
       } else {
         const result = await response.json();
         alert(result.error);
@@ -189,6 +218,9 @@ export default function TeamPortal() {
     }
   })();
 
+  const actualHours = data.reduce((acc, curr) => acc + curr.hours, 0);
+  const efficiencyPercentage = projectedHours > 0 ? (actualHours / projectedHours) * 100 : 0;
+
   return (
     <div className="space-y-8 relative">
 
@@ -218,27 +250,15 @@ export default function TeamPortal() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <StatsCard 
           label="Total Hours" 
-          value={data.reduce((acc, curr) => acc + curr.hours, 0).toFixed(1)} 
+          value={actualHours.toFixed(1)} 
           subtext={
             <span className="text-slate-600 font-semibold">
-              of 160h (<strong className="font-extrabold text-blue-600 text-sm">{((data.reduce((acc, curr) => acc + curr.hours, 0) / 160) * 100).toFixed(1)}%</strong>)
+              of {projectedHours.toFixed(0)}h (<strong className="font-extrabold text-blue-600 text-sm">{efficiencyPercentage.toFixed(1)}%</strong>)
             </span>
           } 
           icon={Clock} 
           color="bg-blue-600" 
           tooltip="Sum of your logged working hours for the selected month"
-          extraContent={
-            loggedUpTo ? (
-              <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1 bg-emerald-50 dark:bg-emerald-950/30 px-2 py-0.5 rounded-md w-fit border border-emerald-100 dark:border-emerald-900/30 mt-1.5 font-display">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                LOGGED UP TO: {loggedUpTo.toUpperCase()}
-              </span>
-            ) : (
-              <span className="text-[10px] font-bold text-slate-400 italic block mt-1.5 font-display">
-                NO EVENTS LOGGED YET
-              </span>
-            )
-          }
         />
         <StatsCard 
           label="Entries" 
@@ -250,7 +270,7 @@ export default function TeamPortal() {
         />
         <StatsCard 
           label="Efficiency" 
-          value="80.3%" 
+          value={`${efficiencyPercentage.toFixed(1)}%`} 
           subtext="vs projected" 
           icon={Filter} 
           color="bg-indigo-600" 
@@ -258,41 +278,56 @@ export default function TeamPortal() {
         />
       </div>
 
-      <div className="flex justify-end gap-3 relative z-[100]">
-        <div className="flex bg-white border border-slate-200 rounded-xl shadow-sm overflow-visible">
-          <select 
-            value={month.split('-')[1]} 
-            onChange={(e) => setMonth(`${month.split('-')[0]}-${e.target.value}`)}
-            className="pl-4 pr-2 py-2 text-sm font-bold bg-white border-none focus:ring-0 outline-none cursor-pointer text-slate-900 min-w-[120px] rounded-l-xl"
-          >
-            {['01','02','03','04','05','06','07','08','09','10','11','12'].map(m => (
-              <option key={m} value={m} className="bg-white text-slate-900">{new Date(2025, parseInt(m)-1).toLocaleString('en-US', { month: 'long' })}</option>
-            ))}
-          </select>
-          <div className="w-[1px] bg-slate-100 my-2" />
-          <select 
-            value={month.split('-')[0]} 
-            onChange={(e) => setMonth(`${e.target.value}-${month.split('-')[1]}`)}
-            className="pl-2 pr-4 py-2 text-sm font-bold bg-white border-none focus:ring-0 outline-none cursor-pointer text-blue-600 min-w-[90px] rounded-r-xl"
-          >
-            {[2025, 2026, 2027, 2028, 2029, 2030].map(y => (
-              <option key={y} value={y} className="bg-white text-slate-900">{y}</option>
-            ))}
-          </select>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 -mt-4 pl-1 relative z-[100]">
+        <div>
+          {loggedUpTo ? (
+            <span className="text-[11px] font-black text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5 bg-emerald-50 dark:bg-emerald-950/30 px-3 py-1 rounded-xl border border-emerald-100 dark:border-emerald-900/30 font-display uppercase tracking-wider">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              Logged Up To: {loggedUpTo}
+            </span>
+          ) : (
+            <span className="text-[11px] font-black text-slate-400 bg-slate-50 border border-slate-200/60 px-3 py-1.5 rounded-xl font-display uppercase tracking-wider">
+              No Events Logged Yet
+            </span>
+          )}
         </div>
-        <button 
-          onClick={() => {
-            if (isLocked) {
-              alert("Monthly Submissions Locked: Submissions for previous months get locked on the 5th date of the current month. Please contact a Core admin to unlock this month.");
-              return;
-            }
-            setIsModalOpen(true);
-          }}
-          className="bg-blue-600 text-white px-5 py-2.5 rounded-xl text-sm font-bold hover:bg-blue-700 transition-all flex items-center gap-2 shadow-lg shadow-blue-100"
-        >
-          <Plus className="w-4 h-4" />
-          Add Entry
-        </button>
+
+        <div className="flex items-center gap-3">
+          <div className="flex bg-white border border-slate-200 rounded-xl shadow-sm overflow-visible">
+            <select 
+              value={month.split('-')[1]} 
+              onChange={(e) => setMonth(`${month.split('-')[0]}-${e.target.value}`)}
+              className="pl-4 pr-2 py-2 text-sm font-bold bg-white border-none focus:ring-0 outline-none cursor-pointer text-slate-900 min-w-[120px] rounded-l-xl"
+            >
+              {['01','02','03','04','05','06','07','08','09','10','11','12'].map(m => (
+                <option key={m} value={m} className="bg-white text-slate-900">{new Date(2025, parseInt(m)-1).toLocaleString('en-US', { month: 'long' })}</option>
+              ))}
+            </select>
+            <div className="w-[1px] bg-slate-100 my-2" />
+            <select 
+              value={month.split('-')[0]} 
+              onChange={(e) => setMonth(`${e.target.value}-${month.split('-')[1]}`)}
+              className="pl-2 pr-4 py-2 text-sm font-bold bg-white border-none focus:ring-0 outline-none cursor-pointer text-blue-600 min-w-[90px] rounded-r-xl"
+            >
+              {[2025, 2026, 2027, 2028, 2029, 2030].map(y => (
+                <option key={y} value={y} className="bg-white text-slate-900">{y}</option>
+              ))}
+            </select>
+          </div>
+          <button 
+            onClick={() => {
+              if (isLocked) {
+                alert("Monthly Submissions Locked: Submissions for previous months get locked on the 5th date of the current month. Please contact a Core admin to unlock this month.");
+                return;
+              }
+              setIsModalOpen(true);
+            }}
+            className="bg-blue-600 text-white px-5 py-2.5 rounded-xl text-sm font-bold hover:bg-blue-700 transition-all flex items-center gap-2 shadow-lg shadow-blue-100"
+          >
+            <Plus className="w-4 h-4" />
+            Add Entry
+          </button>
+        </div>
       </div>
 
       <div className="space-y-8 animate-in fade-in duration-700">
@@ -352,8 +387,8 @@ export default function TeamPortal() {
 
           {activeTab === 'weekly' && user && (
             <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-8">
-              <CalendarImport userId={user.id} month={month} onSuccess={refresh} />
-              <ExcelUpload userId={user.id} month={month} type="weekly" onSuccess={refresh} isLocked={isLocked} />
+              <CalendarImport userId={user.id} month={month} onSuccess={handleRefreshAll} />
+              <ExcelUpload userId={user.id} month={month} type="weekly" onSuccess={handleRefreshAll} isLocked={isLocked} />
             </div>
           )}
         </div>
@@ -369,7 +404,7 @@ export default function TeamPortal() {
         type={activeTab} 
         month={month} 
         userId={user?.id}
-        onSuccess={refresh}
+        onSuccess={handleRefreshAll}
         isEdit={isEditMode}
         initialData={editData}
       />

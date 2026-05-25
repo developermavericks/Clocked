@@ -38,7 +38,7 @@ app.use('/api/finance', financeRoutes);
 app.use('/api/notifications', notificationRoutes);
 
 app.get('/', (req: Request, res: Response) => {
-  res.send('MavsTracker API is running');
+  res.send('Clocked API is running');
 });
 
 app.listen(PORT, () => {
