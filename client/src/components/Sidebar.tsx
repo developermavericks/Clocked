@@ -17,7 +17,6 @@ const menuItems = [
 const CORE_EMAILS = [
   'archana@themavericksindia.com',
   'arunkumar@themavericksindia.com',
-  'avinash@themavericks.in',
   'avinash@themavericksindia.com',
   'chetan@themavericksindia.com',
   'developerteam@themavericksindia.com',
@@ -125,10 +124,8 @@ export default function Sidebar({ isOpen, toggleSidebar }: SidebarProps) {
 
     const email = currentUser?.email?.toLowerCase() || '';
     const financeEmails = [
-      'avinash@themavericks.in',
       'avinash@themavericksindia.com',
-      'chetan@themavericksindia.com',
-      'satyam.singh@themavericksindia.com'
+      'chetan@themavericksindia.com'
     ];
     
     const isFinanceAdmin = financeEmails.includes(email);

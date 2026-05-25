@@ -257,7 +257,7 @@ export default function CalendarImport({ userId, month, onSuccess }: { userId: s
         if (user?.email) {
           const email = user.email.toLowerCase();
           const CORE_EMAILS = [
-            'archana@themavericksindia.com', 'arunkumar@themavericksindia.com', 'avinash@themavericks.in', 'avinash@themavericksindia.com',
+            'archana@themavericksindia.com', 'arunkumar@themavericksindia.com', 'avinash@themavericksindia.com',
             'chetan@themavericksindia.com', 'developerteam@themavericksindia.com', 'divyanshsharma@themavericksindia.com',
             'gaurav@themavericksindia.com', 'mitali.p@themavericksindia.com', 'pooja@themavericksindia.com',
             'satyam.singh@themavericksindia.com', 'smriti@themavericksindia.com', 'tech@themavericksindia.com'

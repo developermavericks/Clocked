@@ -7,7 +7,6 @@ const mapping = {
   core: [
     "archana@themavericksindia.com",
     "arunkumar@themavericksindia.com",
-    "avinash@themavericks.in",
     "avinash@themavericksindia.com",
     "chetan@themavericksindia.com",
     "divyanshsharma@themavericksindia.com",
