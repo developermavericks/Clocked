@@ -342,12 +342,14 @@ export default function CalendarImport({ userId, month, onSuccess }: { userId: s
       // Fetch existing weekly allocations to check for duplicate entries
       let existingAllocations: any[] = [];
       try {
-        const allocResponse = await apiFetch(
-          `${process.env.NEXT_PUBLIC_API_URL}/api/allocations?userId=${userId}&month=${selectedMonth}&kind=weekly`
-        );
-        if (allocResponse.ok) {
-          existingAllocations = await allocResponse.json();
-        }
+        const { data: allocs, error: supabaseError } = await supabase
+          .from('allocations_weekly')
+          .select('*, clients(name)')
+          .eq('user_id', userId)
+          .eq('month', selectedMonth);
+
+        if (supabaseError) throw supabaseError;
+        existingAllocations = allocs || [];
       } catch (err) {
         console.warn('Could not fetch existing allocations for duplicate check:', err);
       }
