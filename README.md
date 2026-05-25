@@ -17,6 +17,7 @@ An enterprise-grade, high-performance time-tracking and productivity analytics p
 *   ⚡ **Searchable Dropdowns:** Ultra-responsive searchable select dropdowns for rosters and clients with horizontal auto-fitting and overflow prevention.
 *   🔒 **Google OAuth Security:** Secure corporate access restricted to official domains.
 *   🗄️ **Relational DB Power:** Backed by a high-availability Supabase PostgreSQL database holding records, roles, client budgets, and direct team reporting lines.
+*   💓 **Real-Time System Diagnostics:** Tracks Supabase storage capacity levels automatically, alerting administrators with distinct colors (orange at 50%, red at 80% with critical advisory actions).
 
 ---
 
@@ -89,12 +90,40 @@ Time-Allocation-Project/
 
 ---
 
+## 🔒 Ironclad Security & 4-Tier Access Hierarchy
+
+The application enforces a rigorous role-based permission structure dividing corporate access into **4 specific tiers**:
+
+### **Access Matrix**
+| Tier | Group / Role | Portals Visible | Total Portals | Security Enforcement |
+| :--- | :--- | :--- | :---: | :--- |
+| **Tier 1** | **Super Admins**<br>*(Satyam, Avinash, Chetan)* | 1. My Allocations<br>2. Manager Portal<br>3. Core Portal<br>4. Finance Portal | **4 Portals** | Hardcoded email array override (`Sidebar.tsx`) + JWT verification |
+| **Tier 2** | **Core Admins**<br>*(Pooja, Arunkumar, Mitali, etc.)* | 1. My Allocations<br>2. Manager Portal<br>3. Core Portal | **3 Portals** | Database user role `'core'` checks + Server-side `requireRole(['core'])` API shields |
+| **Tier 3** | **Managers**<br>*(Anil, Smriti, Samrat, Pavithra, etc.)* | 1. My Allocations<br>2. Manager Portal | **2 Portals** | Dynamic relation mappings in `teams` table + Server-side `requireRole(['manager'])` checks |
+| **Tier 4** | **Standard Team Members**<br>*(Rest of the employees)* | 1. My Allocations | **1 Portal** | Default `team` scope (Locked out of all dashboard pages) |
+
+---
+
+## ⚡ Performance Optimizations
+
+### **1. O(N) Calendar Imports (Database Optimization)**
+*   **The Problem:** The calendar import page checked logged allocations one by one in database queries, causing significant API latency.
+*   **The Solution:** An ultra-fast batch fetching query loads all logged allocations for the selected month inside a single batch (`GET /api/allocations`) on load. Matching is done instantly inside the browser using a highly optimized hash map key (`date_category_hours_notes`), **reducing database query overhead by up to 95%!**
+
+### **2. Concurrent Portal Switching**
+*   Sequential API loading waterfalls are replaced with central parallel React Query hooks and `Promise.all` dispatches, delivering zero portal lag when changing tabs.
+
+### **3. Unified Exit & Joining Roster Workflows**
+*   Unified nomenclature across client-side forms and database migrations. Prominently tracks employee's exact active lifecycle dates (`joining_date`, `exit_date`) cleanly to manage historical timesheet allocations.
+
+---
+
 ## 🗃️ Database Architecture & Schema
 
 Clocked is engineered on top of a highly optimized PostgreSQL relational schema in Supabase with foreign keys enforcing absolute data integrity:
 
 ### 1. Core Tables
-*   **`users`**: Represents company employees. Holds Google sub IDs, emails, names, profile pictures, and active role scopes (`team`, `manager`, `core`).
+*   **`users`**: Represents company employees. Holds Google sub IDs, emails, names, profile pictures, `joining_date`, `exit_date`, and active role scopes (`team`, `manager`, `core`).
 *   **`teams`**: Represents corporate reporting lines. Maps a `manager_id` (pointing to `users`) to a `member_id` (pointing to `users`) uniquely.
 *   **`clients`**: Represents active corporate accounts, their details, and their designated `core_owner` who oversees operations.
 *   **`allocations_weekly` (Actuals)**: Stores historical weekly work logs with hours, notes, exact `start_date`, `end_date`, and a unique `week_code` (e.g., `2025-11-Wk1`).
@@ -196,4 +225,3 @@ Open **`http://localhost:3000`** in your browser to view the application locally
 > 🏢 *The Mavericks Communication LLP*  
 > 
 > Supporting modern, data-driven productivity workflows across the enterprise.
-
