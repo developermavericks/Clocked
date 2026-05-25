@@ -211,7 +211,7 @@ export default function CalendarImport({ userId, month, onSuccess }: { userId: s
         if (user?.email) {
           const email = user.email.toLowerCase();
           const CORE_EMAILS = [
-            'archana@themavericksindia.com', 'arunkumar@themavericksindia.com', 'avinash@themavericksindia.com',
+            'archana@themavericksindia.com', 'arunkumar@themavericksindia.com', 'avinash@themavericks.in', 'avinash@themavericksindia.com',
             'chetan@themavericksindia.com', 'developerteam@themavericksindia.com', 'divyanshsharma@themavericksindia.com',
             'gaurav@themavericksindia.com', 'mitali.p@themavericksindia.com', 'pooja@themavericksindia.com',
             'satyam.singh@themavericksindia.com', 'smriti@themavericksindia.com', 'tech@themavericksindia.com'
@@ -338,6 +338,19 @@ export default function CalendarImport({ userId, month, onSuccess }: { userId: s
       
       if (data.error) throw new Error(data.error);
 
+      // Fetch existing weekly allocations to check for duplicate entries
+      let existingAllocations: any[] = [];
+      try {
+        const allocResponse = await apiFetch(
+          `${process.env.NEXT_PUBLIC_API_URL}/api/allocations?userId=${userId}&month=${selectedMonth}&kind=weekly`
+        );
+        if (allocResponse.ok) {
+          existingAllocations = await allocResponse.json();
+        }
+      } catch (err) {
+        console.warn('Could not fetch existing allocations for duplicate check:', err);
+      }
+
       // Find the 'Internal' client ID for default
       const internalClient = clients.find(c => c.name.toLowerCase() === 'internal');
       const fallbackClientId = internalClient?.id || ''; 
@@ -405,15 +418,45 @@ export default function CalendarImport({ userId, month, onSuccess }: { userId: s
           }
         }
 
+        // Filter occurrences to avoid duplicates
+        const remainingOccurrences = (ev.occurrences || []).filter((occ: any) => {
+          const occDateStr = occ.start.split('T')[0];
+          const occHours = Number(occ.hours);
+          const occTitleLower = (occ.title || ev.title || '').toLowerCase().trim();
+
+          const isAlreadySaved = existingAllocations.some((alloc: any) => {
+            const allocDateStr = alloc.start_date; // YYYY-MM-DD
+            const allocHours = Number(alloc.hours);
+            const allocNotesLower = (alloc.notes || '').toLowerCase().trim();
+
+            const datesMatch = allocDateStr === occDateStr;
+            const hoursMatch = Math.abs(allocHours - occHours) < 0.05;
+            const notesMatch = allocNotesLower === occTitleLower || 
+                               allocNotesLower.includes(occTitleLower) || 
+                               occTitleLower.includes(allocNotesLower);
+
+            return datesMatch && hoursMatch && notesMatch;
+          });
+
+          return !isAlreadySaved;
+        });
+
+        // Recalculate duration and count
+        const totalHours = remainingOccurrences.reduce((sum: number, o: any) => sum + Number(o.hours), 0);
+        const count = remainingOccurrences.length;
+
         return {
           ...ev,
           id: `${ev.title}_${index}`,
           client_id: bestMatch ? bestMatch.id : fallbackClientId,
           category: '', // Empty default
           notes: ev.title, // Default notes to event title
-          originalDefaultNotes: ev.title
+          originalDefaultNotes: ev.title,
+          occurrences: remainingOccurrences,
+          hours: totalHours,
+          count: count
         };
-      });
+      }).filter((ev: any) => ev.count > 0);
 
       setEvents(initializedEvents);
       setHasFetched(true);

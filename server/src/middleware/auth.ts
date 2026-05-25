@@ -29,7 +29,7 @@ export const authenticate = async (req: AuthRequest, res: Response, Next: NextFu
     // Domain Restriction Check
     const email = user.email || '';
     console.log(`[AUTH] Authenticating user: ${email}`);
-    if (!email.endsWith('@themavericksindia.com')) {
+    if (!email.endsWith('@themavericksindia.com') && !email.endsWith('@themavericks.in')) {
       console.warn(`[AUTH] Rejected email domain: ${email}`);
       return res.status(403).json({ error: 'Access denied: Unauthorized domain' });
     }

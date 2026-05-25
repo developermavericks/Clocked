@@ -182,6 +182,32 @@ export const addWeeklyAllocation = async (req: Request, res: Response) => {
       return res.status(400).json({ error: `Monthly cap exceeded. Current total: ${totalHours}h. Adding ${hours}h would exceed 160h.` });
     }
 
+    // Prevent duplicate entries for weekly allocations
+    const { data: duplicateCheck, error: dError } = await supabase
+      .from('allocations_weekly')
+      .select('id, notes, hours')
+      .eq('user_id', user_id)
+      .eq('start_date', start_date);
+
+    if (dError) throw dError;
+
+    if (duplicateCheck && duplicateCheck.length > 0) {
+      const isDuplicate = duplicateCheck.some(alloc => {
+        const hoursMatch = Math.abs(Number(alloc.hours) - Number(hours)) < 0.05;
+        const allocNotesLower = (alloc.notes || '').toLowerCase().trim();
+        const incomingNotesLower = (notes || '').toLowerCase().trim();
+        const notesMatch = allocNotesLower === incomingNotesLower || 
+                           allocNotesLower.includes(incomingNotesLower) || 
+                           incomingNotesLower.includes(allocNotesLower);
+        return hoursMatch && notesMatch;
+      });
+
+      if (isDuplicate) {
+        console.log(`[DUPLICATE] Prevented duplicate allocation insertion for user ${user_id} on ${start_date}`);
+        return res.status(201).json(duplicateCheck[0]);
+      }
+    }
+
     // Proceed with insertion, include source if provided
     const week_code = calculateWeekCode(month, start_date);
     const insertPayload: any = { user_id, month, client_id, category, hours, notes, start_date, end_date, week_code };

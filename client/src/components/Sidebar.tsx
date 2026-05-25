@@ -17,6 +17,7 @@ const menuItems = [
 const CORE_EMAILS = [
   'archana@themavericksindia.com',
   'arunkumar@themavericksindia.com',
+  'avinash@themavericks.in',
   'avinash@themavericksindia.com',
   'chetan@themavericksindia.com',
   'developerteam@themavericksindia.com',
