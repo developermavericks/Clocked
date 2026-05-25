@@ -140,21 +140,16 @@ export const requireRole = (allowedRoles: string[]) => {
         'satyam.singh@themavericksindia.com'
       ];
 
-      // If this user is one of the three finance admins
-      if (financeEmails.includes(email)) {
-        if (allowedRoles.includes('finance')) {
+      // If a route requires 'finance' access, ONLY the finance trio can access it
+      if (allowedRoles.includes('finance')) {
+        if (financeEmails.includes(email)) {
           return next();
         } else {
-          return res.status(403).json({ error: 'Access denied: Restricted to Finance Portal only' });
+          return res.status(403).json({ error: 'Access denied: Finance access restricted to authorized admins only' });
         }
       }
 
-      // If a route requires 'finance' access, regular core or managers cannot access it
-      if (allowedRoles.includes('finance')) {
-        return res.status(403).json({ error: 'Access denied: Finance access restricted to authorized admins only' });
-      }
-
-      // 'core' role has access to all non-finance admin/manager portals
+      // 'core' role has access to all non-finance admin/manager portals (including the finance trio since they are core)
       if (userData.role === 'core' || allowedRoles.includes(userData.role)) {
         next();
       } else {

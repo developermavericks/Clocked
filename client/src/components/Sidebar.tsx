@@ -134,17 +134,15 @@ export default function Sidebar({ isOpen, toggleSidebar }: SidebarProps) {
     const isFinanceAdmin = financeEmails.includes(email);
 
     if (item.name === 'Finance Portal') {
-      return isFinanceAdmin;
+      return isFinanceAdmin; // ONLY Avinash, Chetan, Satyam
     }
 
     if (item.name === 'Manager Portal') {
-      if (isFinanceAdmin) return false;
-      return userRole === 'manager' || userRole === 'core';
+      return userRole === 'manager' || userRole === 'core'; // Managers & Core (including Avinash, Chetan, Satyam)
     }
 
     if (item.name === 'Core Portal') {
-      if (isFinanceAdmin) return false;
-      return userRole === 'core';
+      return userRole === 'core'; // Core (including Avinash, Chetan, Satyam)
     }
 
     return false;
