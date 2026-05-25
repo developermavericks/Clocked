@@ -66,6 +66,7 @@ export const fetchCalendarEvents = async (accessToken: string, startDate: string
         buckets[key].hours += duration;
         buckets[key].count += 1;
         buckets[key].occurrences.push({
+          title,
           start: startStr,
           end: endStr,
           hours: duration

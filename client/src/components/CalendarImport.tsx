@@ -16,9 +16,12 @@ interface CalendarEvent {
   client_id?: string;
   category?: string;
   notes?: string;
+  originalDefaultNotes?: string;
   isCustomBd?: boolean;
   customBdName?: string;
   occurrences?: {
+    title?: string;
+    notes?: string;
     start: string;
     end: string;
     hours: number;
@@ -92,9 +95,19 @@ export default function CalendarImport({ userId, month, onSuccess }: { userId: s
       mergedTitles.push(e.title);
 
       if (e.occurrences && e.occurrences.length > 0) {
-        mergedOccurrences.push(...e.occurrences);
+        // Map occurrences to carry the original event title and notes
+        const mapped = e.occurrences.map(occ => ({
+          title: occ.title || e.title,
+          notes: occ.notes || e.notes || e.title,
+          start: occ.start,
+          end: occ.end,
+          hours: occ.hours
+        }));
+        mergedOccurrences.push(...mapped);
       } else {
         mergedOccurrences.push({
+          title: e.title,
+          notes: e.notes || e.title,
           start: e.start,
           end: e.end,
           hours: e.hours
@@ -103,6 +116,7 @@ export default function CalendarImport({ userId, month, onSuccess }: { userId: s
     });
 
     const uniqueMergedTitles = Array.from(new Set(mergedTitles));
+    const defaultNotesStr = uniqueMergedTitles.join('; ');
     const newGroupedEvent: CalendarEvent = {
       id: `client_group_${Date.now()}`,
       title: `Grouped: ${uniqueMergedTitles.join(', ')}`,
@@ -112,7 +126,8 @@ export default function CalendarImport({ userId, month, onSuccess }: { userId: s
       end: maxEnd,
       client_id: modalClientId,
       category: selectedEventsToMerge[0].category || 'Meeting',
-      notes: selectedEventsToMerge.map(e => e.notes).filter(Boolean).join('; ') || `Grouped for ${clientName}`,
+      notes: defaultNotesStr,
+      originalDefaultNotes: defaultNotesStr,
       isClientGrouped: true,
       originalEvents: selectedEventsToMerge,
       occurrences: mergedOccurrences
@@ -395,7 +410,8 @@ export default function CalendarImport({ userId, month, onSuccess }: { userId: s
           id: `${ev.title}_${index}`,
           client_id: bestMatch ? bestMatch.id : fallbackClientId,
           category: '', // Empty default
-          notes: ev.title // Default notes to event title
+          notes: ev.title, // Default notes to event title
+          originalDefaultNotes: ev.title
         };
       });
 
@@ -463,6 +479,9 @@ export default function CalendarImport({ userId, month, onSuccess }: { userId: s
       for (const event of eventsToSave) {
         if (event.occurrences && event.occurrences.length > 0) {
           for (const occ of event.occurrences) {
+            const isNotesCustomized = event.notes !== event.originalDefaultNotes;
+            const finalNotes = isNotesCustomized ? (event.notes || '') : (occ.notes || occ.title || event.title);
+
             const response = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/allocations/weekly`, {
               method: 'POST',
               headers: {
@@ -474,7 +493,7 @@ export default function CalendarImport({ userId, month, onSuccess }: { userId: s
                 client_id: event.client_id, 
                 category: event.category,
                 hours: occ.hours,
-                notes: event.notes || '', 
+                notes: finalNotes, 
                 start_date: occ.start.split('T')[0],
                 end_date: occ.end.split('T')[0],
                 source: 'calendar',
@@ -551,6 +570,24 @@ export default function CalendarImport({ userId, month, onSuccess }: { userId: s
       next.delete(id);
       return next;
     });
+  };
+
+  const getSelectedConstituentCount = () => {
+    let count = 0;
+    events.forEach(e => {
+      if (selectedEvents.has(e.id)) {
+        count += e.count || 1;
+      }
+    });
+    return count;
+  };
+
+  const getTotalConstituentCount = () => {
+    let count = 0;
+    events.forEach(e => {
+      count += e.count || 1;
+    });
+    return count;
   };
 
   return (
@@ -669,7 +706,11 @@ export default function CalendarImport({ userId, month, onSuccess }: { userId: s
                   {selectedEvents.size === events.length ? 'Deselect All' : 'Select All'}
                 </button>
                 <span className="text-xs font-semibold text-slate-400">
-                  {selectedEvents.size} of {events.length} events selected
+                  {(() => {
+                    const selCount = getSelectedConstituentCount();
+                    const totCount = getTotalConstituentCount();
+                    return `${selCount} of ${totCount} meetings selected`;
+                  })()}
                 </span>
               </div>
               <button
@@ -797,7 +838,7 @@ export default function CalendarImport({ userId, month, onSuccess }: { userId: s
                 className="bg-slate-900 text-white px-8 py-3 rounded-2xl text-sm font-bold hover:bg-slate-800 transition-all shadow-xl shadow-slate-200 disabled:opacity-50 flex items-center gap-2"
               >
                 {saving && <Loader2 className="w-4 h-4 animate-spin" />}
-                {saving ? 'Saving...' : `Save ${selectedEvents.size} Events`}
+                {saving ? 'Saving...' : `Save ${getSelectedConstituentCount()} Events`}
               </button>
             </div>
           </div>
