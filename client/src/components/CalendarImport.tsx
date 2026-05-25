@@ -50,6 +50,49 @@ export default function CalendarImport({ userId, month, onSuccess }: { userId: s
   const [unlockedMonths, setUnlockedMonths] = useState<string[]>([]);
   const [isLocked, setIsLocked] = useState(false);
 
+  // Auto-default From date to the day after the last logged allocation
+  useEffect(() => {
+    const fetchLatestAllocationDate = async () => {
+      if (!userId || !selectedMonth) return;
+      try {
+        const { data: allocs, error } = await supabase
+          .from('allocations_weekly')
+          .select('start_date')
+          .eq('user_id', userId)
+          .eq('month', selectedMonth);
+        
+        if (error) throw error;
+        
+        if (allocs && allocs.length > 0) {
+          const dates = allocs.map(a => a.start_date);
+          const maxDateStr = dates.reduce((max, curr) => curr > max ? curr : max, dates[0]);
+          
+          const parts = maxDateStr.split('-');
+          const maxDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+          maxDate.setDate(maxDate.getDate() + 1);
+          
+          // Generate local timezone-safe YYYY-MM-DD
+          const y = maxDate.getFullYear();
+          const m = (maxDate.getMonth() + 1).toString().padStart(2, '0');
+          const d = maxDate.getDate().toString().padStart(2, '0');
+          const nextDayStr = `${y}-${m}-${d}`;
+          
+          if (nextDayStr.startsWith(selectedMonth)) {
+            setStartDate(nextDayStr);
+          } else {
+            setStartDate(`${selectedMonth}-01`);
+          }
+        } else {
+          setStartDate(`${selectedMonth}-01`);
+        }
+      } catch (err) {
+        console.warn('Failed to load latest allocation date:', err);
+      }
+    };
+    
+    fetchLatestAllocationDate();
+  }, [userId, selectedMonth]);
+
   const [modalOpen, setModalOpen] = useState(false);
   const [modalTarget, setModalTarget] = useState<CalendarEvent | null>(null);
   const [modalSelectedIds, setModalSelectedIds] = useState<Set<string>>(new Set());

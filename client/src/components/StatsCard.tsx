@@ -8,9 +8,10 @@ interface StatsCardProps {
   icon: any;
   color: string;
   tooltip?: string;
+  extraContent?: React.ReactNode;
 }
 
-export default function StatsCard({ label, value, subtext, icon: Icon, color, tooltip }: StatsCardProps) {
+export default function StatsCard({ label, value, subtext, icon: Icon, color, tooltip, extraContent }: StatsCardProps) {
   return (
     <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex items-center gap-4 relative group/card">
       <div className={`p-4 rounded-xl ${color} bg-opacity-10`}>
@@ -35,6 +36,7 @@ export default function StatsCard({ label, value, subtext, icon: Icon, color, to
           <h3 className="text-2xl font-bold text-slate-900">{value}</h3>
           {subtext && <span className="text-xs text-slate-400">{subtext}</span>}
         </div>
+        {extraContent && <div className="mt-1">{extraContent}</div>}
       </div>
     </div>
   );

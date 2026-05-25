@@ -161,6 +161,34 @@ export default function TeamPortal() {
     }
   };
 
+  const loggedUpTo = (() => {
+    if (!data || data.length === 0) return null;
+    const dates = data
+      .filter(item => item.start_date)
+      .map(item => item.start_date);
+    
+    if (dates.length === 0) return null;
+
+    const maxDateStr = dates.reduce((max, curr) => curr > max ? curr : max, dates[0]);
+    
+    try {
+      const maxDate = new Date(maxDateStr);
+      const day = maxDate.getDate();
+      const monthName = maxDate.toLocaleString('en-US', { month: 'short' });
+      const year = maxDate.getFullYear();
+      
+      const getOrdinal = (n: number) => {
+        const s = ["th", "st", "nd", "rd"];
+        const v = n % 100;
+        return n + (s[(v - 20) % 10] || s[v] || s[0]);
+      };
+      
+      return `${getOrdinal(day)} ${monthName} ${year}`;
+    } catch (e) {
+      return maxDateStr;
+    }
+  })();
+
   return (
     <div className="space-y-8 relative">
 
@@ -199,6 +227,18 @@ export default function TeamPortal() {
           icon={Clock} 
           color="bg-blue-600" 
           tooltip="Sum of your logged working hours for the selected month"
+          extraContent={
+            loggedUpTo ? (
+              <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1 bg-emerald-50 dark:bg-emerald-950/30 px-2 py-0.5 rounded-md w-fit border border-emerald-100 dark:border-emerald-900/30 mt-1.5 font-display">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                LOGGED UP TO: {loggedUpTo.toUpperCase()}
+              </span>
+            ) : (
+              <span className="text-[10px] font-bold text-slate-400 italic block mt-1.5 font-display">
+                NO EVENTS LOGGED YET
+              </span>
+            )
+          }
         />
         <StatsCard 
           label="Entries" 
