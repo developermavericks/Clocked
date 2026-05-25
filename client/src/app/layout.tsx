@@ -13,7 +13,7 @@ const outfit = Outfit({
 });
 
 export const metadata: Metadata = {
-  title: "MavsTracker | Time Allocation",
+  title: "Clocked | Time Allocation",
   description: "Modern time tracking for The Mavericks",
 };
 

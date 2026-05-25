@@ -26,7 +26,7 @@ export default function LoginPage() {
     <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4">
       <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8 border border-slate-100">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-slate-900 mb-2">MavsTracker</h1>
+          <h1 className="text-3xl font-bold text-slate-900 mb-2">Clocked</h1>
           <p className="text-slate-500">Welcome back! Please sign in to continue.</p>
         </div>
 

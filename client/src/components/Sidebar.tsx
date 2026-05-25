@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Users, User, Settings, LogOut, Calendar, Loader2, Moon, Sun, IndianRupee, ChevronLeft } from 'lucide-react';
+import { LayoutDashboard, Users, User, Settings, LogOut, Calendar, Loader2, Moon, Sun, IndianRupee, ChevronLeft, Clock } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { apiFetch } from '@/lib/api';
 
@@ -152,8 +152,8 @@ export default function Sidebar({ isOpen, toggleSidebar }: SidebarProps) {
     <aside className="w-64 bg-white dark:bg-slate-950 border-r border-slate-200 dark:border-slate-800 flex flex-col h-screen sticky top-0 transition-colors z-50">
       <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
         <h2 className="text-xl font-display font-black text-slate-900 dark:text-white flex items-center gap-2 tracking-tight">
-          <Calendar className="w-6 h-6 text-blue-600 flex-shrink-0" />
-          <span className="truncate">MavsTracker</span>
+          <Clock className="w-6 h-6 text-blue-600 flex-shrink-0" />
+          <span className="truncate">Clocked</span>
         </h2>
         <button
           onClick={toggleSidebar}
