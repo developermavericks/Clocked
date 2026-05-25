@@ -2288,7 +2288,8 @@
                             hours,
                             notes: title,
                             rowIndex: index,
-                            force: true
+                            force: true,
+                            count: Number(tr.querySelector(`input.${prefix}_w_rowchk`)?.dataset.count) || 1
                         });
 
                         const saveBtn = tr.cells[6]?.querySelector('button');
@@ -2303,6 +2304,9 @@
 
                 showLoading();
 
+                let totalExpected = 0;
+                payloads.forEach(p => totalExpected += p.count);
+
                 for (let i = 0; i < payloads.length; i++) {
                     const p = payloads[i];
                     const currentRow = selectedRows[p.rowIndex];
@@ -2310,7 +2314,7 @@
                         await new Promise((resolve) => {
                             google.script.run
                                 .withSuccessHandler(() => {
-                                    results.success++;
+                                    results.success += p.count;
                                     const saveBtn = currentRow.cells[6]?.querySelector('button');
                                     if (saveBtn) {
                                         saveBtn.textContent = 'Saved ✓';
@@ -2321,7 +2325,7 @@
                                     resolve();
                                 })
                                 .withFailureHandler((error) => {
-                                    results.failed++;
+                                    results.failed += p.count;
                                     results.errors.push({ event: p.notes, error: error.message });
                                     const saveBtn = currentRow.cells[6]?.querySelector('button');
                                     if (saveBtn) {
@@ -2337,7 +2341,7 @@
                         });
                         await new Promise(r => setTimeout(r, 100));
                     } catch (error) {
-                        results.failed++;
+                        results.failed += p.count;
                         results.errors.push({ event: p.notes, error: error.message });
                         console.error('Unexpected error saving event:', p.notes, error);
                     }
@@ -2346,7 +2350,7 @@
                 hideLoading();
 
                 if (results.failed > 0) {
-                    alert(`Saved ${results.success} out of ${payloads.length} events.\n\nFailed to save ${results.failed} events.`);
+                    alert(`Saved ${results.success} out of ${totalExpected} events.\n\nFailed to save ${results.failed} events.`);
                     console.log('Failed events details:', results.errors);
                 } else {
                     alert(`Successfully saved all ${results.success} events!`);
@@ -2411,6 +2415,7 @@
                         const chk = document.createElement('input');
                         chk.type = 'checkbox';
                         chk.className = `${prefix}_w_rowchk`;
+                        chk.dataset.count = ev.count || 1;
                         tdChk.appendChild(chk);
                         tr.appendChild(tdChk);
 

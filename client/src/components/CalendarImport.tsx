@@ -431,6 +431,8 @@ export default function CalendarImport({ userId, month, onSuccess }: { userId: s
       
       if (selected.length === 0) return;
 
+      const totalSavedCount = selected.reduce((sum, e) => sum + (e.count || 1), 0);
+
       // Validate both populated
       const bothPopulated = selected.find(e => e.client_id && e.customBdName?.trim());
       if (bothPopulated) {
@@ -534,7 +536,7 @@ export default function CalendarImport({ userId, month, onSuccess }: { userId: s
       setSelectedEvents(new Set());
       setEvents([]);
       setHasFetched(false);
-      alert(`Successfully saved ${selected.length} events!`);
+      alert(`Successfully saved ${totalSavedCount} events!`);
     } catch (err: any) {
       alert(err.message);
     } finally {
