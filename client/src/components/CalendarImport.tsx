@@ -23,6 +23,8 @@ interface CalendarEvent {
     end: string;
     hours: number;
   }[];
+  isClientGrouped?: boolean;
+  originalEvents?: CalendarEvent[];
 }
 
 export default function CalendarImport({ userId, month, onSuccess }: { userId: string, month: string, onSuccess: () => void }) {
@@ -43,6 +45,122 @@ export default function CalendarImport({ userId, month, onSuccess }: { userId: s
   const [userRole, setUserRole] = useState('team');
   const [unlockedMonths, setUnlockedMonths] = useState<string[]>([]);
   const [isLocked, setIsLocked] = useState(false);
+
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalTarget, setModalTarget] = useState<CalendarEvent | null>(null);
+  const [modalSelectedIds, setModalSelectedIds] = useState<Set<string>>(new Set());
+  const [modalClientId, setModalClientId] = useState('');
+
+  const openSameClientModal = (event: CalendarEvent) => {
+    setModalTarget(event);
+    setModalClientId(event.client_id || '');
+    // Pre-select the target event in the group
+    setModalSelectedIds(new Set([event.id]));
+    setModalOpen(true);
+  };
+
+  const handleGroupTogether = () => {
+    if (!modalClientId) {
+      alert("Please select a client to group these events under.");
+      return;
+    }
+    if (modalSelectedIds.size < 2) {
+      alert("Please select at least two events to group together.");
+      return;
+    }
+
+    const selectedEventsToMerge = events.filter(e => modalSelectedIds.has(e.id));
+    
+    // Find client name
+    const clientObj = clients.find(c => c.id === modalClientId);
+    const clientName = clientObj ? clientObj.name : 'Selected Client';
+
+    // Merge occurrences
+    const mergedOccurrences: any[] = [];
+    let totalHours = 0;
+    let totalCount = 0;
+    let minStart = selectedEventsToMerge[0].start;
+    let maxEnd = selectedEventsToMerge[0].end;
+    const mergedTitles: string[] = [];
+
+    selectedEventsToMerge.forEach(e => {
+      totalHours += e.hours;
+      totalCount += e.count;
+      if (new Date(e.start) < new Date(minStart)) minStart = e.start;
+      if (new Date(e.end) > new Date(maxEnd)) maxEnd = e.end;
+      
+      mergedTitles.push(e.title);
+
+      if (e.occurrences && e.occurrences.length > 0) {
+        mergedOccurrences.push(...e.occurrences);
+      } else {
+        mergedOccurrences.push({
+          start: e.start,
+          end: e.end,
+          hours: e.hours
+        });
+      }
+    });
+
+    const uniqueMergedTitles = Array.from(new Set(mergedTitles));
+    const newGroupedEvent: CalendarEvent = {
+      id: `client_group_${Date.now()}`,
+      title: `Grouped: ${uniqueMergedTitles.join(', ')}`,
+      hours: totalHours,
+      count: totalCount,
+      start: minStart,
+      end: maxEnd,
+      client_id: modalClientId,
+      category: selectedEventsToMerge[0].category || 'Meeting',
+      notes: selectedEventsToMerge.map(e => e.notes).filter(Boolean).join('; ') || `Grouped for ${clientName}`,
+      isClientGrouped: true,
+      originalEvents: selectedEventsToMerge,
+      occurrences: mergedOccurrences
+    };
+
+    // Remove merged events and append the new grouped event
+    setEvents(prev => {
+      const filtered = prev.filter(e => !modalSelectedIds.has(e.id));
+      return [newGroupedEvent, ...filtered];
+    });
+
+    // Update selectedEvents: remove merged IDs, and add the new grouped event ID
+    setSelectedEvents(prev => {
+      const next = new Set(prev);
+      modalSelectedIds.forEach(id => next.delete(id));
+      next.add(newGroupedEvent.id);
+      return next;
+    });
+
+    // Reset and close
+    setModalOpen(false);
+    setModalTarget(null);
+    setModalSelectedIds(new Set());
+    setModalClientId('');
+  };
+
+  const handleUngroup = (groupId: string) => {
+    const groupEvent = events.find(e => e.id === groupId);
+    if (!groupEvent || !groupEvent.originalEvents) return;
+
+    const wasSelected = selectedEvents.has(groupId);
+
+    // Restore original events and remove grouped event
+    setEvents(prev => {
+      const filtered = prev.filter(e => e.id !== groupId);
+      return [...groupEvent.originalEvents!, ...filtered];
+    });
+
+    // If grouped card was checked, transfer check state to all original parts
+    setSelectedEvents(prev => {
+      const next = new Set(prev);
+      next.delete(groupId);
+      if (wasSelected) {
+        groupEvent.originalEvents!.forEach(e => next.add(e.id));
+      }
+      return next;
+    });
+  };
 
   useEffect(() => {
     handleMonthChange(month);
@@ -596,6 +714,23 @@ export default function CalendarImport({ userId, month, onSuccess }: { userId: s
                     </div>
                   </div>
                   <div className="flex items-center gap-3" onClick={(e) => e.stopPropagation()}>
+                    {event.isClientGrouped ? (
+                      <button
+                        type="button"
+                        onClick={() => handleUngroup(event.id)}
+                        className="text-xs font-bold text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100/80 px-3 py-1.5 rounded-xl border border-rose-100 transition-all cursor-pointer"
+                      >
+                        Ungroup
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => openSameClientModal(event)}
+                        className="text-xs font-bold text-indigo-600 hover:text-indigo-700 bg-indigo-50 hover:bg-indigo-100/80 px-3 py-1.5 rounded-xl border border-indigo-100 transition-all cursor-pointer"
+                      >
+                        Same Client?
+                      </button>
+                    )}
                     <span className="text-sm font-mono font-bold text-slate-900 bg-white px-3 py-1 rounded-lg border border-slate-100">{event.hours.toFixed(2)}h</span>
                     <button
                       type="button"
@@ -668,6 +803,105 @@ export default function CalendarImport({ userId, month, onSuccess }: { userId: s
           </div>
         )}
       </div>
+
+      {/* Group under Same Client Modal */}
+      {modalOpen && modalTarget && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-[9999] p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl border border-slate-100 shadow-2xl w-full max-w-lg overflow-hidden flex flex-col animate-in zoom-in-95 duration-200">
+            {/* Header */}
+            <div className="p-6 pb-4 border-b border-slate-100 flex items-center justify-between bg-indigo-50/20">
+              <div>
+                <h4 className="text-base font-bold text-slate-900">Group Events under Same Client</h4>
+                <p className="text-xs text-slate-500 mt-0.5">Select a client and combine different meetings together.</p>
+              </div>
+              <button 
+                onClick={() => {
+                  setModalOpen(false);
+                  setModalTarget(null);
+                }}
+                className="text-slate-400 hover:text-slate-600 text-xs font-bold bg-slate-50 hover:bg-slate-100 px-3 py-1.5 rounded-xl border border-slate-200 transition-all cursor-pointer"
+              >
+                Close
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="p-6 space-y-5 overflow-y-auto max-h-[350px]">
+              {/* Step 1: Select Client */}
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase text-slate-500 tracking-wider">Step 1: Select Target Client</label>
+                <SearchableSelect 
+                  options={selectOptions}
+                  value={modalClientId}
+                  onChange={(val) => setModalClientId(val)}
+                  placeholder="Choose a Client..."
+                />
+              </div>
+
+              {/* Step 2: Choose events to merge */}
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase text-slate-500 tracking-wider block">Step 2: Check Events to Group Together</label>
+                <div className="border border-slate-100 rounded-2xl divide-y divide-slate-100 max-h-[180px] overflow-y-auto bg-slate-50/50 p-2 space-y-1">
+                  {events
+                    .filter(e => !e.isClientGrouped)
+                    .map(e => {
+                      const isChecked = modalSelectedIds.has(e.id);
+                      return (
+                        <label 
+                          key={e.id}
+                          className="flex items-center justify-between p-3 rounded-xl hover:bg-white hover:shadow-sm cursor-pointer transition-all border border-transparent hover:border-slate-100/60"
+                        >
+                          <div className="flex items-center gap-3">
+                            <input 
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={() => {
+                                const next = new Set(modalSelectedIds);
+                                if (next.has(e.id)) next.delete(e.id);
+                                else next.add(e.id);
+                                setModalSelectedIds(next);
+                              }}
+                              className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 border-slate-300 cursor-pointer"
+                            />
+                            <div>
+                              <span className="text-xs font-bold text-slate-800 block leading-tight">{e.title}</span>
+                              <span className="text-[10px] text-slate-400 font-medium">{e.hours.toFixed(2)}h total</span>
+                            </div>
+                          </div>
+                        </label>
+                      );
+                    })}
+                </div>
+              </div>
+            </div>
+
+            {/* Footer Actions */}
+            <div className="p-6 border-t border-slate-100 bg-slate-50/50 flex items-center justify-between">
+              <span className="text-xs font-semibold text-slate-500">
+                {modalSelectedIds.size} events selected
+              </span>
+              <div className="flex gap-3">
+                <button 
+                  onClick={() => {
+                    setModalOpen(false);
+                    setModalTarget(null);
+                  }}
+                  className="px-4 py-2 bg-white hover:bg-slate-50 text-slate-600 text-xs font-bold rounded-xl border border-slate-200 transition-all cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={handleGroupTogether}
+                  disabled={!modalClientId || modalSelectedIds.size < 2}
+                  className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-xs font-bold rounded-xl transition-all shadow-md shadow-indigo-100 cursor-pointer"
+                >
+                  Group Together
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
