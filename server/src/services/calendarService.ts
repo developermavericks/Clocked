@@ -50,8 +50,7 @@ export const fetchCalendarEvents = async (accessToken: string, startDate: string
         if (isNaN(duration) || duration <= 0) continue;
 
         const title = ev.summary || 'Untitled';
-        const dateKey = start.toISOString().split('T')[0];
-        const key = `${title.toLowerCase().trim()}_${dateKey}`;
+        const key = title.toLowerCase().trim(); // Group by Title ONLY (Case-insensitive)
 
         if (!buckets[key]) {
           buckets[key] = {
@@ -60,10 +59,25 @@ export const fetchCalendarEvents = async (accessToken: string, startDate: string
             count: 0,
             start: startStr,
             end: endStr,
+            occurrences: []
           };
         }
+        
         buckets[key].hours += duration;
         buckets[key].count += 1;
+        buckets[key].occurrences.push({
+          start: startStr,
+          end: endStr,
+          hours: duration
+        });
+
+        // Track minimum start date and maximum end date for range display
+        if (new Date(startStr) < new Date(buckets[key].start)) {
+          buckets[key].start = startStr;
+        }
+        if (new Date(endStr) > new Date(buckets[key].end)) {
+          buckets[key].end = endStr;
+        }
       }
     }
 

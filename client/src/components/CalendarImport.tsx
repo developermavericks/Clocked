@@ -18,6 +18,11 @@ interface CalendarEvent {
   notes?: string;
   isCustomBd?: boolean;
   customBdName?: string;
+  occurrences?: {
+    start: string;
+    end: string;
+    hours: number;
+  }[];
 }
 
 export default function CalendarImport({ userId, month, onSuccess }: { userId: string, month: string, onSuccess: () => void }) {
@@ -269,7 +274,7 @@ export default function CalendarImport({ userId, month, onSuccess }: { userId: s
 
         return {
           ...ev,
-          id: `${ev.title}_${ev.start}_${index}`,
+          id: `${ev.title}_${index}`,
           client_id: bestMatch ? bestMatch.id : fallbackClientId,
           category: '', // Empty default
           notes: ev.title // Default notes to event title
@@ -338,27 +343,54 @@ export default function CalendarImport({ userId, month, onSuccess }: { userId: s
       setClients(updatedClientsList);
 
       for (const event of eventsToSave) {
-        const response = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/allocations/weekly`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            user_id: userId,
-            month: selectedMonth,
-            client_id: event.client_id, 
-            category: event.category,
-            hours: event.hours,
-            notes: event.notes || '', 
-            start_date: event.start.split('T')[0],
-            end_date: event.end.split('T')[0],
-            source: 'calendar',
-            force: true
-          })
-        });
-        if (!response.ok) {
-          const errData = await response.json();
-          throw new Error(errData.error || `Failed to save event "${event.title}"`);
+        if (event.occurrences && event.occurrences.length > 0) {
+          for (const occ of event.occurrences) {
+            const response = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/allocations/weekly`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                user_id: userId,
+                month: selectedMonth,
+                client_id: event.client_id, 
+                category: event.category,
+                hours: occ.hours,
+                notes: event.notes || '', 
+                start_date: occ.start.split('T')[0],
+                end_date: occ.end.split('T')[0],
+                source: 'calendar',
+                force: true
+              })
+            });
+            if (!response.ok) {
+              const errData = await response.json();
+              throw new Error(errData.error || `Failed to save event "${event.title}"`);
+            }
+          }
+        } else {
+          const response = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/allocations/weekly`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              user_id: userId,
+              month: selectedMonth,
+              client_id: event.client_id, 
+              category: event.category,
+              hours: event.hours,
+              notes: event.notes || '', 
+              start_date: event.start.split('T')[0],
+              end_date: event.end.split('T')[0],
+              source: 'calendar',
+              force: true
+            })
+          });
+          if (!response.ok) {
+            const errData = await response.json();
+            throw new Error(errData.error || `Failed to save event "${event.title}"`);
+          }
         }
       }
       onSuccess();
@@ -553,7 +585,11 @@ export default function CalendarImport({ userId, month, onSuccess }: { userId: s
                       <h4 className="font-bold text-slate-900">{event.title}</h4>
                       <p className="text-xs text-slate-500">
                         <span className="font-bold text-blue-600 mr-2">
-                          {new Date(event.start).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                          {(() => {
+                            const startDateStr = new Date(event.start).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                            const endDateStr = new Date(event.end).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                            return startDateStr === endDateStr ? startDateStr : `${startDateStr} - ${endDateStr}`;
+                          })()}
                         </span>
                         • {event.count} {event.count === 1 ? 'meeting' : 'meetings'} • {event.hours.toFixed(2)}h total
                       </p>
