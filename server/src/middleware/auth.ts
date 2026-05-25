@@ -132,7 +132,29 @@ export const requireRole = (allowedRoles: string[]) => {
         return res.status(403).json({ error: 'User role not found' });
       }
 
-      // 'core' role has access to everything
+      const email = req.user.email?.toLowerCase() || '';
+      const financeEmails = [
+        'avinash@themavericks.in',
+        'avinash@themavericksindia.com',
+        'chetan@themavericksindia.com',
+        'satyam.singh@themavericksindia.com'
+      ];
+
+      // If this user is one of the three finance admins
+      if (financeEmails.includes(email)) {
+        if (allowedRoles.includes('finance')) {
+          return next();
+        } else {
+          return res.status(403).json({ error: 'Access denied: Restricted to Finance Portal only' });
+        }
+      }
+
+      // If a route requires 'finance' access, regular core or managers cannot access it
+      if (allowedRoles.includes('finance')) {
+        return res.status(403).json({ error: 'Access denied: Finance access restricted to authorized admins only' });
+      }
+
+      // 'core' role has access to all non-finance admin/manager portals
       if (userData.role === 'core' || allowedRoles.includes(userData.role)) {
         next();
       } else {

@@ -4,8 +4,8 @@ import { authenticate, requireRole } from '../middleware/auth';
 
 const router = Router();
 
-// Restrict all finance portal endpoints to only core members
-router.use(authenticate, requireRole(['core']));
+// Restrict all finance portal endpoints to only authorized finance admins
+router.use(authenticate, requireRole(['finance']));
 
 // Master allocation routes
 router.get('/master', getFinanceMaster);

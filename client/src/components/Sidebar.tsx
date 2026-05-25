@@ -122,9 +122,31 @@ export default function Sidebar({ isOpen, toggleSidebar }: SidebarProps) {
 
   const filteredItems = menuItems.filter(item => {
     if (item.name === 'My Allocations') return true;
-    if (item.name === 'Finance Portal' && userRole === 'core') return true;
-    if (item.name === 'Manager Portal' && (userRole === 'manager' || userRole === 'core')) return true;
-    if (item.name === 'Core Portal' && userRole === 'core') return true;
+
+    const email = currentUser?.email?.toLowerCase() || '';
+    const financeEmails = [
+      'avinash@themavericks.in',
+      'avinash@themavericksindia.com',
+      'chetan@themavericksindia.com',
+      'satyam.singh@themavericksindia.com'
+    ];
+    
+    const isFinanceAdmin = financeEmails.includes(email);
+
+    if (item.name === 'Finance Portal') {
+      return isFinanceAdmin;
+    }
+
+    if (item.name === 'Manager Portal') {
+      if (isFinanceAdmin) return false;
+      return userRole === 'manager' || userRole === 'core';
+    }
+
+    if (item.name === 'Core Portal') {
+      if (isFinanceAdmin) return false;
+      return userRole === 'core';
+    }
+
     return false;
   });
 
