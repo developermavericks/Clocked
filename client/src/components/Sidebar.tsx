@@ -125,7 +125,8 @@ export default function Sidebar({ isOpen, toggleSidebar }: SidebarProps) {
     const email = currentUser?.email?.toLowerCase() || '';
     const financeEmails = [
       'avinash@themavericksindia.com',
-      'chetan@themavericksindia.com'
+      'chetan@themavericksindia.com',
+      'satyam.singh@themavericksindia.com'
     ];
     
     const isFinanceAdmin = financeEmails.includes(email);

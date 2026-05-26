@@ -11,6 +11,19 @@ export const getClients = async (req: Request, res: Response) => {
 
     if (error) throw error;
 
+    const isBdClient = (name: string) => {
+      const low = String(name || '').toLowerCase();
+      return (
+        low === 'bd' ||
+        low.startsWith('bd ') ||
+        low.startsWith('bd-') ||
+        low.startsWith('bd -') ||
+        low.startsWith('bd/') ||
+        low.startsWith('bd –') ||
+        low.startsWith('bd —')
+      );
+    };
+
     let filtered = data;
     if (month && typeof month === 'string' && /^\d{4}-\d{2}$/.test(month)) {
       // Fetch monthly budget overrides for this month
@@ -43,11 +56,17 @@ export const getClients = async (req: Request, res: Response) => {
         })
         .map((c: any) => {
           const override = monthlyBudgets.find((b: any) => b.client_id === c.id);
+          const baseBudget = override ? Number(override.budget) : (c.budget !== undefined ? Number(c.budget) : 0);
           return {
             ...c,
-            budget: override ? Number(override.budget) : (c.budget !== undefined ? Number(c.budget) : 0)
+            budget: isBdClient(c.name) ? 0 : baseBudget
           };
         });
+    } else {
+      filtered = data.map((c: any) => ({
+        ...c,
+        budget: isBdClient(c.name) ? 0 : (c.budget !== undefined ? Number(c.budget) : 0)
+      }));
     }
 
     res.json(filtered);

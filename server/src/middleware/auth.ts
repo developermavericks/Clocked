@@ -135,7 +135,8 @@ export const requireRole = (allowedRoles: string[]) => {
       const email = req.user.email?.toLowerCase() || '';
       const financeEmails = [
         'avinash@themavericksindia.com',
-        'chetan@themavericksindia.com'
+        'chetan@themavericksindia.com',
+        'satyam.singh@themavericksindia.com'
       ];
 
       // If a route requires 'finance' access, ONLY the finance trio can access it

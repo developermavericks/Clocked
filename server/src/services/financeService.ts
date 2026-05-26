@@ -78,48 +78,48 @@ const CLIENT_CORES: Record<string, string> = {
   "Optiemus Infracom": "Chetan",
   "PMI": "Chetan",
 
-  "BD": "",
-  "BD - AECOM": "",
-  "BD - Astrotalk": "",
-  "BD - Boston Scientific": "",
-  "BD - Capitalmind": "",
-  "BD - Caterpillar": "",
-  "BD - Chalet": "",
-  "BD - Chorus": "",
-  "BD - CLI": "",
-  "BD - Griffith": "",
-  "BD - Infinite": "",
-  "BD - iTel": "",
-  "BD - IVCA": "",
-  "BD - JAR": "",
-  "BD - Mahavir": "",
-  "BD - Mitsbushi": "",
-  "BD - Panasonic": "",
-  "BD - Peak XV": "",
-  "BD - Qualcomm": "",
-  "BD - Shadowfax": "",
-  "BD - Shiprocket": "",
-  "BD - Simple Energy": "",
-  "BD - UPgrad": "",
-  "BD - WGT": "",
-  "BD - YouTube": "",
-  "BD - Zeti": "",
-  "BD - Zeta": "",
-  "BD - Eume": "",
-  "FREE_TIME": "",
-  "Internal - CS": "",
-  "Internal Creative": "",
-  "Internal Finance": "",
-  "Internal HR": "",
-  "Internal Marketing": "",
-  "Internal Tech": "",
-  "Internal Training": "",
-  "LEAVE": "",
-  "Personal Commitments": "",
-  "BD - BD": "",
-  "BD - Innovist": "",
+  "BD": "BD",
+  "BD - AECOM": "BD",
+  "BD - Astrotalk": "BD",
+  "BD - Boston Scientific": "BD",
+  "BD - Capitalmind": "BD",
+  "BD - Caterpillar": "BD",
+  "BD - Chalet": "BD",
+  "BD - Chorus": "BD",
+  "BD - CLI": "BD",
+  "BD - Griffith": "BD",
+  "BD - Infinite": "BD",
+  "BD - iTel": "BD",
+  "BD - IVCA": "BD",
+  "BD - JAR": "BD",
+  "BD - Mahavir": "BD",
+  "BD - Mitsbushi": "BD",
+  "BD - Panasonic": "BD",
+  "BD - Peak XV": "BD",
+  "BD - Qualcomm": "BD",
+  "BD - Shadowfax": "BD",
+  "BD - Shiprocket": "BD",
+  "BD - Simple Energy": "BD",
+  "BD - UPgrad": "BD",
+  "BD - WGT": "BD",
+  "BD - YouTube": "BD",
+  "BD - Zeti": "BD",
+  "BD - Zeta": "BD",
+  "BD - Eume": "BD",
+  "FREE_TIME": "Internal",
+  "Internal - CS": "Internal",
+  "Internal Creative": "Internal",
+  "Internal Finance": "Internal",
+  "Internal HR": "Internal",
+  "Internal Marketing": "Internal",
+  "Internal Tech": "Internal",
+  "Internal Training": "Internal",
+  "LEAVE": "Internal",
+  "Personal Commitments": "Internal",
+  "BD - BD": "BD",
+  "BD - Innovist": "BD",
   "Haystack": "Mitali",
-  "Lunch Break": ""
+  "Lunch Break": "Internal"
 };
 
 const LOWERCASE_CLIENT_CORES: Record<string, { originalName: string; core: string }> = {};
@@ -194,19 +194,19 @@ const getNormalizedClientNameAndCore = (rawName: string): { name: string; core: 
   }
 
   if (isBdClient(clean)) {
-    return { name: 'BD', core: '' };
+    return { name: 'BD', core: 'BD' };
   }
   if (isInternalClient(clean) || low.startsWith('internal')) {
-    return { name: 'Internal - CS', core: '' };
+    return { name: 'Internal - CS', core: 'Internal' };
   }
   if (isLeaveClient(clean) || low.startsWith('leave')) {
-    return { name: 'LEAVE', core: '' };
+    return { name: 'LEAVE', core: 'Internal' };
   }
   if (low.includes('lunch')) {
-    return { name: 'Lunch Break', core: '' };
+    return { name: 'Lunch Break', core: 'Internal' };
   }
 
-  return { name: 'FREE_TIME', core: '' };
+  return { name: 'FREE_TIME', core: 'Internal' };
 };
 
 const getProRatedRatio = (
@@ -451,24 +451,29 @@ export const getCoreMasterAllocations = async (opts: {
       }
     }
     const clientRatio = dbClient ? getProRatedRatio(month, dbClient.joining_date, dbClient.exit_date) : 1;
-    const budget = baseBudget * clientRatio;
+    const budget = isBdClient(clientName) ? 0 : (baseBudget * clientRatio);
+
+    let resolvedCore = core;
+    if (!resolvedCore) {
+      resolvedCore = isBd ? 'BD' : 'Internal';
+    }
 
     clientObjs.set(clientName, {
       name: clientName,
-      core: core,
+      core: resolvedCore,
       budget: budget
     });
   });
 
   // If grouping is enabled, add special group columns at the end
   if (groupBd) {
-    clientObjs.set('Group BD', { name: 'Group BD', core: '', budget: 0 });
+    clientObjs.set('Group BD', { name: 'Group BD', core: 'BD', budget: 0 });
   }
   if (groupInternal) {
-    clientObjs.set('Group Internal', { name: 'Group Internal', core: '', budget: 0 });
+    clientObjs.set('Group Internal', { name: 'Group Internal', core: 'Internal', budget: 0 });
   }
   if (groupLeave) {
-    clientObjs.set('Group LEAVE', { name: 'Group LEAVE', core: '', budget: 0 });
+    clientObjs.set('Group LEAVE', { name: 'Group LEAVE', core: 'Internal', budget: 0 });
   }
 
   allocations.forEach((r: any) => {
@@ -527,7 +532,12 @@ export const getCoreMasterAllocations = async (opts: {
     // Ensure the client is in clientObjs so historical allocations are kept visible
     if (!clientObjs.has(targetColumn)) {
       const dbClient = allClients.find((c: any) => c.name.toLowerCase() === clientName.toLowerCase());
-      const core = norm.core || dbClient?.core || '';
+      let core = norm.core || dbClient?.core || '';
+      if (!core) {
+        const lowName = targetColumn.toLowerCase();
+        const isBd = lowName === 'bd' || lowName.startsWith('bd ') || lowName.startsWith('bd-') || lowName.startsWith('bd -') || lowName.startsWith('bd/') || lowName.startsWith('bd –') || lowName.startsWith('bd —');
+        core = isBd ? 'BD' : 'Internal';
+      }
       
       let baseBudget = dbClient?.budget !== undefined ? Number(dbClient.budget) : 0;
       if (dbClient) {
@@ -537,7 +547,7 @@ export const getCoreMasterAllocations = async (opts: {
         }
       }
       const clientRatio = dbClient ? getProRatedRatio(month, dbClient.joining_date, dbClient.exit_date) : 1;
-      const budget = baseBudget * clientRatio;
+      const budget = isBdClient(targetColumn) ? 0 : (baseBudget * clientRatio);
 
       clientObjs.set(targetColumn, {
         name: targetColumn,
@@ -608,7 +618,7 @@ export const exportCoreMasterAllocationsToExcel = async (opts: {
   const budgetsRow = ['', '', 'Client Budget'];
 
   data.clients.forEach(c => {
-    header1.push(c.core || '(Unassigned)');
+    header1.push(c.core || 'Internal');
     header2.push(c.name);
     budgetsRow.push(c.budget !== null && c.budget !== undefined ? c.budget : '');
   });
@@ -814,6 +824,16 @@ export const updateUserSalary = async (userId: string, salary: number, month?: s
 
 // Admin updates for Client Budget & Core
 export const updateClientBudgetAndCore = async (clientId: string, budget: number, core: string, month?: string) => {
+  const { data: clientObj, error: cErr } = await supabase
+    .from('clients')
+    .select('name')
+    .eq('id', clientId)
+    .single();
+
+  if (cErr) throw cErr;
+
+  const finalBudget = isBdClient(clientObj?.name || '') ? 0 : budget;
+
   if (month) {
     try {
       const { data: existing, error: qErr } = await supabase
@@ -828,14 +848,14 @@ export const updateClientBudgetAndCore = async (clientId: string, budget: number
       if (existing) {
         const { data, error } = await supabase
           .from('monthly_budgets')
-          .update({ budget })
+          .update({ budget: finalBudget })
           .eq('id', existing.id)
           .select();
         if (error) throw error;
       } else {
         const { data, error } = await supabase
           .from('monthly_budgets')
-          .insert([{ client_id: clientId, month, budget }])
+          .insert([{ client_id: clientId, month, budget: finalBudget }])
           .select();
         if (error) throw error;
       }
@@ -846,7 +866,7 @@ export const updateClientBudgetAndCore = async (clientId: string, budget: number
 
   const { data, error } = await supabase
     .from('clients')
-    .update({ budget, core })
+    .update({ budget: finalBudget, core })
     .eq('id', clientId)
     .select();
   if (error) throw error;

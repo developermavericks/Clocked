@@ -32,6 +32,7 @@ export default function CorePortal() {
   const [newEmployeeJoinDate, setNewEmployeeJoinDate] = useState('2025-11-01');
   const [formError, setFormError] = useState('');
   const [formSuccess, setFormSuccess] = useState('');
+  const [isClientAddFormOpen, setIsClientAddFormOpen] = useState(false);
 
   const [dbHealth, setDbHealth] = useState({
     status: 'Optimal',
@@ -407,52 +408,63 @@ export default function CorePortal() {
       </div>
 
       <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-        <div className="border-b border-slate-100 px-6 py-2 flex items-center bg-slate-50/50">
-          <button 
-            onClick={() => setActiveTab('admin')}
-            className={`px-6 py-4 text-sm font-bold border-b-2 transition-all flex items-center gap-2 ${
-              activeTab === 'admin' ? 'border-orange-600 text-orange-600' : 'border-transparent text-slate-500 hover:text-slate-700'
-            }`}
-          >
-            <Settings className="w-4 h-4" />
-            Admin Config
-          </button>
-          <button 
-            onClick={() => setActiveTab('members')}
-            className={`px-6 py-4 text-sm font-bold border-b-2 transition-all flex items-center gap-2 ${
-              activeTab === 'members' ? 'border-orange-600 text-orange-600' : 'border-transparent text-slate-500 hover:text-slate-700'
-            }`}
-          >
-            <Users className="w-4 h-4" />
-            Members
-          </button>
-          <button 
-            onClick={() => setActiveTab('clients')}
-            className={`px-6 py-4 text-sm font-bold border-b-2 transition-all flex items-center gap-2 ${
-              activeTab === 'clients' ? 'border-orange-600 text-orange-600' : 'border-transparent text-slate-500 hover:text-slate-700'
-            }`}
-          >
-            <Briefcase className="w-4 h-4" />
-            Clients (Admin)
-          </button>
-          <button 
-            onClick={() => setActiveTab('master')}
-            className={`px-6 py-4 text-sm font-bold border-b-2 transition-all flex items-center gap-2 ${
-              activeTab === 'master' ? 'border-orange-600 text-orange-600' : 'border-transparent text-slate-500 hover:text-slate-700'
-            }`}
-          >
-            <FileText className="w-4 h-4" />
-            Master Report
-          </button>
-          <button 
-            onClick={() => setActiveTab('exit-date')}
-            className={`px-6 py-4 text-sm font-bold border-b-2 transition-all flex items-center gap-2 ${
-              activeTab === 'exit-date' ? 'border-orange-600 text-orange-600' : 'border-transparent text-slate-500 hover:text-slate-700'
-            }`}
-          >
-            <UserIcon className="w-4 h-4" />
-            Exit & Joining (Employees)
-          </button>
+        <div className="border-b border-slate-100 px-6 py-2 flex items-center justify-between bg-slate-50/50">
+          <div className="flex items-center overflow-x-auto">
+            <button 
+              onClick={() => setActiveTab('admin')}
+              className={`px-6 py-4 text-sm font-bold border-b-2 transition-all flex items-center gap-2 ${
+                activeTab === 'admin' ? 'border-orange-600 text-orange-600' : 'border-transparent text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              <Settings className="w-4 h-4" />
+              Admin Config
+            </button>
+            <button 
+              onClick={() => setActiveTab('members')}
+              className={`px-6 py-4 text-sm font-bold border-b-2 transition-all flex items-center gap-2 ${
+                activeTab === 'members' ? 'border-orange-600 text-orange-600' : 'border-transparent text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              <Users className="w-4 h-4" />
+              Members
+            </button>
+            <button 
+              onClick={() => setActiveTab('clients')}
+              className={`px-6 py-4 text-sm font-bold border-b-2 transition-all flex items-center gap-2 ${
+                activeTab === 'clients' ? 'border-orange-600 text-orange-600' : 'border-transparent text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              <Briefcase className="w-4 h-4" />
+              Clients (Admin)
+            </button>
+            <button 
+              onClick={() => setActiveTab('master')}
+              className={`px-6 py-4 text-sm font-bold border-b-2 transition-all flex items-center gap-2 ${
+                activeTab === 'master' ? 'border-orange-600 text-orange-600' : 'border-transparent text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              <FileText className="w-4 h-4" />
+              Master Report
+            </button>
+            <button 
+              onClick={() => setActiveTab('exit-date')}
+              className={`px-6 py-4 text-sm font-bold border-b-2 transition-all flex items-center gap-2 ${
+                activeTab === 'exit-date' ? 'border-orange-600 text-orange-600' : 'border-transparent text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              <UserIcon className="w-4 h-4" />
+              Exit & Joining (Employees)
+            </button>
+          </div>
+          {activeTab === 'clients' && (
+            <button
+              onClick={() => setIsClientAddFormOpen(!isClientAddFormOpen)}
+              className="bg-orange-600 hover:bg-orange-700 text-white px-4 py-2.5 rounded-xl text-xs font-black transition-all flex items-center gap-2 shadow-md shadow-orange-100 uppercase tracking-widest cursor-pointer whitespace-nowrap mr-2"
+            >
+              <Plus className="w-4 h-4" />
+              Add Client
+            </button>
+          )}
         </div>
 
         <div className="p-8">
@@ -755,15 +767,33 @@ export default function CorePortal() {
                        <tr><td colSpan={10} className="text-center py-10"><div className="animate-spin inline-block w-6 h-6 border-b-2 border-orange-600 rounded-full"></div></td></tr>
                     ) : processedReport?.rows.map((row: any) => {
                       const total = Object.values(row.allocations).reduce((acc: number, curr: any) => acc + (curr as number), 0);
+                      const isZeroHours = total === 0;
                       return (
-                        <tr key={row.email} className="hover:bg-slate-50 transition-colors group/row">
-                          <td className="px-6 py-4 text-sm font-bold text-slate-900 sticky left-0 bg-white group-hover/row:bg-slate-50 z-10">{row.name}</td>
+                        <tr 
+                          key={row.email} 
+                          className={`transition-colors group/row ${
+                            isZeroHours 
+                              ? 'bg-red-50/30 hover:bg-red-100/40 dark:bg-red-950/5 dark:hover:bg-red-950/15' 
+                              : 'hover:bg-slate-50'
+                          }`}
+                        >
+                          <td className={`px-6 py-4 text-sm font-bold sticky left-0 z-10 transition-colors ${
+                            isZeroHours 
+                              ? 'bg-red-50/60 group-hover/row:bg-red-100/60 dark:bg-red-950/10 dark:group-hover/row:bg-red-950/20 text-red-700 dark:text-red-400' 
+                              : 'bg-white text-slate-900 group-hover/row:bg-slate-50'
+                          }`}>
+                            <span>{row.name}</span>
+                          </td>
                           {processedReport.columns.map((c: string) => (
                             <td key={c} className={`px-6 py-4 text-sm text-slate-600 font-mono text-right ${c.startsWith('Total ') ? 'font-black bg-orange-50/30 text-orange-900' : ''}`}>
                               {(row.allocations[c] || 0).toFixed(2)}
                             </td>
                           ))}
-                          <td className="px-6 py-4 text-sm font-black text-slate-900 font-mono text-right bg-slate-50">
+                          <td className={`px-6 py-4 text-sm font-black font-mono text-right transition-colors ${
+                            isZeroHours 
+                              ? 'text-red-700 bg-red-50/30 dark:text-red-400 dark:bg-red-950/5' 
+                              : 'text-slate-900 bg-slate-50'
+                          }`}>
                             {total.toFixed(2)}
                           </td>
                         </tr>
@@ -794,7 +824,7 @@ export default function CorePortal() {
           )}
 
           {activeTab === 'clients' && (
-            <ClientAdmin selectedMonth={month} setSelectedMonth={setMonth} />
+            <ClientAdmin selectedMonth={month} setSelectedMonth={setMonth} isAddFormOpen={isClientAddFormOpen} setIsAddFormOpen={setIsClientAddFormOpen} />
           )}
 
           {activeTab === 'exit-date' && (

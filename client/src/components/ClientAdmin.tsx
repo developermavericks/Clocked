@@ -5,7 +5,17 @@ import { Users, Briefcase, ChevronRight, Loader2, Search, Target, Calendar, Tras
 import { apiFetch } from '@/lib/api';
 import SearchableSelect from '@/components/SearchableSelect';
 
-export default function ClientAdmin({ selectedMonth, setSelectedMonth }: { selectedMonth: string; setSelectedMonth: (m: string) => void }) {
+export default function ClientAdmin({ 
+  selectedMonth, 
+  setSelectedMonth,
+  isAddFormOpen: parentIsAddFormOpen,
+  setIsAddFormOpen: parentSetIsAddFormOpen
+}: { 
+  selectedMonth: string; 
+  setSelectedMonth: (m: string) => void;
+  isAddFormOpen?: boolean;
+  setIsAddFormOpen?: (open: boolean) => void;
+}) {
   // Projected tab state removed
   const [summary, setSummary] = useState<{ name: string, hours: number }[]>([]);
   const [loading, setLoading] = useState(false);
@@ -29,8 +39,11 @@ export default function ClientAdmin({ selectedMonth, setSelectedMonth }: { selec
   // Client Joining & Deactivation States
   const [newClientName, setNewClientName] = useState('');
   const [newClientJoinDate, setNewClientJoinDate] = useState('2025-11-01');
-  const [isAddFormOpen, setIsAddFormOpen] = useState(false);
+  const [localIsAddFormOpen, setLocalIsAddFormOpen] = useState(false);
   const [isAddingClient, setIsAddingClient] = useState(false);
+
+  const isAddFormOpen = parentIsAddFormOpen !== undefined ? parentIsAddFormOpen : localIsAddFormOpen;
+  const setIsAddFormOpen = parentSetIsAddFormOpen !== undefined ? parentSetIsAddFormOpen : setLocalIsAddFormOpen;
 
   useEffect(() => {
     fetchSummary();
@@ -304,13 +317,6 @@ export default function ClientAdmin({ selectedMonth, setSelectedMonth }: { selec
               Configure joining dates and exit dates for all clients. Exited clients are hidden from dropdowns and allocations after their exit date.
             </p>
           </div>
-          <button
-            onClick={() => setIsAddFormOpen(!isAddFormOpen)}
-            className="bg-orange-600 hover:bg-orange-700 text-white px-5 py-2.5 rounded-xl text-xs font-black transition-all flex items-center gap-2 shadow-md shadow-orange-100 uppercase tracking-widest cursor-pointer self-start md:self-auto"
-          >
-            <Plus className="w-4 h-4" />
-            Add Client
-          </button>
         </div>
 
         {/* Add Client Collapsible Form */}

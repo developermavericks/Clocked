@@ -23,7 +23,12 @@ const getClientCoreTeam = (rawName: string): string => {
   if (smritiClients.some(c => low.includes(c))) return "Smriti";
   if (chetanClients.some(c => low.includes(c))) return "Chetan";
 
-  return "Unassigned";
+  // Check if it is a BD client
+  const isBd = low === 'bd' || low.startsWith('bd ') || low.startsWith('bd-') || low.startsWith('bd -') || low.startsWith('bd/') || low.startsWith('bd –') || low.startsWith('bd —') || low.startsWith('group bd');
+  if (isBd) return "BD";
+
+  // Otherwise, it falls under Internal
+  return "Internal";
 };
 
 const getClientProRatedRatio = (
@@ -81,6 +86,8 @@ export default function FinancePortal() {
   const [groupLeave, setGroupLeave] = useState(false);
   const [groupInternal, setGroupInternal] = useState(false);
   const [reportData, setReportData] = useState<any>(null);
+  const [excludeBd, setExcludeBd] = useState(false);
+  const [excludeInternal, setExcludeInternal] = useState(false);
 
   // States for the Salary & Budget editor
   const [users, setUsers] = useState<any[]>([]);
@@ -208,7 +215,9 @@ export default function FinancePortal() {
 
   // Aggregators for stats cards
   const stats = useMemo(() => {
-    if (!reportData) return { totalBudget: 0, payroll: 0, activeClients: 0 };
+    if (!reportData || !Array.isArray(reportData.clients) || !Array.isArray(reportData.rows)) {
+      return { totalBudget: 0, payroll: 0, activeClients: 0 };
+    }
     const clientsSum = reportData.clients.reduce((acc: number, c: any) => acc + (Number(c.budget) || 0), 0);
     const usersSum = reportData.rows.reduce((acc: number, r: any) => acc + (Number(r.salary) || 0), 0);
     return {
@@ -220,13 +229,13 @@ export default function FinancePortal() {
 
   // Headers grouping calculation for multi-level Core Header merging
   const coreHeaderGroups = useMemo(() => {
-    if (!reportData || !reportData.clients.length) return [];
+    if (!reportData || !Array.isArray(reportData.clients) || !reportData.clients.length) return [];
     const groups: { name: string; count: number }[] = [];
-    let lastCore = reportData.clients[0].core || '(Unassigned)';
+    let lastCore = reportData.clients[0].core || getClientCoreTeam(reportData.clients[0].name);
     let count = 1;
 
     for (let i = 1; i < reportData.clients.length; i++) {
-      const currentCore = reportData.clients[i].core || '(Unassigned)';
+      const currentCore = reportData.clients[i].core || getClientCoreTeam(reportData.clients[i].name);
       if (currentCore === lastCore) {
         count++;
       } else {
@@ -251,7 +260,7 @@ export default function FinancePortal() {
 
   // Analytics Data Helpers
   const analyticsData = useMemo(() => {
-    if (!reportData || !reportData.clients.length || !reportData.rows.length) return null;
+    if (!reportData || !Array.isArray(reportData.clients) || !Array.isArray(reportData.rows) || !reportData.clients.length || !reportData.rows.length) return null;
 
     // 1. Budget vs Actual
     const budgetVsActual = reportData.clients.map((c: any) => {
@@ -298,7 +307,7 @@ export default function FinancePortal() {
     // Sum salary per vertical
     const verticalSpend: Record<string, number> = {};
     reportData.clients.forEach((c: any) => {
-      const core = c.core || 'Unassigned';
+      const core = c.core || getClientCoreTeam(c.name);
       if (!verticalSpend[core]) verticalSpend[core] = 0;
       
       reportData.rows.forEach((r: any) => {
@@ -328,13 +337,21 @@ export default function FinancePortal() {
   }, [reportData]);
 
   const budgetAnalysisData = useMemo(() => {
-    if (!reportData || !reportData.clients.length || !reportData.rows.length) return [];
+    if (!reportData || !Array.isArray(reportData.clients) || !Array.isArray(reportData.rows) || !reportData.clients.length || !reportData.rows.length) return [];
 
     const clientMetrics: Record<string, { name: string; budget: number; cost: number; revenue: number; profit: number }> = {};
 
     reportData.clients.forEach((c: any) => {
       const isGroupedName = ['group bd', 'group internal', 'group leave'].includes(c.name.toLowerCase());
       if (isGroupedName) return;
+
+      const team = getClientCoreTeam(c.name);
+      if (excludeBd && team === 'BD') {
+        return;
+      }
+      if (excludeInternal && team === 'Internal') {
+        return;
+      }
 
       clientMetrics[c.name] = {
         name: c.name,
@@ -355,6 +372,14 @@ export default function FinancePortal() {
         if (hours === 0) return;
 
         const allocatedCost = salary * (hours / totalHours);
+
+        const team = getClientCoreTeam(clientName);
+        if (excludeBd && team === 'BD') {
+          return;
+        }
+        if (excludeInternal && team === 'Internal') {
+          return;
+        }
 
         if (!clientMetrics[clientName]) {
           const isGroupedName = ['group bd', 'group internal', 'group leave'].includes(clientName.toLowerCase());
@@ -384,7 +409,7 @@ export default function FinancePortal() {
         profitMargin: item.revenue > 0 ? ((profit / item.revenue) * 100).toFixed(1) : '0'
       };
     }).sort((a, b) => b.profit - a.profit);
-  }, [reportData]);
+  }, [reportData, excludeBd, excludeInternal]);
 
   // ============================================================================
   // Analysis Tab States & Memo Helpers
@@ -555,7 +580,8 @@ export default function FinancePortal() {
       "Mitali": 0,
       "Smriti": 0,
       "Chetan": 0,
-      "Unassigned": 0
+      "BD": 0,
+      "Internal": 0
     };
 
     reportData.rawAllocations.forEach((alloc: any) => {
@@ -569,7 +595,8 @@ export default function FinancePortal() {
       "Mitali": "#10b981",    // Emerald Green
       "Smriti": "#ec4899",    // Rose Pink
       "Chetan": "#8b5cf6",    // Purple
-      "Unassigned": "#64748b" // Slate Gray
+      "BD": "#f59e0b",        // Amber/Orange
+      "Internal": "#64748b"   // Slate Gray
     };
 
     return Object.keys(totals).map(name => ({
@@ -819,8 +846,8 @@ export default function FinancePortal() {
                       <th className="px-6 py-3 text-xs font-bold text-slate-500 bg-slate-50 sticky left-0 z-40">Member</th>
                       <th className="px-6 py-3 text-xs font-bold text-slate-500 bg-slate-50 sticky left-[140px] z-40">Email</th>
                       <th className="px-6 py-3 text-xs font-bold text-slate-500 bg-slate-50 sticky left-[320px] z-40 border-r border-slate-200 text-right">Salary</th>
-                      {reportData?.clients.map((c: any, i: number) => {
-                        const isLastInGroup = i === reportData.clients.length - 1 || c.core !== reportData.clients[i + 1].core;
+                      {reportData?.clients?.map((c: any, i: number) => {
+                        const isLastInGroup = i === (reportData?.clients?.length || 0) - 1 || c.core !== reportData?.clients?.[i + 1]?.core;
                         return (
                           <th
                             key={c.name}
@@ -838,8 +865,8 @@ export default function FinancePortal() {
                       <th className="px-6 py-3 text-xs font-bold text-slate-500 sticky left-0 z-40 bg-emerald-50"></th>
                       <th className="px-6 py-3 text-xs font-bold text-slate-500 sticky left-[140px] z-40 bg-emerald-50"></th>
                       <th className="px-6 py-3 text-xs font-bold text-slate-800 sticky left-[320px] z-40 bg-emerald-50 border-r border-slate-200 text-right">Budget</th>
-                      {reportData?.clients.map((c: any, i: number) => {
-                        const isLastInGroup = i === reportData.clients.length - 1 || c.core !== reportData.clients[i + 1].core;
+                      {reportData?.clients?.map((c: any, i: number) => {
+                        const isLastInGroup = i === (reportData?.clients?.length || 0) - 1 || c.core !== reportData?.clients?.[i + 1]?.core;
                         return (
                           <th
                             key={c.name}
@@ -864,14 +891,14 @@ export default function FinancePortal() {
                           </div>
                         </td>
                       </tr>
-                    ) : reportData?.rows.length === 0 ? (
+                    ) : !reportData || !Array.isArray(reportData.rows) || reportData.rows.length === 0 ? (
                       <tr>
                         <td colSpan={10} className="text-center py-12 text-slate-500 font-medium">
                           No allocation logs found for the selected month.
                         </td>
                       </tr>
                     ) : (
-                      reportData?.rows.map((row: any) => {
+                      reportData?.rows?.map((row: any) => {
                         const totalHours = row.totalHours || 0;
                         const salary = row.salary || 0;
 
@@ -907,9 +934,9 @@ export default function FinancePortal() {
                             </td>
 
                             {/* Dynamic Allocation Cells */}
-                            {reportData.clients.map((c: any, i: number) => {
+                            {reportData?.clients?.map((c: any, i: number) => {
                               const hours = Number(row.allocations[c.name] || 0);
-                              const isLastInGroup = i === reportData.clients.length - 1 || c.core !== reportData.clients[i + 1].core;
+                              const isLastInGroup = i === (reportData?.clients?.length || 0) - 1 || c.core !== reportData?.clients?.[i + 1]?.core;
                               
                               let displayVal = '';
                               if (currentViewMode === 'hours') {
@@ -917,9 +944,9 @@ export default function FinancePortal() {
                               } else if (currentViewMode === 'percent') {
                                 displayVal = totalHours > 0 && hours > 0 ? `${((hours / totalHours) * 100).toFixed(1)}%` : '';
                               } else if (currentViewMode === 'salary') {
-                                if (totalHours > 0 && salary > 0 && hours > 0) {
-                                  displayVal = fmtCurrency((hours / totalHours) * salary);
-                                }
+                                  if (totalHours > 0 && salary > 0 && hours > 0) {
+                                    displayVal = fmtCurrency((hours / totalHours) * salary);
+                                  }
                               }
 
                               return (
@@ -945,7 +972,7 @@ export default function FinancePortal() {
                   </tbody>
 
                   {/* Footers for Totals */}
-                  {!loading && reportData && reportData.rows.length > 0 && (
+                  {!loading && reportData && Array.isArray(reportData.rows) && reportData.rows.length > 0 && (
                     <tfoot className="bg-slate-900 text-slate-100 border-t-2 border-slate-800 sticky bottom-0 z-30 shadow-[0_-2px_4px_rgba(0,0,0,0.06)]">
                       <tr>
                         <td className="px-6 py-4 text-sm font-bold bg-slate-900 sticky left-0 z-40 uppercase tracking-widest">TOTAL</td>
@@ -955,19 +982,19 @@ export default function FinancePortal() {
                         </td>
                         
                         {/* Dynamic Column Totals */}
-                        {reportData.clients.map((c: any, i: number) => {
-                          const isLastInGroup = i === reportData.clients.length - 1 || c.core !== reportData.clients[i + 1].core;
+                        {reportData?.clients?.map((c: any, i: number) => {
+                          const isLastInGroup = i === (reportData?.clients?.length || 0) - 1 || c.core !== reportData?.clients?.[i + 1]?.core;
                           let colVal = 0;
                           
                           // Sum column based on view type
-                          reportData.rows.forEach((row: any) => {
+                          reportData?.rows?.forEach((row: any) => {
                             const hours = Number(row.allocations[c.name] || 0);
                             if (currentViewMode === 'hours') {
                               colVal += hours;
                             } else if (currentViewMode === 'percent') {
                               if (row.totalHours > 0) {
                                 // Add allocation percentage share to total hours
-                                const totalHoursSum = reportData.rows.reduce((sum: number, r: any) => sum + r.totalHours, 0);
+                                const totalHoursSum = reportData?.rows?.reduce((sum: number, r: any) => sum + r.totalHours, 0) || 0;
                                 colVal += totalHoursSum > 0 ? (hours / totalHoursSum) * 100 : 0;
                               }
                             } else if (currentViewMode === 'salary') {
@@ -994,7 +1021,7 @@ export default function FinancePortal() {
                             ? '100.0%'
                             : currentViewMode === 'salary'
                             ? fmtCurrency(stats.payroll)
-                            : reportData.rows.reduce((acc: number, r: any) => acc + r.totalHours, 0).toFixed(2)}
+                            : (reportData?.rows?.reduce((acc: number, r: any) => acc + r.totalHours, 0) || 0).toFixed(2)}
                         </td>
 
                       </tr>
@@ -1297,7 +1324,7 @@ export default function FinancePortal() {
 
               </div>
 
-              {/* CORE TEAM & UNASSIGNED DISTRIBUTION CHART CARD */}
+              {/* CORE TEAM, BD & INTERNAL DISTRIBUTION CHART CARD */}
               <div className="bg-white border border-slate-100 shadow-xl shadow-slate-100/50 rounded-[24px] p-6 flex flex-col relative">
                 {loading && (
                   <div className="absolute inset-0 bg-white/60 dark:bg-slate-900/60 backdrop-blur-[1px] z-10 flex items-center justify-center rounded-[24px] animate-in fade-in duration-200">
@@ -1308,10 +1335,10 @@ export default function FinancePortal() {
                   <div>
                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">CORE TEAM DISTRIBUTION</span>
                     <h4 className="text-base font-bold text-slate-900 mt-0.5">
-                      Leadership Core Team & Unassigned Allocation Share
+                      Leadership Core Team, BD & Internal Allocation Share
                     </h4>
                     <p className="text-xs text-slate-500">
-                      Proportional distribution of working hours across teams managed under the four core members and the Unassigned category.
+                      Proportional distribution of working hours across teams managed under the four core members, Business Development (BD), and Internal categories.
                     </p>
                   </div>
                   <button
@@ -1423,14 +1450,47 @@ export default function FinancePortal() {
                     <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
                   </div>
                 )}
-                <div>
-                  <span className="text-[10px] font-black text-orange-600 uppercase tracking-widest block">Financial Overview</span>
-                  <h4 className="text-xl font-bold text-slate-900 mt-1">
-                    Client Budget vs Cost & Profitability Analysis
-                  </h4>
-                  <p className="text-sm text-slate-500 font-medium mt-1">
-                    Visualize client-wise cost distribution (based on hours allocated and salary payroll) compared against client budgets for <strong>{month}</strong>.
-                  </p>
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                  <div>
+                    <span className="text-[10px] font-black text-orange-600 uppercase tracking-widest block">Financial Overview</span>
+                    <h4 className="text-xl font-bold text-slate-900 mt-1">
+                      Client Budget vs Cost & Profitability Analysis
+                    </h4>
+                    <p className="text-sm text-slate-500 font-medium mt-1">
+                      Visualize client-wise cost distribution (based on hours allocated and salary payroll) compared against client budgets for <strong>{month}</strong>.
+                    </p>
+                  </div>
+                  
+                  {/* Premium Exclude Overhead Filter Switches */}
+                  <div className="flex flex-wrap items-center gap-2 bg-slate-50 border border-slate-200/60 rounded-2xl p-1.5 self-start sm:self-center shadow-sm">
+                    <label className="relative inline-flex items-center cursor-pointer select-none px-3 py-1.5 rounded-xl hover:bg-slate-100/50 transition-colors">
+                      <input
+                        type="checkbox"
+                        checked={excludeBd}
+                        onChange={(e) => setExcludeBd(e.target.checked)}
+                        className="sr-only peer"
+                      />
+                      <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[5px] after:left-[5px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-amber-600"></div>
+                      <span className="ml-2.5 text-[11px] font-bold text-slate-700">
+                        Exclude BD Overhead
+                      </span>
+                    </label>
+
+                    <div className="w-[1px] h-5 bg-slate-200 hidden sm:block"></div>
+
+                    <label className="relative inline-flex items-center cursor-pointer select-none px-3 py-1.5 rounded-xl hover:bg-slate-100/50 transition-colors">
+                      <input
+                        type="checkbox"
+                        checked={excludeInternal}
+                        onChange={(e) => setExcludeInternal(e.target.checked)}
+                        className="sr-only peer"
+                      />
+                      <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[5px] after:left-[5px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
+                      <span className="ml-2.5 text-[11px] font-bold text-slate-700">
+                        Exclude Internal Overhead
+                      </span>
+                    </label>
+                  </div>
                 </div>
 
                 {budgetAnalysisData.length === 0 ? (
@@ -1793,31 +1853,45 @@ export default function FinancePortal() {
                             </td>
                             <td className="px-4 py-3 text-sm">
                               {editingClientId === c.id ? (
-                                <input
-                                  type="text"
-                                  value={editingCoreVal}
-                                  onChange={(e) => setEditingCoreVal(e.target.value)}
-                                  className="w-24 px-2 py-1 border border-slate-300 rounded focus:ring-1 focus:ring-blue-600 bg-white text-slate-950"
-                                  placeholder="e.g. PR"
-                                />
+                                getClientCoreTeam(c.name) === 'BD' ? (
+                                  <span className="bg-amber-100 px-2 py-1 rounded text-xs font-black uppercase text-amber-800">
+                                    BD
+                                  </span>
+                                ) : (
+                                  <input
+                                    type="text"
+                                    value={editingCoreVal}
+                                    onChange={(e) => setEditingCoreVal(e.target.value)}
+                                    className="w-24 px-2 py-1 border border-slate-300 rounded focus:ring-1 focus:ring-blue-600 bg-white text-slate-955"
+                                    placeholder="e.g. PR"
+                                  />
+                                )
                               ) : (
-                                <span className="bg-slate-100 px-2 py-1 rounded text-xs font-black uppercase text-slate-600">
-                                  {c.core || c.core_owner || 'Unassigned'}
+                                <span className={getClientCoreTeam(c.name) === 'BD' ? "bg-amber-100 px-2 py-1 rounded text-xs font-black uppercase text-amber-800" : "bg-slate-100 px-2 py-1 rounded text-xs font-black uppercase text-slate-600"}>
+                                  {c.core || c.core_owner || getClientCoreTeam(c.name)}
                                 </span>
                               )}
                             </td>
                             <td className="px-4 py-3 text-sm text-right font-mono font-bold text-emerald-600">
                               {editingClientId === c.id ? (
-                                <input
-                                  type="number"
-                                  value={editingBudgetVal}
-                                  onChange={(e) => setEditingBudgetVal(e.target.value)}
-                                  className="w-28 px-2 py-1 border border-slate-300 rounded focus:ring-1 focus:ring-blue-600 text-right bg-white text-slate-950"
-                                />
+                                getClientCoreTeam(c.name) === 'BD' ? (
+                                  <span className="text-slate-400 font-medium text-xs select-none bg-slate-50 border border-slate-200/60 rounded-lg px-2 py-1 inline-block">
+                                    Non-Revenue Entity
+                                  </span>
+                                ) : (
+                                  <input
+                                    type="number"
+                                    value={editingBudgetVal}
+                                    onChange={(e) => setEditingBudgetVal(e.target.value)}
+                                    className="w-28 px-2 py-1 border border-slate-300 rounded focus:ring-1 focus:ring-blue-600 text-right bg-white text-slate-955"
+                                  />
+                                )
                               ) : (
                                 <>
-                                  <div className="text-slate-900">{c.budget ? fmtCurrency(c.budget) : '₹0.00'}</div>
-                                  {(() => {
+                                  <div className="text-slate-900">
+                                    {getClientCoreTeam(c.name) === 'BD' ? '₹0.00' : (c.budget ? fmtCurrency(c.budget) : '₹0.00')}
+                                  </div>
+                                  {getClientCoreTeam(c.name) !== 'BD' && (() => {
                                     const { ratio, activeDays, totalDays } = getClientProRatedRatio(month, c.joining_date, c.exit_date);
                                     if (ratio < 1 && c.budget) {
                                       const proRated = c.budget * ratio;
@@ -1890,7 +1964,7 @@ export default function FinancePortal() {
                 </span>
                 <h3 className="text-xl font-bold text-slate-900 dark:text-white mt-1">
                   {expandedChart === 'team' 
-                    ? 'Core Leadership Team & Unassigned Allocation Share' 
+                    ? 'Leadership Core Team, BD & Internal Allocation Share' 
                     : expandedChart === 'bar' 
                     ? `Total Allocation Hours (${analysisView === 'employee' ? 'by Employee' : 'by Client'})` 
                     : 'Daily Hours Timeline Trend Curve'}
