@@ -3,9 +3,10 @@
 export const dynamic = 'force-dynamic';
 
 import { useState, useEffect, useMemo } from 'react';
-import { IndianRupee, Download, Users, Briefcase, RefreshCw, Layers, Sliders, CheckCircle2, AlertCircle, Edit2, BarChart3, Maximize2, Minimize2, Loader2 } from 'lucide-react';
+import { IndianRupee, Download, Users, Briefcase, RefreshCw, Layers, Sliders, CheckCircle2, AlertCircle, Edit2, BarChart3, Maximize2, Minimize2 } from 'lucide-react';
 import StatsCard from '@/components/StatsCard';
 import { apiFetch } from '@/lib/api';
+import { Loader } from '@/components/Loader';
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, ReferenceLine } from 'recharts';
 
 // Helper to resolve client names to their core leadership team owners
@@ -29,6 +30,45 @@ const getClientCoreTeam = (rawName: string): string => {
 
   // Otherwise, it falls under Internal
   return "Internal";
+};
+
+const isBdClient = (name: string): boolean => {
+  const low = String(name || '').trim().toLowerCase();
+  return (
+    low === 'bd' ||
+    low.startsWith('bd ') ||
+    low.startsWith('bd-') ||
+    low.startsWith('bd -') ||
+    low.startsWith('bd/') ||
+    low.startsWith('bd –') ||
+    low.startsWith('bd —') ||
+    low.startsWith('group bd')
+  );
+};
+
+const isInternalClient = (name: string): boolean => {
+  const low = String(name || '').trim().toLowerCase();
+  const team = getClientCoreTeam(name);
+  return (
+    team === 'Internal' ||
+    low === 'internal' ||
+    low.startsWith('internal ') ||
+    low.startsWith('internal-') ||
+    low.startsWith('internal -') ||
+    low.startsWith('group internal') ||
+    low === 'leave' ||
+    low.startsWith('leave ') ||
+    low.startsWith('leave-') ||
+    low.startsWith('leave -') ||
+    low.startsWith('group leave') ||
+    low === 'free_time' ||
+    low === 'lunch break' ||
+    low === 'personal commitments'
+  );
+};
+
+const isNonRevenueClient = (name: string): boolean => {
+  return isBdClient(name) || isInternalClient(name);
 };
 
 const getClientProRatedRatio = (
@@ -408,7 +448,22 @@ export default function FinancePortal() {
         profitFormatted: Math.round(profit),
         profitMargin: item.revenue > 0 ? ((profit / item.revenue) * 100).toFixed(1) : '0'
       };
-    }).sort((a, b) => b.profit - a.profit);
+    }).sort((a, b) => {
+      const teamA = getClientCoreTeam(a.name);
+      const teamB = getClientCoreTeam(b.name);
+
+      const isClientA = teamA !== 'BD' && teamA !== 'Internal';
+      const isClientB = teamB !== 'BD' && teamB !== 'Internal';
+
+      if (isClientA && !isClientB) return -1;
+      if (!isClientA && isClientB) return 1;
+
+      if (teamA === 'BD' && teamB === 'Internal') return -1;
+      if (teamA === 'Internal' && teamB === 'BD') return 1;
+
+      // Maintain descending order of profit within each category
+      return b.profit - a.profit;
+    });
   }, [reportData, excludeBd, excludeInternal]);
 
   // ============================================================================
@@ -886,9 +941,7 @@ export default function FinancePortal() {
                     {loading ? (
                       <tr>
                         <td colSpan={10} className="text-center py-20 bg-white dark:bg-slate-900">
-                          <div className="flex items-center justify-center">
-                            <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
-                          </div>
+                          <Loader size="lg" text="Loading financial pivot..." />
                         </td>
                       </tr>
                     ) : !reportData || !Array.isArray(reportData.rows) || reportData.rows.length === 0 ? (
@@ -1092,7 +1145,7 @@ export default function FinancePortal() {
                 <div className="bg-white border border-slate-100 shadow-xl shadow-slate-100/50 rounded-[24px] p-6 flex flex-col min-h-[480px] relative">
                   {loading && (
                     <div className="absolute inset-0 bg-white/60 dark:bg-slate-900/60 backdrop-blur-[1px] z-10 flex items-center justify-center rounded-[24px] animate-in fade-in duration-200">
-                      <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
+                      <Loader size="md" />
                     </div>
                   )}
                   <div className="flex justify-between items-start mb-4">
@@ -1193,7 +1246,7 @@ export default function FinancePortal() {
                 <div className="bg-white border border-slate-100 shadow-xl shadow-slate-100/50 rounded-[24px] p-6 flex flex-col min-h-[480px] relative">
                   {loading && (
                     <div className="absolute inset-0 bg-white/60 dark:bg-slate-900/60 backdrop-blur-[1px] z-10 flex items-center justify-center rounded-[24px] animate-in fade-in duration-200">
-                      <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
+                      <Loader size="md" />
                     </div>
                   )}
                   <div className="flex justify-between items-start mb-4">
@@ -1328,7 +1381,7 @@ export default function FinancePortal() {
               <div className="bg-white border border-slate-100 shadow-xl shadow-slate-100/50 rounded-[24px] p-6 flex flex-col relative">
                 {loading && (
                   <div className="absolute inset-0 bg-white/60 dark:bg-slate-900/60 backdrop-blur-[1px] z-10 flex items-center justify-center rounded-[24px] animate-in fade-in duration-200">
-                    <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
+                    <Loader size="md" />
                   </div>
                 )}
                 <div className="flex justify-between items-start mb-6">
@@ -1447,7 +1500,7 @@ export default function FinancePortal() {
               <div className="bg-white border border-slate-100 shadow-xl shadow-slate-100/50 rounded-[32px] p-8 flex flex-col space-y-8 relative">
                 {loading && (
                   <div className="absolute inset-0 bg-white/60 dark:bg-slate-900/60 backdrop-blur-[1px] z-10 flex items-center justify-center rounded-[32px] animate-in fade-in duration-200">
-                    <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
+                    <Loader size="lg" />
                   </div>
                 )}
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -1853,9 +1906,9 @@ export default function FinancePortal() {
                             </td>
                             <td className="px-4 py-3 text-sm">
                               {editingClientId === c.id ? (
-                                getClientCoreTeam(c.name) === 'BD' ? (
-                                  <span className="bg-amber-100 px-2 py-1 rounded text-xs font-black uppercase text-amber-800">
-                                    BD
+                                isNonRevenueClient(c.name) ? (
+                                  <span className={isBdClient(c.name) ? "bg-amber-100 px-2 py-1 rounded text-xs font-black uppercase text-amber-800" : "bg-slate-100 px-2 py-1 rounded text-xs font-black uppercase text-slate-600"}>
+                                    {isBdClient(c.name) ? 'BD' : 'Internal'}
                                   </span>
                                 ) : (
                                   <input
@@ -1867,14 +1920,14 @@ export default function FinancePortal() {
                                   />
                                 )
                               ) : (
-                                <span className={getClientCoreTeam(c.name) === 'BD' ? "bg-amber-100 px-2 py-1 rounded text-xs font-black uppercase text-amber-800" : "bg-slate-100 px-2 py-1 rounded text-xs font-black uppercase text-slate-600"}>
+                                <span className={isBdClient(c.name) ? "bg-amber-100 px-2 py-1 rounded text-xs font-black uppercase text-amber-800" : isInternalClient(c.name) ? "bg-slate-100 px-2 py-1 rounded text-xs font-black uppercase text-slate-600" : "bg-slate-100 px-2 py-1 rounded text-xs font-black uppercase text-slate-600"}>
                                   {c.core || c.core_owner || getClientCoreTeam(c.name)}
                                 </span>
                               )}
                             </td>
                             <td className="px-4 py-3 text-sm text-right font-mono font-bold text-emerald-600">
                               {editingClientId === c.id ? (
-                                getClientCoreTeam(c.name) === 'BD' ? (
+                                isNonRevenueClient(c.name) ? (
                                   <span className="text-slate-400 font-medium text-xs select-none bg-slate-50 border border-slate-200/60 rounded-lg px-2 py-1 inline-block">
                                     Non-Revenue Entity
                                   </span>
@@ -1889,9 +1942,9 @@ export default function FinancePortal() {
                               ) : (
                                 <>
                                   <div className="text-slate-900">
-                                    {getClientCoreTeam(c.name) === 'BD' ? '₹0.00' : (c.budget ? fmtCurrency(c.budget) : '₹0.00')}
+                                    {isNonRevenueClient(c.name) ? '₹0.00' : (c.budget ? fmtCurrency(c.budget) : '₹0.00')}
                                   </div>
-                                  {getClientCoreTeam(c.name) !== 'BD' && (() => {
+                                  {!isNonRevenueClient(c.name) && (() => {
                                     const { ratio, activeDays, totalDays } = getClientProRatedRatio(month, c.joining_date, c.exit_date);
                                     if (ratio < 1 && c.budget) {
                                       const proRated = c.budget * ratio;

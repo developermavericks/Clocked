@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react';
 import { Target, CheckCircle2, AlertCircle, Clock, Users } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 
+import { Loader } from '@/components/Loader';
+
 export default function ClientTargetsCard({ month, actuals, title }: { month: string, actuals: any[], title?: string }) {
   const [projections, setProjections] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -27,7 +29,7 @@ export default function ClientTargetsCard({ month, actuals, title }: { month: st
 
   if (loading) return (
     <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm flex items-center justify-center">
-      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-orange-600"></div>
+      <Loader size="md" />
     </div>
   );
 

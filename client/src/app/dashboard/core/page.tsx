@@ -3,9 +3,10 @@
 export const dynamic = 'force-dynamic';
 
 import { useState, useEffect, useMemo } from 'react';
-import { Settings, FileText, Briefcase, Download, Plus, Search, ShieldCheck, User as UserIcon, Users, Trash2, UserPlus, Calendar, RefreshCw, Lock, Unlock, Loader2 } from 'lucide-react';
+import { Settings, FileText, Briefcase, Download, Plus, Search, ShieldCheck, User as UserIcon, Users, Trash2, UserPlus, Calendar, RefreshCw, Lock, Unlock } from 'lucide-react';
 import StatsCard from '@/components/StatsCard';
 import { apiFetch } from '@/lib/api';
+import { Loader } from '@/components/Loader';
 import ClientAdmin from '@/components/ClientAdmin';
 import MemberInsights from '@/components/MemberInsights';
 
@@ -514,9 +515,7 @@ export default function CorePortal() {
                         {loading ? (
                           <tr>
                             <td colSpan={4} className="text-center py-10 bg-white dark:bg-slate-900">
-                              <div className="flex items-center justify-center">
-                                <Loader2 className="w-6 h-6 text-orange-600 animate-spin" />
-                              </div>
+                              <Loader size="md" text="Loading roles..." />
                             </td>
                           </tr>
                         ) : activeUsersOnly.map(u => {
@@ -764,7 +763,11 @@ export default function CorePortal() {
                   </thead>
                   <tbody className="divide-y divide-slate-100">
                     {loading ? (
-                       <tr><td colSpan={10} className="text-center py-10"><div className="animate-spin inline-block w-6 h-6 border-b-2 border-orange-600 rounded-full"></div></td></tr>
+                       <tr>
+                         <td colSpan={10} className="text-center py-10">
+                           <Loader size="lg" text="Generating master report..." />
+                         </td>
+                       </tr>
                     ) : processedReport?.rows.map((row: any) => {
                       const total = Object.values(row.allocations).reduce((acc: number, curr: any) => acc + (curr as number), 0);
                       const isZeroHours = total === 0;
@@ -946,7 +949,11 @@ export default function CorePortal() {
                   </thead>
                   <tbody className="divide-y divide-slate-100">
                     {loading ? (
-                       <tr><td colSpan={6} className="text-center py-10"><div className="animate-spin inline-block w-6 h-6 border-b-2 border-orange-600 rounded-full"></div></td></tr>
+                       <tr>
+                         <td colSpan={6} className="text-center py-10">
+                           <Loader size="md" text="Loading employees..." />
+                         </td>
+                       </tr>
                     ) : filteredExitUsers.length === 0 ? (
                        <tr><td colSpan={6} className="text-center py-10 text-slate-400 font-medium">No employees found.</td></tr>
                     ) : filteredExitUsers.map(u => {

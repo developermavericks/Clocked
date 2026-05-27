@@ -1,9 +1,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Users, Briefcase, ChevronRight, Loader2, Search, Target, Calendar, Trash2, Edit3, X, ArrowRight, CheckCircle2, Plus } from 'lucide-react';
+import { Users, Briefcase, ChevronRight, Search, Target, Calendar, Trash2, Edit3, X, ArrowRight, CheckCircle2, Plus } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 import SearchableSelect from '@/components/SearchableSelect';
+import { Loader } from '@/components/Loader';
 
 export default function ClientAdmin({ 
   selectedMonth, 
@@ -260,8 +261,8 @@ export default function ClientAdmin({
             <tbody className="divide-y divide-slate-50">
               {loading ? (
                 <tr>
-                  <td colSpan={3} className="px-8 py-20 text-center">
-                    <Loader2 className="w-10 h-10 text-orange-600 animate-spin mx-auto" />
+                  <td colSpan={3} className="px-8 py-10 text-center">
+                    <Loader size="md" text="Loading clients..." />
                   </td>
                 </tr>
               ) : summary.length === 0 ? (
@@ -489,9 +490,8 @@ export default function ClientAdmin({
                   <tbody className="divide-y divide-slate-100">
                     {rosterLoading ? (
                       <tr>
-                        <td colSpan={2} className="px-10 py-20 text-center">
-                          <Loader2 className="w-10 h-10 text-orange-600 animate-spin mx-auto" />
-                          <p className="text-sm text-slate-500 mt-4 font-medium tracking-tight">Gathering data for {focusedClient}...</p>
+                        <td colSpan={2} className="px-10 py-10 text-center">
+                          <Loader size="md" text={`Gathering data for ${focusedClient}...`} />
                         </td>
                       </tr>
                     ) : rosterData.length === 0 ? (

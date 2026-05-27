@@ -1,10 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Calendar, Download, Check, AlertCircle, Loader2, Plus, Trash2 } from 'lucide-react';
+import { Calendar, Download, Check, AlertCircle, Plus, Trash2 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { apiFetch } from '@/lib/api';
 import SearchableSelect from '@/components/SearchableSelect';
+import { Loader } from '@/components/Loader';
 
 interface CalendarEvent {
   id: string;
@@ -802,7 +803,7 @@ export default function CalendarImport({ userId, month, onSuccess }: { userId: s
             disabled={loading}
             className="bg-blue-600 text-white px-8 py-2.5 rounded-xl text-sm font-bold hover:bg-blue-700 transition-all flex items-center justify-center gap-2 shadow-lg shadow-blue-100 disabled:opacity-50 h-[38px] lg:h-[42px] w-full md:w-auto"
           >
-            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Fetch Events'}
+            {loading ? <Loader size="sm" inline /> : 'Fetch Events'}
           </button>
         </div>
       </div>
@@ -959,7 +960,7 @@ export default function CalendarImport({ userId, month, onSuccess }: { userId: s
                 disabled={saving || selectedEvents.size === 0}
                 className="bg-slate-900 text-white px-8 py-3 rounded-2xl text-sm font-bold hover:bg-slate-800 transition-all shadow-xl shadow-slate-200 disabled:opacity-50 flex items-center gap-2"
               >
-                {saving && <Loader2 className="w-4 h-4 animate-spin" />}
+                {saving && <Loader size="sm" inline />}
                 {saving ? 'Saving...' : `Save ${getSelectedConstituentCount()} Events`}
               </button>
             </div>

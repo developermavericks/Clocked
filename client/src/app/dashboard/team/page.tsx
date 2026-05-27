@@ -3,12 +3,13 @@
 export const dynamic = 'force-dynamic';
 
 import { useState, useEffect } from 'react';
-import { Clock, Calendar as CalendarIcon, Plus, Filter, Download, Loader2 } from 'lucide-react';
+import { Clock, Calendar as CalendarIcon, Plus, Filter, Download } from 'lucide-react';
 import StatsCard from '@/components/StatsCard';
 import AllocationsTable from '@/components/AllocationsTable';
 import AddEntryModal from '@/components/AddEntryModal';
 import CalendarImport from '@/components/CalendarImport';
 import ExcelUpload from '@/components/ExcelUpload';
+import { Loader } from '@/components/Loader';
 import ClientTargetsCard from '@/components/ClientTargetsCard';
 import { useAllocations } from '@/hooks/useAllocations';
 import { supabase } from '@/lib/supabase';
@@ -366,7 +367,7 @@ export default function TeamPortal() {
             <div className="p-0 relative min-h-[200px]">
               {isTableLoading && (
                 <div className="absolute inset-0 bg-white/60 dark:bg-slate-900/60 backdrop-blur-[1px] z-10 flex items-center justify-center rounded-2xl animate-in fade-in duration-200">
-                  <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
+                  <Loader size="md" text="Loading allocations..." />
                 </div>
               )}
               <div className="space-y-8">

@@ -1,9 +1,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Search, User, Clock, Briefcase, Calendar, AlertCircle, Loader2, Mail, Send, CheckCircle2 } from 'lucide-react';
+import { Search, User, Clock, Briefcase, Calendar, AlertCircle, Mail, Send, CheckCircle2 } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 import SearchableSelect from '@/components/SearchableSelect';
+import { Loader, ErrorDisplay } from '@/components/Loader';
 
 
 
@@ -78,6 +79,8 @@ export default function MemberInsights({ month: initialMonth }: { month: string 
 
   // Logic for Zero Hour Members
   const [zeroHourMembers, setZeroHourMembers] = useState<string[]>([]);
+  const [zeroHourLoading, setZeroHourLoading] = useState(false);
+  const [zeroHourError, setZeroHourError] = useState<string | null>(null);
   
   useEffect(() => {
     if (dbUsers.length > 0) {
@@ -86,8 +89,13 @@ export default function MemberInsights({ month: initialMonth }: { month: string 
   }, [internalMonth, dbUsers]);
 
   const fetchZeroHourMembers = async () => {
+    setZeroHourLoading(true);
+    setZeroHourError(null);
     try {
       const res = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/reports/zero-hours?month=${internalMonth}`);
+      if (!res.ok) {
+        throw new Error('Failed to load zero hour members. Please try again.');
+      }
       const activeEmails = await res.json();
       const zeroList = dbUsers
         .filter((u: any) => {
@@ -102,8 +110,11 @@ export default function MemberInsights({ month: initialMonth }: { month: string 
         .filter(email => !activeEmails.includes(email));
 
       setZeroHourMembers(zeroList);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to fetch zero hour members:', err);
+      setZeroHourError(err.message || 'Failed to load zero hour members. Please try again.');
+    } finally {
+      setZeroHourLoading(false);
     }
   };
 
@@ -271,7 +282,7 @@ export default function MemberInsights({ month: initialMonth }: { month: string 
               disabled={!selectedEmail || loading}
               className="w-full bg-orange-600 hover:bg-orange-500 text-white font-black py-4 rounded-2xl shadow-lg shadow-orange-900/40 transition-all disabled:opacity-50 flex items-center justify-center gap-3 active:scale-95"
             >
-              {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Search className="w-5 h-5" />}
+              {loading ? <Loader size="sm" inline /> : <Search className="w-5 h-5" />}
               LOAD REPORT
             </button>
           </div>
@@ -298,18 +309,12 @@ export default function MemberInsights({ month: initialMonth }: { month: string 
             </div>
 
             <div className="p-0">
-              {error && (
-                <div className="mx-8 mt-6 p-4 bg-red-50 border border-red-100 rounded-2xl flex items-center gap-3 text-red-600">
-                  <AlertCircle className="w-5 h-5 flex-shrink-0" />
-                  <p className="text-sm font-bold">{error}</p>
+              {error ? (
+                <div className="p-8">
+                  <ErrorDisplay message={error} onRetry={fetchMemberReport} />
                 </div>
-              )}
-
-              {loading ? (
-                <div className="py-20 flex flex-col items-center justify-center gap-4">
-                  <Loader2 className="w-10 h-10 text-orange-600 animate-spin" />
-                  <p className="text-sm font-bold text-slate-400 animate-pulse uppercase tracking-widest">Gathering insights...</p>
-                </div>
+              ) : loading ? (
+                <Loader size="lg" text="Gathering insights..." />
               ) : memberData.length === 0 ? (
                 <div className="py-20 text-center space-y-4">
                   <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto text-slate-300">
@@ -373,92 +378,104 @@ export default function MemberInsights({ month: initialMonth }: { month: string 
               </span>
             </div>
 
-            {/* SEND REMINDER TO ALL BUTTONS */}
-            {zeroHourMembers.length > 0 && (
-              <div className="px-6 pt-6 pb-4 border-b border-slate-50 space-y-3">
-                <button
-                  onClick={handleSendBulkReminders}
-                  disabled={sendingAll || sendingClosure}
-                  className="w-full bg-slate-900 hover:bg-slate-800 text-white font-black py-3 rounded-2xl text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2 disabled:opacity-50 active:scale-95 cursor-pointer"
-                  title="Send regular weekly reminder (directly to members only, NO executive CC)"
-                >
-                  {sendingAll ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      SENDING...
-                    </>
-                  ) : (
-                    <>
-                      <Mail className="w-4 h-4 text-orange-500" />
-                      WEEKLY REMIND ALL ({zeroHourMembers.length})
-                    </>
-                  )}
-                </button>
-
-                <button
-                  onClick={handleSendClosureReminders}
-                  disabled={sendingAll || sendingClosure}
-                  className="w-full bg-red-600 hover:bg-red-500 text-white font-black py-3 rounded-2xl text-xs uppercase tracking-widest transition-all shadow-md shadow-red-200/50 flex items-center justify-center gap-2 disabled:opacity-50 active:scale-95 cursor-pointer"
-                  title="Send strict 5th-of-the-month closure warning (includes CC to all 4 Executive Members)"
-                >
-                  {sendingClosure ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      DISPATCHING CLOSURE...
-                    </>
-                  ) : (
-                    <>
-                      <AlertCircle className="w-4 h-4 text-white animate-pulse" />
-                      FINAL CLOSURE REMIND ({zeroHourMembers.length})
-                    </>
-                  )}
-                </button>
+            {zeroHourLoading ? (
+              <div className="p-8 flex items-center justify-center">
+                <Loader size="md" text="Loading members..." />
               </div>
-            )}
-
-            <div className="p-6 max-h-[500px] overflow-y-auto custom-scrollbar">
-              <div className="space-y-2">
-                {zeroHourMembers.map(email => {
-                  const isSending = sendingIndividual[email];
-                  const isSent = sentStatus[email];
-
-                  return (
-                    <div 
-                      key={email}
-                      className="w-full p-2 rounded-xl hover:bg-slate-50 transition-all flex items-center justify-between group"
+            ) : zeroHourError ? (
+              <div className="p-6">
+                <ErrorDisplay message={zeroHourError} onRetry={fetchZeroHourMembers} />
+              </div>
+            ) : (
+              <>
+                {/* SEND REMINDER TO ALL BUTTONS */}
+                {zeroHourMembers.length > 0 && (
+                  <div className="px-6 pt-6 pb-4 border-b border-slate-50 space-y-3">
+                    <button
+                      onClick={handleSendBulkReminders}
+                      disabled={sendingAll || sendingClosure}
+                      className="w-full bg-slate-900 hover:bg-slate-800 text-white font-black py-3 rounded-2xl text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2 disabled:opacity-50 active:scale-95 cursor-pointer"
+                      title="Send regular weekly reminder (directly to members only, NO executive CC)"
                     >
-                      <button 
-                        onClick={() => setSelectedEmail(email)}
-                        className="flex-1 text-left flex items-center gap-3 min-w-0"
-                      >
-                        <div className="w-2 h-2 rounded-full bg-slate-200 group-hover:bg-red-400 transition-colors flex-shrink-0" />
-                        <span className="text-xs font-bold text-slate-600 group-hover:text-slate-900 truncate">{email}</span>
-                      </button>
+                      {sendingAll ? (
+                        <Loader size="sm" inline text="SENDING..." />
+                      ) : (
+                        <>
+                          <Mail className="w-4 h-4 text-orange-500" />
+                          WEEKLY REMIND ALL ({zeroHourMembers.length})
+                        </>
+                      )}
+                    </button>
 
-                      {/* INDIVIDUAL SEND REMINDER BUTTON */}
-                      <button
-                        onClick={() => handleSendIndividualReminder(email)}
-                        disabled={isSending || isSent}
-                        className={`ml-2 p-1.5 rounded-lg transition-all flex items-center justify-center flex-shrink-0 border cursor-pointer ${
-                          isSent 
-                            ? 'bg-emerald-50 border-emerald-200 text-emerald-600' 
-                            : 'bg-slate-50 hover:bg-red-50 hover:text-red-600 border-slate-100 hover:border-red-100 text-slate-400'
-                        }`}
-                        title="Send email reminder to this member"
-                      >
-                        {isSending ? (
-                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                        ) : isSent ? (
-                          <CheckCircle2 className="w-3.5 h-3.5" />
-                        ) : (
-                          <Send className="w-3.5 h-3.5" />
-                        )}
-                      </button>
+                    <button
+                      onClick={handleSendClosureReminders}
+                      disabled={sendingAll || sendingClosure}
+                      className="w-full bg-red-600 hover:bg-red-500 text-white font-black py-3 rounded-2xl text-xs uppercase tracking-widest transition-all shadow-md shadow-red-200/50 flex items-center justify-center gap-2 disabled:opacity-50 active:scale-95 cursor-pointer"
+                      title="Send strict 5th-of-the-month closure warning (includes CC to all 4 Executive Members)"
+                    >
+                      {sendingClosure ? (
+                        <Loader size="sm" inline text="DISPATCHING..." />
+                      ) : (
+                        <>
+                          <AlertCircle className="w-4 h-4 text-white animate-pulse" />
+                          FINAL CLOSURE REMIND ({zeroHourMembers.length})
+                        </>
+                      )}
+                    </button>
+                  </div>
+                )}
+
+                <div className="p-6 max-h-[500px] overflow-y-auto custom-scrollbar">
+                  {zeroHourMembers.length === 0 ? (
+                    <div className="text-center py-8 text-slate-400 text-sm italic">
+                      No members with 0 hours!
                     </div>
-                  );
-                })}
-              </div>
-            </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {zeroHourMembers.map(email => {
+                        const isSending = sendingIndividual[email];
+                        const isSent = sentStatus[email];
+
+                        return (
+                          <div 
+                            key={email}
+                            className="w-full p-2 rounded-xl hover:bg-slate-50 transition-all flex items-center justify-between group"
+                          >
+                            <button 
+                              onClick={() => setSelectedEmail(email)}
+                              className="flex-1 text-left flex items-center gap-3 min-w-0"
+                            >
+                              <div className="w-2 h-2 rounded-full bg-slate-200 group-hover:bg-red-400 transition-colors flex-shrink-0" />
+                              <span className="text-xs font-bold text-slate-600 group-hover:text-slate-900 truncate">{email}</span>
+                            </button>
+
+                            {/* INDIVIDUAL SEND REMINDER BUTTON */}
+                            <button
+                              onClick={() => handleSendIndividualReminder(email)}
+                              disabled={isSending || isSent}
+                              className={`ml-2 p-1.5 rounded-lg transition-all flex items-center justify-center flex-shrink-0 border cursor-pointer ${
+                                isSent 
+                                  ? 'bg-emerald-50 border-emerald-200 text-emerald-600' 
+                                  : 'bg-slate-50 hover:bg-red-50 hover:text-red-600 border-slate-100 hover:border-red-100 text-slate-400'
+                              }`}
+                              title="Send email reminder to this member"
+                            >
+                              {isSending ? (
+                                <Loader size="sm" inline />
+                              ) : isSent ? (
+                                <CheckCircle2 className="w-3.5 h-3.5" />
+                              ) : (
+                                <Send className="w-3.5 h-3.5" />
+                              )}
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
           </div>
         </div>
       </div>

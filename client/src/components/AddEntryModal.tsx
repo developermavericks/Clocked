@@ -1,9 +1,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { X, Loader2 } from 'lucide-react';
+import { X } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 import SearchableSelect from '@/components/SearchableSelect';
+import { Loader } from '@/components/Loader';
 
 interface AddEntryModalProps {
   isOpen: boolean;
@@ -269,7 +270,7 @@ export default function AddEntryModal({
               disabled={loading}
               className="flex-1 bg-blue-600 text-white px-6 py-3 rounded-xl text-sm font-bold hover:bg-blue-700 transition-all shadow-lg shadow-blue-200 disabled:opacity-50 flex items-center justify-center gap-2"
             >
-              {loading && <Loader2 className="w-4 h-4 animate-spin" />}
+              {loading && <Loader size="sm" inline />}
               {loading ? 'Saving...' : 'Save Entry'}
             </button>
           </div>

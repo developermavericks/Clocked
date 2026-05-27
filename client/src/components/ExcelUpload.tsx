@@ -1,8 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import { Upload, FileText, Check, AlertCircle, Loader2 } from 'lucide-react';
+import { Upload, FileText, Check, AlertCircle } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { Loader } from '@/components/Loader';
 
 interface ExcelUploadProps {
   userId: string;
@@ -100,7 +101,7 @@ export default function ExcelUpload({ userId, month, type, onSuccess, isLocked =
             disabled={loading}
             className="w-full mt-6 bg-emerald-600 text-white py-4 rounded-2xl text-sm font-bold hover:bg-emerald-700 transition-all shadow-xl shadow-emerald-100 flex items-center justify-center gap-2 disabled:opacity-50"
           >
-            {loading && <Loader2 className="w-4 h-4 animate-spin" />}
+            {loading && <Loader size="sm" inline />}
             {loading ? 'Processing...' : 'Start Import'}
           </button>
         )}

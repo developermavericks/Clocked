@@ -156,7 +156,21 @@ const isInternalClient = (name: string) => {
     'internal tech',
     'internal training'
   ];
-  return internalGroupList.includes(low);
+  return internalGroupList.includes(low) || low.startsWith('internal');
+};
+
+const isNonRevenueClient = (name: string) => {
+  const low = name.toLowerCase();
+  return (
+    isBdClient(low) ||
+    isInternalClient(low) ||
+    isLeaveClient(low) ||
+    low === 'free_time' ||
+    low === 'lunch break' ||
+    low.includes('group bd') ||
+    low.includes('group internal') ||
+    low.includes('group leave')
+  );
 };
 
 const getNormalizedClientNameAndCore = (rawName: string): { name: string; core: string } => {
@@ -451,7 +465,7 @@ export const getCoreMasterAllocations = async (opts: {
       }
     }
     const clientRatio = dbClient ? getProRatedRatio(month, dbClient.joining_date, dbClient.exit_date) : 1;
-    const budget = isBdClient(clientName) ? 0 : (baseBudget * clientRatio);
+    const budget = isNonRevenueClient(clientName) ? 0 : (baseBudget * clientRatio);
 
     let resolvedCore = core;
     if (!resolvedCore) {
@@ -547,7 +561,7 @@ export const getCoreMasterAllocations = async (opts: {
         }
       }
       const clientRatio = dbClient ? getProRatedRatio(month, dbClient.joining_date, dbClient.exit_date) : 1;
-      const budget = isBdClient(targetColumn) ? 0 : (baseBudget * clientRatio);
+      const budget = isNonRevenueClient(targetColumn) ? 0 : (baseBudget * clientRatio);
 
       clientObjs.set(targetColumn, {
         name: targetColumn,
@@ -832,7 +846,7 @@ export const updateClientBudgetAndCore = async (clientId: string, budget: number
 
   if (cErr) throw cErr;
 
-  const finalBudget = isBdClient(clientObj?.name || '') ? 0 : budget;
+  const finalBudget = isNonRevenueClient(clientObj?.name || '') ? 0 : budget;
 
   if (month) {
     try {

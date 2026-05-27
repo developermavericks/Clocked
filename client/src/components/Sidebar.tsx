@@ -3,9 +3,10 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Users, User, Settings, LogOut, Calendar, Loader2, Moon, Sun, IndianRupee, ChevronLeft, Clock } from 'lucide-react';
+import { LayoutDashboard, Users, User, Settings, LogOut, Calendar, Moon, Sun, IndianRupee, ChevronLeft, Clock } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { apiFetch } from '@/lib/api';
+import { Loader } from '@/components/Loader';
 
 const menuItems = [
   { name: 'My Allocations', icon: Users, href: '/dashboard/team', color: 'text-emerald-600' },
@@ -164,8 +165,8 @@ export default function Sidebar({ isOpen, toggleSidebar }: SidebarProps) {
 
       <nav className="flex-1 p-4 space-y-1">
         {loading ? (
-          <div className="flex justify-center py-4">
-            <Loader2 className="w-5 h-5 animate-spin text-slate-400" />
+          <div className="flex justify-center py-4 w-full">
+            <Loader size="sm" />
           </div>
         ) : filteredItems.map((item) => {
           const isActive = pathname === item.href;
