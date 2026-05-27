@@ -21,6 +21,8 @@ interface AllocationsTableProps {
   onEdit?: (id: string) => void;
   onDelete?: (id: string) => void;
   isLocked?: boolean;
+  selectedIds?: string[];
+  onSelectionChange?: (ids: string[]) => void;
 }
 
 export default function AllocationsTable({ 
@@ -29,7 +31,9 @@ export default function AllocationsTable({
   displayMode = 'detailed', 
   onEdit, 
   onDelete,
-  isLocked = false 
+  isLocked = false,
+  selectedIds = [],
+  onSelectionChange
 }: AllocationsTableProps) {
   // Aggregate data if in summary mode
   const displayData = displayMode === 'summary' ? 
@@ -56,6 +60,22 @@ export default function AllocationsTable({
       <table className="w-full text-left border-collapse">
         <thead>
           <tr className="bg-slate-50 border-b border-slate-100">
+            {displayMode === 'detailed' && !isLocked && (
+              <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider text-center w-12">
+                <input 
+                  type="checkbox" 
+                  checked={displayData.length > 0 && selectedIds.length === displayData.length}
+                  onChange={(e) => {
+                    if (e.target.checked) {
+                      onSelectionChange?.(displayData.map(item => item.id));
+                    } else {
+                      onSelectionChange?.([]);
+                    }
+                  }}
+                  className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer w-4 h-4"
+                />
+              </th>
+            )}
             {type === 'weekly' && displayMode === 'detailed' && <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Period</th>}
             <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Client</th>
             {displayMode === 'detailed' && <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Source</th>}
@@ -77,6 +97,22 @@ export default function AllocationsTable({
               const sourceInfo = getSourceInfo(item);
               return (
                 <tr key={item.id || idx} className="hover:bg-slate-50 transition-colors group">
+                  {displayMode === 'detailed' && !isLocked && (
+                    <td className="px-6 py-4 text-center w-12">
+                      <input 
+                        type="checkbox" 
+                        checked={selectedIds.includes(item.id)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            onSelectionChange?.([...selectedIds, item.id]);
+                          } else {
+                            onSelectionChange?.(selectedIds.filter(id => id !== item.id));
+                          }
+                        }}
+                        className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer w-4 h-4"
+                      />
+                    </td>
+                  )}
                   {type === 'weekly' && displayMode === 'detailed' && (
                     <td className="px-6 py-4 text-sm text-slate-600 font-medium whitespace-nowrap">
                       {item.start_date} – {item.end_date}
@@ -132,7 +168,7 @@ export default function AllocationsTable({
           <tfoot className="bg-slate-50 border-t-2 border-slate-200">
             <tr>
               <td 
-                colSpan={displayMode === 'detailed' ? (type === 'weekly' ? 4 : 3) : 1} 
+                colSpan={displayMode === 'detailed' ? (type === 'weekly' ? (isLocked ? 4 : 5) : (isLocked ? 3 : 4)) : 1} 
                 className="px-6 py-4 text-sm font-black text-slate-900 text-right"
               >
                 GRAND TOTAL

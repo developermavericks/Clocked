@@ -32,7 +32,14 @@ interface CalendarEvent {
   originalEvents?: CalendarEvent[];
 }
 
-export default function CalendarImport({ userId, month, onSuccess }: { userId: string, month: string, onSuccess: () => void }) {
+export default function CalendarImport({ 
+  userId, month, onSuccess, onMissedCountChange 
+}: { 
+  userId: string; 
+  month: string; 
+  onSuccess: () => void; 
+  onMissedCountChange?: (count: number) => void; 
+}) {
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -93,6 +100,17 @@ export default function CalendarImport({ userId, month, onSuccess }: { userId: s
     
     fetchLatestAllocationDate();
   }, [userId, selectedMonth]);
+
+  // Silently auto-fetch calendar events on mount / month change if Google token is active
+  useEffect(() => {
+    if (userId && selectedMonth && user) {
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (session?.provider_token) {
+          handleFetch(true);
+        }
+      });
+    }
+  }, [userId, selectedMonth, user]);
 
   const [modalOpen, setModalOpen] = useState(false);
   const [modalTarget, setModalTarget] = useState<CalendarEvent | null>(null);
@@ -361,7 +379,7 @@ export default function CalendarImport({ userId, month, onSuccess }: { userId: s
     });
   };
 
-  const handleFetch = async () => {
+  const handleFetch = async (isAuto = false) => {
     setLoading(true);
     setHasFetched(false);
     try {
@@ -371,8 +389,10 @@ export default function CalendarImport({ userId, month, onSuccess }: { userId: s
       
       if (!googleToken) {
         setLoading(false);
-        if (confirm('🚨 Your Google Session has expired. Would you like to refresh it now to fetch calendar events?')) {
-          handleLoginRefresh();
+        if (!isAuto) {
+          if (confirm('🚨 Your Google Session has expired. Would you like to refresh it now to fetch calendar events?')) {
+            handleLoginRefresh();
+          }
         }
         return;
       }
@@ -516,6 +536,36 @@ export default function CalendarImport({ userId, month, onSuccess }: { userId: s
 
       setEvents(initializedEvents);
       setHasFetched(true);
+
+      // Calculate missed calendar events on or before the latest logged allocation
+      let latestAllocDateStr = '';
+      if (existingAllocations && existingAllocations.length > 0) {
+        const dates = existingAllocations.map((a: any) => a.start_date);
+        latestAllocDateStr = dates.reduce((max: string, curr: string) => curr > max ? curr : max, dates[0]);
+      }
+
+      let missedCount = 0;
+      if (latestAllocDateStr) {
+        initializedEvents.forEach((ev: any) => {
+          if (ev.occurrences && ev.occurrences.length > 0) {
+            ev.occurrences.forEach((occ: any) => {
+              const occDateStr = occ.start.split('T')[0];
+              if (occDateStr <= latestAllocDateStr && !occ.isAlreadySaved) {
+                missedCount++;
+              }
+            });
+          } else {
+            const evDateStr = ev.start.split('T')[0];
+            if (evDateStr <= latestAllocDateStr && !ev.isAlreadySaved) {
+              missedCount++;
+            }
+          }
+        });
+      }
+
+      if (onMissedCountChange) {
+        onMissedCountChange(missedCount);
+      }
     } catch (err: any) {
       alert(err.message);
     } finally {

@@ -3,7 +3,7 @@
 export const dynamic = 'force-dynamic';
 
 import { useState, useEffect } from 'react';
-import { Clock, Calendar as CalendarIcon, Plus, Filter, Download } from 'lucide-react';
+import { Clock, Calendar as CalendarIcon, Plus, Filter, Download, Trash2 } from 'lucide-react';
 import StatsCard from '@/components/StatsCard';
 import AllocationsTable from '@/components/AllocationsTable';
 import AddEntryModal from '@/components/AddEntryModal';
@@ -26,6 +26,13 @@ export default function TeamPortal() {
   const [userRole, setUserRole] = useState('team');
   const [unlockedMonths, setUnlockedMonths] = useState<string[]>([]);
   const [isLocked, setIsLocked] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [missedCalendarEventsCount, setMissedCalendarEventsCount] = useState<number | null>(null);
+
+  useEffect(() => {
+    setSelectedIds([]);
+    setMissedCalendarEventsCount(null);
+  }, [month, activeTab, displayMode]);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
@@ -159,10 +166,41 @@ export default function TeamPortal() {
         method: 'DELETE',
       });
       if (response.ok) {
+        setSelectedIds(prev => prev.filter(item => item !== id));
         handleRefreshAll();
       } else {
         const result = await response.json();
         alert(result.error);
+      }
+    } catch (err: any) {
+      alert(err.message);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.length === 0) return;
+    if (!confirm(`Are you sure you want to delete the ${selectedIds.length} selected entries?`)) return;
+    try {
+      let successCount = 0;
+      let errorMsg = '';
+      
+      for (const id of selectedIds) {
+        const response = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/allocations/${id}?kind=${activeTab}`, {
+          method: 'DELETE',
+        });
+        if (response.ok) {
+          successCount++;
+        } else {
+          const result = await response.json();
+          errorMsg = result.error || 'Failed to delete some entries';
+        }
+      }
+      
+      setSelectedIds([]);
+      handleRefreshAll();
+      
+      if (successCount < selectedIds.length) {
+        alert(`Successfully deleted ${successCount} entries. Error for others: ${errorMsg}`);
       }
     } catch (err: any) {
       alert(err.message);
@@ -213,7 +251,12 @@ export default function TeamPortal() {
         return n + (s[(v - 20) % 10] || s[v] || s[0]);
       };
       
-      return `${getOrdinal(day)} ${monthName} ${year}`;
+      const dateText = `${getOrdinal(day)} ${monthName} ${year}`;
+
+      if (missedCalendarEventsCount !== null && missedCalendarEventsCount > 0) {
+        return `${dateText} (${missedCalendarEventsCount} missed calendar event${missedCalendarEventsCount > 1 ? 's' : ''})`;
+      }
+      return dateText;
     } catch (e) {
       return maxDateStr;
     }
@@ -341,6 +384,15 @@ export default function TeamPortal() {
                 </div>
               </div>
               <div className="flex gap-4 items-center">
+                {selectedIds.length > 0 && (
+                  <button 
+                    onClick={handleBulkDelete}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg text-xs font-bold border border-red-200 transition-all shadow-sm animate-in fade-in zoom-in duration-200"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    Delete Selected ({selectedIds.length})
+                  </button>
+                )}
                 <div className="flex bg-slate-100 p-1 rounded-lg">
                   <button 
                     onClick={() => setDisplayMode('detailed')}
@@ -381,6 +433,8 @@ export default function TeamPortal() {
                     if (item) handleEdit(item);
                   }}
                   isLocked={isLocked}
+                  selectedIds={selectedIds}
+                  onSelectionChange={setSelectedIds}
                 />
               </div>
             </div>
@@ -388,7 +442,12 @@ export default function TeamPortal() {
 
           {activeTab === 'weekly' && user && (
             <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-8">
-              <CalendarImport userId={user.id} month={month} onSuccess={handleRefreshAll} />
+              <CalendarImport 
+                userId={user.id} 
+                month={month} 
+                onSuccess={handleRefreshAll} 
+                onMissedCountChange={setMissedCalendarEventsCount} 
+              />
               <ExcelUpload userId={user.id} month={month} type="weekly" onSuccess={handleRefreshAll} isLocked={isLocked} />
             </div>
           )}
