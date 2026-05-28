@@ -454,7 +454,7 @@ export default function CorePortal() {
               }`}
             >
               <UserIcon className="w-4 h-4" />
-              Exit & Joining (Employees)
+              Exit & Joining (Team)
             </button>
           </div>
           {activeTab === 'clients' && (
@@ -500,18 +500,18 @@ export default function CorePortal() {
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 {/* Active Users Section */}
                 <div className="lg:col-span-2 space-y-4">
-                  <h3 className="text-lg font-bold text-slate-900 px-1">Manage User Roles</h3>
-                  <div className="overflow-x-auto border border-slate-100 rounded-2xl bg-white shadow-sm">
+                  <h3 className="text-lg font-bold text-slate-900 dark:text-white px-1">Manage User Roles</h3>
+                  <div className="overflow-x-auto border border-slate-100 dark:border-slate-800 rounded-2xl bg-white dark:bg-slate-900 shadow-sm">
                     <table className="w-full text-left border-collapse">
-                      <thead className="bg-slate-50">
+                      <thead className="bg-slate-50 dark:bg-slate-950/20">
                         <tr>
-                          <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase">User</th>
-                          <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase">Email</th>
-                          <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase text-right">Role</th>
-                          <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase text-right">Action</th>
+                          <th className="px-6 py-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">User</th>
+                          <th className="px-6 py-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Email</th>
+                          <th className="px-6 py-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase text-right">Role</th>
+                          <th className="px-6 py-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase text-right">Action</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-slate-100">
+                      <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                         {loading ? (
                           <tr>
                             <td colSpan={4} className="text-center py-10 bg-white dark:bg-slate-900">
@@ -566,23 +566,23 @@ export default function CorePortal() {
                           const initial = (u.name?.[0] || u.email?.[0] || '?').toUpperCase();
 
                           return (
-                            <tr key={u.id} className="hover:bg-slate-50 transition-colors">
+                            <tr key={u.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
                               <td className="px-6 py-4 flex items-center gap-3">
                                 {u.picture ? (
-                                  <img src={u.picture} className="w-9 h-9 rounded-xl object-cover shadow-sm ring-2 ring-white" />
+                                  <img src={u.picture} className="w-9 h-9 rounded-xl object-cover shadow-sm ring-2 ring-white dark:ring-slate-850" />
                                 ) : (
-                                  <div className={`w-9 h-9 ${avatarColor} rounded-xl flex items-center justify-center ${initialColor} text-sm font-black shadow-sm ring-2 ring-white`}>
+                                  <div className={`w-9 h-9 ${avatarColor} rounded-xl flex items-center justify-center ${initialColor} text-sm font-black shadow-sm ring-2 ring-white dark:ring-slate-850`}>
                                     {initial}
                                   </div>
                                 )}
                                 <div>
-                                  <span className="text-sm font-bold text-slate-900 block leading-tight">
+                                  <span className="text-sm font-bold text-slate-900 dark:text-slate-100 block leading-tight">
                                     {u.name || u.email.split('@')[0]}
                                   </span>
-                                  <span className="text-[10px] text-slate-400 font-medium uppercase tracking-wider">{u.email.split('@')[1]}</span>
+                                  <span className="text-[10px] text-slate-400 dark:text-slate-500 font-medium uppercase tracking-wider">{u.email.split('@')[1]}</span>
                                 </div>
                               </td>
-                              <td className="px-6 py-4 text-sm text-slate-600 font-medium">{u.email}</td>
+                              <td className="px-6 py-4 text-sm text-slate-600 dark:text-slate-300 font-medium">{u.email}</td>
                               <td className="px-6 py-4 text-sm text-right">
                                 <button 
                                   onClick={() => handleRoleChange(u.id, u.role || 'team')}
@@ -615,14 +615,14 @@ export default function CorePortal() {
 
                 {/* Locked Months Manager Section */}
                 <div className="space-y-4">
-                  <h3 className="text-lg font-bold text-slate-900 px-1">Lock Override</h3>
-                  <div className="bg-slate-50 border border-slate-200/60 p-6 rounded-2xl space-y-5 shadow-sm">
+                  <h3 className="text-lg font-bold text-slate-900 dark:text-white px-1">Lock Override</h3>
+                  <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 p-6 rounded-2xl space-y-5 shadow-sm">
                     <div>
-                      <h4 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                      <h4 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
                         <Unlock className="w-4 h-4 text-orange-600" />
                         Unlock Previous Month
                       </h4>
-                      <p className="text-xs text-slate-500 font-medium mt-1 leading-relaxed">
+                      <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-1 leading-relaxed">
                         Normally, time logging is capped after the 5th date of the current month. Unlock a month below to allow team edits.
                       </p>
                     </div>
@@ -633,7 +633,7 @@ export default function CorePortal() {
                         required
                         value={newUnlockMonth}
                         onChange={(e) => setNewUnlockMonth(e.target.value)}
-                        className="flex-1 px-3 py-2.5 text-xs border border-slate-200 rounded-xl focus:ring-2 focus:ring-orange-600 focus:border-transparent outline-none bg-white font-semibold text-slate-800"
+                        className="flex-1 px-3 py-2.5 text-xs border border-slate-200 dark:border-slate-800 rounded-xl focus:ring-2 focus:ring-orange-600 focus:border-transparent outline-none bg-white dark:bg-slate-800 font-semibold text-slate-800 dark:text-slate-100"
                       />
                       <button 
                         type="submit"
@@ -644,23 +644,23 @@ export default function CorePortal() {
                       </button>
                     </form>
 
-                    <div className="pt-3 border-t border-slate-200/60">
-                      <h5 className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-3 flex items-center gap-1.5">
-                        <Lock className="w-3 h-3 text-slate-400" />
+                    <div className="pt-3 border-t border-slate-200/60 dark:border-slate-800">
+                      <h5 className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-550 tracking-widest mb-3 flex items-center gap-1.5">
+                        <Lock className="w-3 h-3 text-slate-400 dark:text-slate-500" />
                         Active Overrides
                       </h5>
                       {unlockedMonthsList.length === 0 ? (
-                        <p className="text-xs text-slate-400 italic">No overrides set. Default locks active.</p>
+                        <p className="text-xs text-slate-400 dark:text-slate-500 italic">No overrides set. Default locks active.</p>
                       ) : (
                         <div className="space-y-2.5 max-h-[220px] overflow-y-auto pr-1">
                           {unlockedMonthsList.map((item) => (
-                            <div key={item.month} className="flex items-center justify-between bg-white border border-slate-100 px-4 py-3 rounded-xl shadow-sm">
-                              <span className="text-xs font-bold text-slate-800">
+                            <div key={item.month} className="flex items-center justify-between bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 px-4 py-3 rounded-xl shadow-sm">
+                              <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
                                 {new Date(item.month + '-02').toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
                               </span>
                               <button 
                                 onClick={() => handleLockMonth(item.month)}
-                                className="text-[10px] font-black text-rose-600 hover:bg-rose-50 px-2.5 py-1.5 rounded-lg uppercase tracking-wider transition-all"
+                                className="text-[10px] font-black text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 px-2.5 py-1.5 rounded-lg uppercase tracking-wider transition-all"
                                 title="Re-lock month"
                               >
                                 Re-Lock
@@ -834,8 +834,8 @@ export default function CorePortal() {
             <div className="space-y-6">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
-                  <h3 className="text-xl font-bold text-slate-900">Manage Employee Exit & Joining</h3>
-                  <p className="text-sm text-slate-500 font-medium">Set exit dates or record new employees who have joined. Exited employees are excluded from subsequent monthly reports.</p>
+                  <h3 className="text-xl font-bold text-slate-900">Manage Team Exit & Joining</h3>
+                  <p className="text-sm text-slate-500 font-medium">Set exit dates or record new team members who have joined. Exited team members are excluded from subsequent monthly reports.</p>
                 </div>
                 {/* Search Bar & Add Button */}
                 <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
@@ -843,7 +843,7 @@ export default function CorePortal() {
                     <Search className="w-4 h-4 text-slate-400" />
                     <input 
                       type="text"
-                      placeholder="Search employees..."
+                      placeholder="Search team members..."
                       value={exitSearch}
                       onChange={(e) => setExitSearch(e.target.value)}
                       className="bg-transparent border-none outline-none text-xs w-full focus:ring-0 text-slate-900"
@@ -858,18 +858,18 @@ export default function CorePortal() {
                     className="bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 shadow-md shadow-orange-100 uppercase tracking-wider cursor-pointer"
                   >
                     <UserPlus className="w-4 h-4" />
-                    Add Employee
+                    Add Team Member
                   </button>
                 </div>
               </div>
 
-              {/* Add New Employee Form */}
+              {/* Add New Team Member Form */}
               {showAddForm && (
                 <form onSubmit={handleAddEmployee} className="bg-slate-50 border border-slate-200/60 p-6 rounded-2xl space-y-4 max-w-2xl animate-in fade-in slide-in-from-top-4 duration-300">
                   <div className="flex items-center justify-between border-b border-slate-200 pb-3">
                     <h4 className="text-sm font-black text-slate-800 uppercase tracking-widest flex items-center gap-2">
                       <UserPlus className="w-4 h-4 text-orange-600" />
-                      Add New Employee record
+                      Add New Team Member record
                     </h4>
                     <button
                       type="button"
@@ -939,7 +939,7 @@ export default function CorePortal() {
                 <table className="w-full text-left border-collapse">
                   <thead className="bg-slate-50">
                     <tr>
-                      <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase">Employee</th>
+                      <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase">Team Member</th>
                       <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase">Email</th>
                       <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase">Status</th>
                       <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase">Joining Date</th>
@@ -951,11 +951,11 @@ export default function CorePortal() {
                     {loading ? (
                        <tr>
                          <td colSpan={6} className="text-center py-10">
-                           <Loader size="md" text="Loading employees..." />
+                           <Loader size="md" text="Loading team members..." />
                          </td>
                        </tr>
                     ) : filteredExitUsers.length === 0 ? (
-                       <tr><td colSpan={6} className="text-center py-10 text-slate-400 font-medium">No employees found.</td></tr>
+                       <tr><td colSpan={6} className="text-center py-10 text-slate-400 font-medium">No team members found.</td></tr>
                     ) : filteredExitUsers.map(u => {
                       const initial = (u.name?.[0] || u.email?.[0] || '?').toUpperCase();
                       const hasLoggedIn = !!u.last_login;

@@ -733,9 +733,9 @@ export default function FinancePortal() {
         <StatsCard
           label="Total Monthly Payroll"
           value={fmtCurrency(stats.payroll)}
-          icon={Users}
+          icon={IndianRupee}
           color="bg-blue-600"
-          tooltip="Sum of monthly salaries of all active employees/consultants in the database"
+          tooltip="Sum of monthly salaries of all active team members/consultants in the database"
         />
         <StatsCard
           label="Aggregate Client Budget"
@@ -931,7 +931,9 @@ export default function FinancePortal() {
                           </th>
                         );
                       })}
-                      <th className="px-6 py-3 text-xs font-bold text-slate-50 bg-emerald-50"></th>
+                      <th className="px-6 py-3 text-xs font-black text-emerald-800 text-right bg-emerald-50/70 border-l border-emerald-100">
+                        {stats.totalBudget ? fmtCurrency(stats.totalBudget) : '-'}
+                      </th>
                     </tr>
 
                   </thead>
@@ -1078,6 +1080,85 @@ export default function FinancePortal() {
                         </td>
 
                       </tr>
+
+                      {/* Net Profit Row */}
+                      <tr className="border-t border-slate-800 bg-slate-950/80">
+                        <td className="px-6 py-4 text-sm font-bold bg-slate-950/80 sticky left-0 z-40 uppercase tracking-widest text-emerald-400">NET PROFIT</td>
+                        <td className="px-6 py-4 text-sm font-bold bg-slate-950/80 sticky left-[140px] z-40"></td>
+                        <td className={`px-6 py-4 text-sm font-black bg-slate-950/80 sticky left-[320px] z-40 border-r border-slate-700 text-right font-mono ${stats.totalBudget - stats.payroll >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                          {fmtCurrency(stats.totalBudget - stats.payroll)}
+                        </td>
+                        
+                        {/* Dynamic Column Net Profits */}
+                        {reportData?.clients?.map((c: any, i: number) => {
+                          const isLastInGroup = i === (reportData?.clients?.length || 0) - 1 || c.core !== reportData?.clients?.[i + 1]?.core;
+                          
+                          let colSalaryCost = 0;
+                          reportData?.rows?.forEach((row: any) => {
+                            const hours = Number(row.allocations[c.name] || 0);
+                            if (row.totalHours > 0 && row.salary > 0) {
+                              colSalaryCost += (hours / row.totalHours) * row.salary;
+                            }
+                          });
+
+                          const clientBudget = Number(c.budget) || 0;
+                          const clientNetProfit = clientBudget - colSalaryCost;
+
+                          return (
+                            <td 
+                              key={c.name} 
+                              className={`px-6 py-4 text-sm font-black font-mono text-right ${isLastInGroup ? 'border-r-4 border-slate-600' : 'border-r border-slate-800'} ${clientNetProfit >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}
+                            >
+                              {fmtCurrency(clientNetProfit)}
+                            </td>
+                          );
+                        })}
+
+                        {/* Grand Total Net Profit */}
+                        <td className={`px-6 py-4 text-sm font-black font-mono text-right bg-slate-800 ${stats.totalBudget - stats.payroll >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                          {fmtCurrency(stats.totalBudget - stats.payroll)}
+                        </td>
+                      </tr>
+
+                      {/* Margin Row */}
+                      <tr className="border-t border-slate-800 bg-slate-950/80">
+                        <td className="px-6 py-4 text-sm font-bold bg-slate-950/80 sticky left-0 z-40 uppercase tracking-widest text-blue-400">MARGIN</td>
+                        <td className="px-6 py-4 text-sm font-bold bg-slate-950/80 sticky left-[140px] z-40"></td>
+                        <td className={`px-6 py-4 text-sm font-black bg-slate-950/80 sticky left-[320px] z-40 border-r border-slate-700 text-right font-mono ${stats.totalBudget - stats.payroll >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                          {(stats.totalBudget > 0 ? ((stats.totalBudget - stats.payroll) / stats.totalBudget * 100) : 0).toFixed(2)}%
+                        </td>
+
+                        {/* Dynamic Column Margins */}
+                        {reportData?.clients?.map((c: any, i: number) => {
+                          const isLastInGroup = i === (reportData?.clients?.length || 0) - 1 || c.core !== reportData?.clients?.[i + 1]?.core;
+                          
+                          let colSalaryCost = 0;
+                          reportData?.rows?.forEach((row: any) => {
+                            const hours = Number(row.allocations[c.name] || 0);
+                            if (row.totalHours > 0 && row.salary > 0) {
+                              colSalaryCost += (hours / row.totalHours) * row.salary;
+                            }
+                          });
+
+                          const clientBudget = Number(c.budget) || 0;
+                          const clientNetProfit = clientBudget - colSalaryCost;
+                          const clientMargin = clientBudget > 0 ? (clientNetProfit / clientBudget) * 100 : 0;
+
+                          return (
+                            <td 
+                              key={c.name} 
+                              className={`px-6 py-4 text-sm font-black font-mono text-right ${isLastInGroup ? 'border-r-4 border-slate-600' : 'border-r border-slate-800'} ${clientNetProfit >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}
+                            >
+                              {clientBudget > 0 ? `${clientMargin.toFixed(1)}%` : '-'}
+                            </td>
+                          );
+                        })}
+
+                        {/* Grand Total Margin */}
+                        <td className={`px-6 py-4 text-sm font-black font-mono text-right bg-slate-800 ${stats.totalBudget - stats.payroll >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                          {(stats.totalBudget > 0 ? ((stats.totalBudget - stats.payroll) / stats.totalBudget * 100) : 0).toFixed(2)}%
+                        </td>
+                      </tr>
                     </tfoot>
                   )}
 
@@ -1109,21 +1190,21 @@ export default function FinancePortal() {
                     Allocation Analysis Workspace
                   </h3>
                   <p className="text-xs text-slate-500 mt-0.5">
-                    Compare employee and client working hour trends side-by-side.
+                    Compare team and client working hour trends side-by-side.
                   </p>
                 </div>
 
-                {/* Switcher Toggle (Employee / Client View) */}
+                {/* Switcher Toggle (Team / Client View) */}
                 <div className="flex bg-slate-200/60 p-1 rounded-xl">
                   <button
                     onClick={() => setAnalysisView('employee')}
-                    className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all uppercase tracking-wider ${
+                    className={`px-4 py-1.5 rounded-lg text-xs font-black transition-all ${
                       analysisView === 'employee'
-                        ? 'bg-white text-blue-600 shadow-sm'
+                        ? 'bg-white text-slate-900 shadow-sm'
                         : 'text-slate-500 hover:text-slate-700'
                     }`}
                   >
-                    Employee View
+                    Team View
                   </button>
                   <button
                     onClick={() => setAnalysisView('client')}
@@ -1152,7 +1233,7 @@ export default function FinancePortal() {
                     <div>
                       <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">CHART 1</span>
                       <h4 className="text-base font-bold text-slate-900 mt-0.5">
-                        Total Allocation Hours ({analysisView === 'employee' ? 'by Employee' : 'by Client'})
+                        Total Allocation Hours ({analysisView === 'employee' ? 'by Team' : 'by Client'})
                       </h4>
                       <p className="text-xs text-slate-500">
                         Alphabetically sorted total logged hours for this month. Scroll horizontally if needed.
@@ -1554,20 +1635,49 @@ export default function FinancePortal() {
                   <>
                     {/* Key Stats Cards */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                      <div className="p-6 bg-slate-50 border border-slate-100 rounded-3xl">
-                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Total Monthly Budget (Revenue)</span>
+                      <div className="p-6 bg-slate-50 border border-slate-100 rounded-3xl relative">
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider flex items-center justify-between">
+                          <span>Total Monthly Budget (Revenue)</span>
+                          <span className="inline-flex items-center justify-center w-4 h-4 text-[9px] font-bold bg-slate-200 text-slate-600 rounded-full cursor-help hover:bg-blue-600 hover:text-white transition-colors relative group/tooltip select-none">
+                            ?
+                            <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 p-3 bg-slate-900 text-slate-100 text-[10px] font-medium rounded-xl opacity-0 invisible group-hover/tooltip:opacity-100 group-hover/tooltip:visible transition-all duration-200 shadow-xl pointer-events-none z-50 normal-case leading-normal font-sans text-left">
+                              The aggregate sum of all budgets allocated to active client accounts configured for the selected month in the Manager tab.
+                              <span className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-slate-900" />
+                            </span>
+                          </span>
+                        </span>
                         <span className="text-2xl font-black text-emerald-600 block mt-1 font-mono">
                           {fmtCurrency(budgetAnalysisData.reduce((sum, item) => sum + item.revenue, 0))}
                         </span>
                       </div>
-                      <div className="p-6 bg-slate-50 border border-slate-100 rounded-3xl">
-                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Total Allocation Cost</span>
+
+                      <div className="p-6 bg-slate-50 border border-slate-100 rounded-3xl relative">
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider flex items-center justify-between">
+                          <span>Total Allocation Cost</span>
+                          <span className="inline-flex items-center justify-center w-4 h-4 text-[9px] font-bold bg-slate-200 text-slate-600 rounded-full cursor-help hover:bg-blue-600 hover:text-white transition-colors relative group/tooltip select-none">
+                            ?
+                            <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 p-3 bg-slate-900 text-slate-100 text-[10px] font-medium rounded-xl opacity-0 invisible group-hover/tooltip:opacity-100 group-hover/tooltip:visible transition-all duration-200 shadow-xl pointer-events-none z-50 normal-case leading-normal font-sans text-left">
+                              The total distributed salary cost allocated to active clients. Calculated as: Sum of (User Salary * Client Hours / User Total Hours). Excludes BD or Internal overhead if excluded next to the header.
+                              <span className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-slate-900" />
+                            </span>
+                          </span>
+                        </span>
                         <span className="text-2xl font-black text-rose-600 block mt-1 font-mono">
                           {fmtCurrency(budgetAnalysisData.reduce((sum, item) => sum + item.cost, 0))}
                         </span>
                       </div>
-                      <div className="p-6 bg-slate-50 border border-slate-100 rounded-3xl">
-                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Net Profit / Loss</span>
+
+                      <div className="p-6 bg-slate-50 border border-slate-100 rounded-3xl relative">
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider flex items-center justify-between">
+                          <span>Net Profit / Loss</span>
+                          <span className="inline-flex items-center justify-center w-4 h-4 text-[9px] font-bold bg-slate-200 text-slate-600 rounded-full cursor-help hover:bg-blue-600 hover:text-white transition-colors relative group/tooltip select-none">
+                            ?
+                            <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 p-3 bg-slate-900 text-slate-100 text-[10px] font-medium rounded-xl opacity-0 invisible group-hover/tooltip:opacity-100 group-hover/tooltip:visible transition-all duration-200 shadow-xl pointer-events-none z-50 normal-case leading-normal font-sans text-left">
+                              The net profitability of all client projects before general company overhead. Calculated as: Total Monthly Budget (Revenue) - Total Allocation Cost.
+                              <span className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-slate-900" />
+                            </span>
+                          </span>
+                        </span>
                         {(() => {
                           const netProfit = budgetAnalysisData.reduce((sum, item) => sum + item.profit, 0);
                           return (
@@ -1796,7 +1906,7 @@ export default function FinancePortal() {
                   <div className="border-b border-slate-100 pb-2">
                     <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
                       <Users className="w-5 h-5 text-blue-600" />
-                      Employee Payroll Registry
+                      Team Payroll Registry
                     </h3>
                   </div>
 
@@ -1804,7 +1914,7 @@ export default function FinancePortal() {
                     <table className="w-full text-left border-collapse">
                       <thead className="bg-slate-50 sticky top-0">
                         <tr>
-                          <th className="px-4 py-3 text-xs font-bold text-slate-500 uppercase">Employee</th>
+                          <th className="px-4 py-3 text-xs font-bold text-slate-500 uppercase">Team Member</th>
                           <th className="px-4 py-3 text-xs font-bold text-slate-500 uppercase text-right">Salary (INR)</th>
                           <th className="px-4 py-3 text-xs font-bold text-slate-500 uppercase text-right">Edit</th>
                         </tr>
@@ -2019,7 +2129,7 @@ export default function FinancePortal() {
                   {expandedChart === 'team' 
                     ? 'Leadership Core Team, BD & Internal Allocation Share' 
                     : expandedChart === 'bar' 
-                    ? `Total Allocation Hours (${analysisView === 'employee' ? 'by Employee' : 'by Client'})` 
+                    ? `Total Allocation Hours (${analysisView === 'employee' ? 'by Team' : 'by Client'})` 
                     : 'Daily Hours Timeline Trend Curve'}
                 </h3>
               </div>

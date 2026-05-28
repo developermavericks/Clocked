@@ -14,10 +14,14 @@
   --font-display: var(--font-outfit), var(--font-sans);
 }
 
-/* Force light mode variables to prevent contrast issues with system dark mode */
 :root {
   --background: #f8fafc;
   --foreground: #0f172a;
+}
+
+.dark {
+  --background: #0b0f19;
+  --foreground: #f8fafc;
 }
 
 body {

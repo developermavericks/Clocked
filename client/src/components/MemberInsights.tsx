@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Search, User, Clock, Briefcase, Calendar, AlertCircle, Mail, Send, CheckCircle2 } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import { Search, User, Clock, Briefcase, Calendar, AlertCircle, Mail, Send, CheckCircle2, ChevronDown, ChevronUp } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 import SearchableSelect from '@/components/SearchableSelect';
 import { Loader, ErrorDisplay } from '@/components/Loader';
@@ -16,6 +16,18 @@ export default function MemberInsights({ month: initialMonth }: { month: string 
   const [summary, setSummary] = useState<any>(null);
   const [dbUsers, setDbUsers] = useState<any[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [expandedClients, setExpandedClients] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    setExpandedClients({});
+  }, [selectedEmail, internalMonth]);
+
+  const toggleClientExpand = (clientName: string) => {
+    setExpandedClients(prev => ({
+      ...prev,
+      [clientName]: !prev[clientName]
+    }));
+  };
 
   useEffect(() => {
     fetchDbUsers();
@@ -219,6 +231,23 @@ export default function MemberInsights({ month: initialMonth }: { month: string 
     }
   };
 
+  const groupedData = useMemo(() => {
+    const groups: Record<string, { clientName: string; totalHours: number; items: any[] }> = {};
+    memberData.forEach(item => {
+      const clientName = item.clients?.name || 'Unknown Client';
+      if (!groups[clientName]) {
+        groups[clientName] = {
+          clientName,
+          totalHours: 0,
+          items: []
+        };
+      }
+      groups[clientName].totalHours += Number(item.hours) || 0;
+      groups[clientName].items.push(item);
+    });
+    return Object.values(groups).sort((a, b) => a.clientName.localeCompare(b.clientName));
+  }, [memberData]);
+
   const totalHours = memberData.reduce((sum, item) => sum + (Number(item.hours) || 0), 0);
 
   return (
@@ -292,14 +321,14 @@ export default function MemberInsights({ month: initialMonth }: { month: string 
       {/* Results */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-6">
-          <div className="bg-white rounded-[32px] border border-slate-100 shadow-xl shadow-slate-100/50 overflow-hidden">
-            <div className="px-8 py-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-              <h3 className="text-lg font-black text-slate-900 flex items-center gap-2">
+          <div className="bg-white dark:bg-slate-900 rounded-[32px] border border-slate-100 dark:border-slate-800 shadow-xl shadow-slate-100/50 dark:shadow-none overflow-hidden">
+            <div className="px-8 py-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-950/20">
+              <h3 className="text-lg font-black text-slate-900 dark:text-white flex items-center gap-2">
                 <Clock className="w-5 h-5 text-orange-600" />
                 Work Log Summary
               </h3>
               <div className="flex items-center gap-3">
-                <div className="px-4 py-2 bg-slate-100 text-slate-600 rounded-xl text-[10px] font-black uppercase">
+                <div className="px-4 py-2 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded-xl text-[10px] font-black uppercase">
                   {new Date(internalMonth + '-02').toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
                 </div>
                 <div className="px-4 py-2 bg-slate-900 text-white rounded-xl text-xs font-black">
@@ -321,44 +350,107 @@ export default function MemberInsights({ month: initialMonth }: { month: string 
                     <Briefcase className="w-8 h-8" />
                   </div>
                   <div className="space-y-1">
-                    <p className="text-slate-900 font-bold">No Activity Recorded</p>
-                    <p className="text-slate-400 text-sm font-medium italic">No work logs found for {selectedEmail || 'this member'} in {new Date(internalMonth + '-02').toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}.</p>
+                    <p className="text-slate-900 dark:text-white font-bold">No Activity Recorded</p>
+                    <p className="text-slate-400 dark:text-slate-500 text-sm font-medium italic">No work logs found for {selectedEmail || 'this member'} in {new Date(internalMonth + '-02').toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}.</p>
                   </div>
                 </div>
               ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left">
-                    <thead className="bg-slate-50/80">
-                      <tr>
-                        <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Client</th>
-                        <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Hours</th>
-                        <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Source/Notes</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {memberData.map((item, i) => (
-                        <tr key={i} className="hover:bg-slate-50/50 transition-colors group">
-                          <td className="px-8 py-5">
-                            <div className="flex items-center gap-3">
-                              <div className="w-8 h-8 rounded-lg bg-orange-100 flex items-center justify-center text-orange-600 font-black text-xs">
-                                {item.clients?.name?.[0] || 'C'}
-                              </div>
-                              <span className="text-sm font-bold text-slate-900">{item.clients?.name}</span>
+                <div className="divide-y divide-slate-100 dark:divide-slate-800">
+                  {/* Expand/Collapse All Actions */}
+                  <div className="flex justify-end gap-3 px-8 py-3 bg-slate-50/40 dark:bg-slate-900/10 border-b border-slate-100 dark:border-slate-800">
+                    <button
+                      onClick={() => {
+                        const allExpanded: Record<string, boolean> = {};
+                        groupedData.forEach(g => { allExpanded[g.clientName] = true; });
+                        setExpandedClients(allExpanded);
+                      }}
+                      className="text-[10px] font-black uppercase tracking-wider text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 transition-colors cursor-pointer"
+                    >
+                      Expand All
+                    </button>
+                    <span className="text-slate-300 dark:text-slate-700 text-xs">|</span>
+                    <button
+                      onClick={() => setExpandedClients({})}
+                      className="text-[10px] font-black uppercase tracking-wider text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 transition-colors cursor-pointer"
+                    >
+                      Collapse All
+                    </button>
+                  </div>
+
+                  {groupedData.map((group) => {
+                    const isExpanded = !!expandedClients[group.clientName];
+                    const firstChar = group.clientName[0] || 'C';
+                    
+                    return (
+                      <div key={group.clientName} className="transition-all duration-200">
+                        {/* Parent Group Header Row */}
+                        <div
+                          onClick={() => toggleClientExpand(group.clientName)}
+                          className="flex items-center justify-between px-8 py-4 hover:bg-slate-50/80 dark:hover:bg-slate-900/50 cursor-pointer select-none transition-colors group"
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="w-9 h-9 rounded-xl bg-orange-100 dark:bg-orange-950/30 flex items-center justify-center text-orange-600 dark:text-orange-400 font-black text-xs shadow-sm">
+                              {firstChar}
                             </div>
-                          </td>
-                          <td className="px-8 py-5 text-right">
-                            <span className="text-sm font-black text-slate-900">{Number(item.hours).toFixed(1)}h</span>
-                          </td>
-                          <td className="px-8 py-5">
-                            <div className="flex flex-col gap-1">
-                              <span className="text-[10px] font-bold text-slate-400 uppercase">{item.source || 'Manual'}</span>
-                              <p className="text-xs text-slate-500 italic max-w-xs truncate">{item.notes || 'No notes'}</p>
+                            <div>
+                              <span className="text-sm font-bold text-slate-900 dark:text-slate-100 group-hover:text-orange-600 dark:group-hover:text-orange-400 transition-colors">
+                                {group.clientName}
+                              </span>
+                              <span className="ml-2.5 px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 rounded-lg text-[9px] font-bold">
+                                {group.items.length} {group.items.length === 1 ? 'log' : 'logs'}
+                              </span>
                             </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                          </div>
+
+                          <div className="flex items-center gap-6">
+                            <div className="text-right">
+                              <span className="text-sm font-black text-slate-900 dark:text-white bg-slate-100/50 dark:bg-slate-800/30 px-3 py-1 rounded-xl font-mono">
+                                {group.totalHours.toFixed(1)}h
+                              </span>
+                            </div>
+                            {isExpanded ? (
+                              <ChevronUp className="w-4 h-4 text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300 transition-colors" />
+                            ) : (
+                              <ChevronDown className="w-4 h-4 text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300 transition-colors" />
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Child Group Details (Expandable) */}
+                        {isExpanded && (
+                          <div className="bg-slate-50/60 dark:bg-slate-900/10 border-t border-b border-slate-100/50 dark:border-slate-800/50 px-8 py-2 animate-in slide-in-from-top-1 duration-200">
+                            <table className="w-full text-left">
+                              <thead>
+                                <tr className="border-b border-slate-100/70 dark:border-slate-800/70">
+                                  <th className="py-2.5 text-[9px] font-black text-slate-400 uppercase tracking-widest pl-12">Source/Notes</th>
+                                  <th className="py-2.5 text-[9px] font-black text-slate-400 uppercase tracking-widest text-right w-24">Hours</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-slate-100/40 dark:divide-slate-800/40">
+                                {group.items.map((item, subIdx) => (
+                                  <tr key={subIdx} className="hover:bg-slate-100/30 dark:hover:bg-slate-950/20 transition-colors">
+                                    <td className="py-3 pl-12">
+                                      <div className="flex flex-col gap-0.5">
+                                        <span className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+                                          {item.source || 'Manual'}
+                                        </span>
+                                        <p className="text-xs text-slate-600 dark:text-slate-300 italic font-medium leading-relaxed max-w-xl">
+                                          {item.notes || 'No description provided'}
+                                        </p>
+                                      </div>
+                                    </td>
+                                    <td className="py-3 text-right text-sm font-black text-slate-700 dark:text-slate-200 font-mono w-24 pr-2">
+                                      {Number(item.hours).toFixed(1)}h
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -367,7 +459,7 @@ export default function MemberInsights({ month: initialMonth }: { month: string 
 
         {/* Zero Hour Members Sidebar */}
         <div className="space-y-6">
-          <div className="bg-white rounded-[32px] border border-slate-100 shadow-xl shadow-slate-100/50 overflow-hidden">
+          <div className="bg-white dark:bg-slate-900 rounded-[32px] border border-slate-100 dark:border-slate-800 shadow-xl shadow-slate-100/50 dark:shadow-none overflow-hidden">
             <div className="px-8 py-6 bg-red-600 flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <AlertCircle className="w-5 h-5 text-white" />
@@ -390,7 +482,7 @@ export default function MemberInsights({ month: initialMonth }: { month: string 
               <>
                 {/* SEND REMINDER TO ALL BUTTONS */}
                 {zeroHourMembers.length > 0 && (
-                  <div className="px-6 pt-6 pb-4 border-b border-slate-50 space-y-3">
+                  <div className="px-6 pt-6 pb-4 border-b border-slate-50 dark:border-slate-800 space-y-3">
                     <button
                       onClick={handleSendBulkReminders}
                       disabled={sendingAll || sendingClosure}
@@ -439,14 +531,14 @@ export default function MemberInsights({ month: initialMonth }: { month: string 
                         return (
                           <div 
                             key={email}
-                            className="w-full p-2 rounded-xl hover:bg-slate-50 transition-all flex items-center justify-between group"
+                            className="w-full p-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/55 transition-all flex items-center justify-between group"
                           >
                             <button 
                               onClick={() => setSelectedEmail(email)}
                               className="flex-1 text-left flex items-center gap-3 min-w-0"
                             >
-                              <div className="w-2 h-2 rounded-full bg-slate-200 group-hover:bg-red-400 transition-colors flex-shrink-0" />
-                              <span className="text-xs font-bold text-slate-600 group-hover:text-slate-900 truncate">{email}</span>
+                              <div className="w-2 h-2 rounded-full bg-slate-200 dark:bg-slate-800 group-hover:bg-red-400 transition-colors flex-shrink-0" />
+                              <span className="text-xs font-bold text-slate-600 dark:text-slate-400 group-hover:text-slate-900 dark:group-hover:text-white truncate">{email}</span>
                             </button>
 
                             {/* INDIVIDUAL SEND REMINDER BUTTON */}
@@ -455,8 +547,8 @@ export default function MemberInsights({ month: initialMonth }: { month: string 
                               disabled={isSending || isSent}
                               className={`ml-2 p-1.5 rounded-lg transition-all flex items-center justify-center flex-shrink-0 border cursor-pointer ${
                                 isSent 
-                                  ? 'bg-emerald-50 border-emerald-200 text-emerald-600' 
-                                  : 'bg-slate-50 hover:bg-red-50 hover:text-red-600 border-slate-100 hover:border-red-100 text-slate-400'
+                                  ? 'bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-900/30 text-emerald-600 dark:text-emerald-400' 
+                                  : 'bg-slate-50 dark:bg-slate-800 hover:bg-red-50 dark:hover:bg-red-950/30 hover:text-red-600 dark:hover:text-red-400 border-slate-100 dark:border-slate-700 hover:border-red-100 dark:hover:border-red-900/30 text-slate-400 dark:text-slate-500'
                               }`}
                               title="Send email reminder to this member"
                             >

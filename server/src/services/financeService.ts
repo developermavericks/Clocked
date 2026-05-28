@@ -701,6 +701,57 @@ export const exportCoreMasterAllocationsToExcel = async (opts: {
   });
   const totalRow = worksheet.addRow(totalRowData);
 
+  // Add Net Profit & Margin rows
+  worksheet.addRow([]);
+  const totalBudget = data.clients.reduce((acc, c) => acc + (Number(c.budget) || 0), 0);
+  const netProfit = totalBudget - totalSalary;
+  const netMargin = totalBudget > 0 ? (netProfit / totalBudget) : 0;
+
+  const netProfitRowData = ['Net Profit', '', netProfit];
+  const marginRowData = ['Margin', '', netMargin];
+
+  data.clients.forEach(c => {
+    const ct = clientTotals[c.name];
+    const clientBudget = Number(c.budget) || 0;
+    const clientNetProfit = clientBudget - ct.sal;
+    const clientMargin = clientBudget > 0 ? (clientNetProfit / clientBudget) : 0;
+
+    netProfitRowData.push(clientNetProfit);
+    marginRowData.push(clientBudget > 0 ? clientMargin : 0);
+  });
+
+  const netProfitRow = worksheet.addRow(netProfitRowData);
+  const marginRow = worksheet.addRow(marginRowData);
+
+  // Style Net Profit and Margin rows (styling cells individually based on client profitability)
+  [netProfitRow, marginRow].forEach(row => {
+    row.font = { bold: true };
+    
+    // Label and Total cells (column 1 and column 3)
+    const overallBgColor = netProfit >= 0 ? 'FFE6F4EA' : 'FFFCE8E6';
+    const overallTextColor = netProfit >= 0 ? 'FF137333' : 'FFC5221F';
+    
+    [row.getCell(1), row.getCell(3)].forEach(cell => {
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: overallBgColor } };
+      cell.font = { bold: true, color: { argb: overallTextColor } };
+    });
+
+    // Client cells
+    data.clients.forEach((c, i) => {
+      const colIdx = 4 + i;
+      const ct = clientTotals[c.name];
+      const clientBudget = Number(c.budget) || 0;
+      const clientNetProfit = clientBudget - ct.sal;
+
+      const cellBg = clientNetProfit >= 0 ? 'FFE6F4EA' : 'FFFCE8E6';
+      const cellText = clientNetProfit >= 0 ? 'FF137333' : 'FFC5221F';
+
+      const cell = row.getCell(colIdx);
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: cellBg } };
+      cell.font = { bold: true, color: { argb: cellText } };
+    });
+  });
+
   // Group / Merge Core vertical columns in Header 1
   if (header1.length > 4) {
     let startCol = 4;
@@ -739,6 +790,29 @@ export const exportCoreMasterAllocationsToExcel = async (opts: {
   // Format Salary Column & Allocations Columns
   worksheet.eachRow((row, rowNumber) => {
     if (rowNumber > 3) {
+      const firstCellVal = String(row.getCell(1).value || '');
+      if (firstCellVal === 'Margin') {
+        row.getCell(3).numFmt = '0.00%';
+        for (let col = 4; col <= header1.length; col++) {
+          const cell = row.getCell(col);
+          const budgetVal = Number(budgetsRow[col - 1]) || 0;
+          if (budgetVal > 0) {
+            cell.numFmt = '0.00%';
+          } else {
+            cell.value = '-';
+          }
+        }
+        return;
+      }
+      if (firstCellVal === 'Net Profit') {
+        row.getCell(3).numFmt = '"₹"#,##0.00';
+        for (let col = 4; col <= header1.length; col++) {
+          const cell = row.getCell(col);
+          cell.numFmt = '"₹"#,##0.00';
+        }
+        return;
+      }
+
       // Salary Column Format
       const salCell = row.getCell(3);
       if (salCell.value) {
