@@ -38,6 +38,7 @@ export default function ManagerPortal() {
           const res = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/teams/me`);
           const data = await res.json();
           const role = data.role || 'team';
+          
           setUserRole(role);
           fetchMembers(user.id);
         } catch (err) {

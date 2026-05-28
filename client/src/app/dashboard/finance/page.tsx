@@ -119,6 +119,27 @@ const getClientProRatedRatio = (
 
 export default function FinancePortal() {
   const [activeWorkspace, setActiveWorkspace] = useState<'pivot' | 'manager' | 'analysis'>('pivot');
+  const [currentUserEmail, setCurrentUserEmail] = useState<string>('');
+
+  useEffect(() => {
+    const fetchUserSession = async () => {
+      try {
+        const { supabase } = await import('@/lib/supabase');
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user?.email) {
+          setCurrentUserEmail(user.email);
+        }
+      } catch (err) {
+        console.error('Failed to get user session:', err);
+      }
+    };
+    fetchUserSession();
+  }, []);
+
+  const isAvinash = useMemo(() => {
+    return currentUserEmail.toLowerCase().trim() === 'avinash@themavericksindia.com';
+  }, [currentUserEmail]);
+
   const [currentViewMode, setCurrentViewMode] = useState<'hours' | 'percent' | 'salary'>('hours');
   const [month, setMonth] = useState(new Date().toISOString().slice(0, 7)); // YYYY-MM
   const [loading, setLoading] = useState(false);
@@ -477,6 +498,10 @@ export default function FinancePortal() {
     if (!selectedDrillDownCoreTeam) return [];
     return budgetAnalysisData.filter(item => getClientCoreTeam(item.name) === selectedDrillDownCoreTeam);
   }, [budgetAnalysisData, selectedDrillDownCoreTeam]);
+
+  const maximizedData = useMemo(() => {
+    return selectedDrillDownCoreTeam ? drillDownData : budgetAnalysisData;
+  }, [selectedDrillDownCoreTeam, drillDownData, budgetAnalysisData]);
 
   const daysInMonth = useMemo(() => {
     const [year, m] = month.split('-').map(Number);
@@ -1256,7 +1281,7 @@ export default function FinancePortal() {
                     <div className="flex-1 w-full overflow-x-auto custom-scrollbar pt-4">
                       <div style={{ minWidth: `${Math.max(barChartData.length * 50, 400)}px` }} className="h-[350px]">
                         <ResponsiveContainer width="100%" height="100%">
-                          <BarChart data={barChartData} margin={{ top: 10, right: 10, left: -20, bottom: 20 }}>
+                          <BarChart data={barChartData} margin={{ top: 10, right: 10, left: 15, bottom: 35 }}>
                             <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
                             <XAxis 
                               dataKey="name" 
@@ -1269,6 +1294,7 @@ export default function FinancePortal() {
                               angle={-20}
                               dx={-5}
                               dy={5}
+                              label={{ value: analysisView === 'employee' ? 'Team Members' : 'Clients', position: 'insideBottom', offset: -15, fill: '#64748b', fontSize: 10, fontWeight: 'bold' }}
                             />
                             <YAxis 
                               stroke="#64748b" 
@@ -1278,18 +1304,19 @@ export default function FinancePortal() {
                               axisLine={false} 
                               allowDecimals={false}
                               ticks={analysisView === 'employee' ? [0, 40, 80, 120, 160, 200] : undefined}
+                              label={{ value: 'Allocation Hours (h)', angle: -90, position: 'insideLeft', offset: -5, fill: '#64748b', fontSize: 10, fontWeight: 'bold' }}
                             />
                             {analysisView === 'employee' && (
                               <ReferenceLine 
                                 y={160} 
-                                stroke="#f43f5e" 
+                                stroke="#000000" 
                                 strokeDasharray="3 3" 
                                 strokeWidth={2} 
                                 label={{ 
                                   value: '160h Benchmark', 
                                   position: 'top', 
-                                  fill: '#f43f5e', 
-                                  fontSize: 10, 
+                                  fill: '#000000', 
+                                  fontSize: 11, 
                                   fontWeight: 'bold' 
                                 }} 
                               />
@@ -1399,7 +1426,7 @@ export default function FinancePortal() {
                       {/* Actual Line Chart Area */}
                       <div className="flex-1 min-w-0 h-[280px] lg:h-auto">
                         <ResponsiveContainer width="100%" height="100%">
-                          <LineChart data={dailyLineChartData.chartData} margin={{ top: 10, right: 10, left: -20, bottom: 10 }}>
+                          <LineChart data={dailyLineChartData.chartData} margin={{ top: 10, right: 10, left: 15, bottom: 20 }}>
                             <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
                             <XAxis 
                               dataKey="day" 
@@ -1408,7 +1435,7 @@ export default function FinancePortal() {
                               fontWeight="bold" 
                               tickLine={false} 
                               axisLine={false}
-                              label={{ value: 'Day of Month', position: 'insideBottom', offset: -5, fill: '#64748b', fontSize: 10, fontWeight: 'bold' }}
+                              label={{ value: 'Day of Month', position: 'insideBottom', offset: -10, fill: '#64748b', fontSize: 10, fontWeight: 'bold' }}
                             />
                             <YAxis 
                               stroke="#64748b" 
@@ -1417,6 +1444,7 @@ export default function FinancePortal() {
                               tickLine={false} 
                               axisLine={false} 
                               allowDecimals={false}
+                              label={{ value: 'Logged Hours (h)', angle: -90, position: 'insideLeft', offset: -5, fill: '#64748b', fontSize: 10, fontWeight: 'bold' }}
                             />
                             <RechartsTooltip 
                               contentStyle={{ 
@@ -1707,10 +1735,22 @@ export default function FinancePortal() {
                             <Maximize2 className="w-4 h-4" />
                           </button>
                         </div>
+                        {/* Constant/Fixed HTML Legend */}
+                        <div className="flex items-center justify-center gap-6 pb-2 pt-1 select-none border-b border-slate-50/50">
+                          <div className="flex items-center gap-2">
+                            <span className="w-2.5 h-2.5 rounded-full bg-[#3b82f6]" />
+                            <span className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Allocated Resource Cost</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="w-2.5 h-2.5 rounded-full bg-[#10b981]" />
+                            <span className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Revenue (Budget)</span>
+                          </div>
+                        </div>
+
                         <div className="w-full overflow-x-auto custom-scrollbar select-none pb-2">
                           <div style={{ minWidth: budgetAnalysisData.length > 0 ? `${Math.max(600, budgetAnalysisData.length * 60)}px` : '100%', height: '300px' }}>
                             <ResponsiveContainer width="100%" height="100%">
-                              <BarChart data={budgetAnalysisData} margin={{ top: 20, right: 10, left: 10, bottom: 70 }}>
+                              <BarChart data={budgetAnalysisData} margin={{ top: 20, right: 10, left: 25, bottom: 85 }}>
                                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                                 <XAxis 
                                   dataKey="name" 
@@ -1723,15 +1763,23 @@ export default function FinancePortal() {
                                   angle={-30}
                                   dx={-8}
                                   dy={8}
+                                  label={{ value: 'Clients', position: 'insideBottom', offset: -10, fill: '#64748b', fontSize: 10, fontWeight: 'bold' }}
                                 />
-                                <YAxis stroke="#64748b" fontSize={9} fontWeight="bold" tickLine={false} axisLine={false} tickFormatter={(v) => `₹${v/1000}k`} />
+                                <YAxis 
+                                  stroke="#64748b" 
+                                  fontSize={9} 
+                                  fontWeight="bold" 
+                                  tickLine={false} 
+                                  axisLine={false} 
+                                  tickFormatter={(v) => `₹${v/1000}k`}
+                                  label={{ value: 'Amount (INR)', angle: -90, position: 'insideLeft', offset: -10, fill: '#64748b', fontSize: 10, fontWeight: 'bold' }}
+                                />
                                 <RechartsTooltip 
                                   formatter={(v) => [fmtCurrency(Number(v)), '']}
                                   contentStyle={{ background: '#0f172a', border: 'none', borderRadius: '12px', color: '#fff', fontSize: '11px', fontWeight: 'bold' }}
                                   itemStyle={{ color: '#fff' }}
                                   labelStyle={{ color: '#fff' }}
                                 />
-                                <Legend verticalAlign="top" height={36} iconType="circle" wrapperStyle={{ fontSize: '11px', fontWeight: 'bold' }} />
                                 <Bar dataKey="revenueFormatted" name="Revenue (Budget)" fill="#10b981" radius={[6, 6, 0, 0]} />
                                 <Bar dataKey="costFormatted" name="Allocated Resource Cost" fill="#3b82f6" radius={[6, 6, 0, 0]} />
                               </BarChart>
@@ -1758,7 +1806,7 @@ export default function FinancePortal() {
                         <div className="w-full overflow-x-auto custom-scrollbar select-none pb-2">
                           <div style={{ minWidth: budgetAnalysisData.length > 0 ? `${Math.max(600, budgetAnalysisData.length * 60)}px` : '100%', height: '300px' }}>
                             <ResponsiveContainer width="100%" height="100%">
-                              <BarChart data={budgetAnalysisData} margin={{ top: 20, right: 10, left: 10, bottom: 70 }}>
+                              <BarChart data={budgetAnalysisData} margin={{ top: 20, right: 10, left: 25, bottom: 85 }}>
                                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                                 <XAxis 
                                   dataKey="name" 
@@ -1771,8 +1819,17 @@ export default function FinancePortal() {
                                   angle={-30}
                                   dx={-8}
                                   dy={8}
+                                  label={{ value: 'Clients', position: 'insideBottom', offset: -10, fill: '#64748b', fontSize: 10, fontWeight: 'bold' }}
                                 />
-                                <YAxis stroke="#64748b" fontSize={9} fontWeight="bold" tickLine={false} axisLine={false} tickFormatter={(v) => `₹${v/1000}k`} />
+                                <YAxis 
+                                  stroke="#64748b" 
+                                  fontSize={9} 
+                                  fontWeight="bold" 
+                                  tickLine={false} 
+                                  axisLine={false} 
+                                  tickFormatter={(v) => `₹${v/1000}k`}
+                                  label={{ value: 'Profit / Loss (INR)', angle: -90, position: 'insideLeft', offset: -10, fill: '#64748b', fontSize: 10, fontWeight: 'bold' }}
+                                />
                                 <RechartsTooltip 
                                   formatter={(v) => [fmtCurrency(Number(v)), 'Net Profit/Loss']}
                                   contentStyle={{ background: '#0f172a', border: 'none', borderRadius: '12px', color: '#fff', fontSize: '11px', fontWeight: 'bold' }}
@@ -1813,7 +1870,7 @@ export default function FinancePortal() {
                         <div className="w-full overflow-x-auto custom-scrollbar select-none pb-2">
                           <div style={{ minWidth: budgetAnalysisData.length > 0 ? `${Math.max(450, budgetAnalysisData.filter(item => item.revenue > 0).length * 60)}px` : '100%', height: '250px' }}>
                             <ResponsiveContainer width="100%" height="100%">
-                              <LineChart data={budgetAnalysisData.filter(item => item.revenue > 0)} margin={{ top: 20, right: 10, left: 10, bottom: 30 }}>
+                              <LineChart data={budgetAnalysisData.filter(item => item.revenue > 0)} margin={{ top: 20, right: 10, left: 25, bottom: 45 }}>
                                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                                 <XAxis 
                                   dataKey="name" 
@@ -1826,8 +1883,17 @@ export default function FinancePortal() {
                                   angle={-30}
                                   dx={-8}
                                   dy={8}
+                                  label={{ value: 'Clients', position: 'insideBottom', offset: -10, fill: '#64748b', fontSize: 10, fontWeight: 'bold' }}
                                 />
-                                <YAxis stroke="#64748b" fontSize={9} fontWeight="bold" tickLine={false} axisLine={false} tickFormatter={(v) => `${v}%`} />
+                                <YAxis 
+                                  stroke="#64748b" 
+                                  fontSize={9} 
+                                  fontWeight="bold" 
+                                  tickLine={false} 
+                                  axisLine={false} 
+                                  tickFormatter={(v) => `${v}%`}
+                                  label={{ value: 'Profit Margin (%)', angle: -90, position: 'insideLeft', offset: -10, fill: '#64748b', fontSize: 10, fontWeight: 'bold' }}
+                                />
                                 <RechartsTooltip 
                                   formatter={(v) => [`${v}%`, 'Margin']}
                                   contentStyle={{ background: '#0f172a', border: 'none', borderRadius: '12px', color: '#fff', fontSize: '11px', fontWeight: 'bold' }}
@@ -1954,32 +2020,36 @@ export default function FinancePortal() {
                               )}
                             </td>
                             <td className="px-4 py-3 text-sm text-right">
-                              {editingUserId === u.id ? (
-                                <div className="flex justify-end gap-1.5">
+                              {isAvinash ? (
+                                editingUserId === u.id ? (
+                                  <div className="flex justify-end gap-1.5">
+                                    <button
+                                      onClick={() => handleSaveSalary(u.id)}
+                                      disabled={savingSalary}
+                                      className="px-2 py-1 bg-emerald-600 text-white rounded text-[10px] font-bold uppercase tracking-wider"
+                                    >
+                                      Save
+                                    </button>
+                                    <button
+                                      onClick={() => setEditingUserId(null)}
+                                      className="px-2 py-1 bg-slate-300 text-slate-700 rounded text-[10px] font-bold uppercase tracking-wider"
+                                    >
+                                      Cancel
+                                    </button>
+                                  </div>
+                                ) : (
                                   <button
-                                    onClick={() => handleSaveSalary(u.id)}
-                                    disabled={savingSalary}
-                                    className="px-2 py-1 bg-emerald-600 text-white rounded text-[10px] font-bold uppercase tracking-wider"
+                                    onClick={() => {
+                                      setEditingUserId(u.id);
+                                      setEditingSalaryVal(u.salary?.toString() || '0');
+                                    }}
+                                    className="p-1 text-slate-400 hover:text-blue-600 hover:bg-slate-100 rounded"
                                   >
-                                    Save
+                                    <Edit2 className="w-3.5 h-3.5" />
                                   </button>
-                                  <button
-                                    onClick={() => setEditingUserId(null)}
-                                    className="px-2 py-1 bg-slate-300 text-slate-700 rounded text-[10px] font-bold uppercase tracking-wider"
-                                  >
-                                    Cancel
-                                  </button>
-                                </div>
+                                )
                               ) : (
-                                <button
-                                  onClick={() => {
-                                    setEditingUserId(u.id);
-                                    setEditingSalaryVal(u.salary?.toString() || '0');
-                                  }}
-                                  className="p-1 text-slate-400 hover:text-blue-600 hover:bg-slate-100 rounded"
-                                >
-                                  <Edit2 className="w-3.5 h-3.5" />
-                                </button>
+                                <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider select-none bg-slate-50 border border-slate-100 rounded-md px-1.5 py-0.5">Read-Only</span>
                               )}
                             </td>
                           </tr>
@@ -2070,33 +2140,37 @@ export default function FinancePortal() {
                               )}
                             </td>
                             <td className="px-4 py-3 text-sm text-right">
-                              {editingClientId === c.id ? (
-                                <div className="flex justify-end gap-1.5">
+                              {isAvinash ? (
+                                editingClientId === c.id ? (
+                                  <div className="flex justify-end gap-1.5">
+                                    <button
+                                      onClick={() => handleSaveClientBudget(c.id)}
+                                      disabled={savingBudget}
+                                      className="px-2 py-1 bg-emerald-600 text-white rounded text-[10px] font-bold uppercase tracking-wider"
+                                    >
+                                      Save
+                                    </button>
+                                    <button
+                                      onClick={() => setEditingClientId(null)}
+                                      className="px-2 py-1 bg-slate-300 text-slate-700 rounded text-[10px] font-bold uppercase tracking-wider"
+                                    >
+                                      Cancel
+                                    </button>
+                                  </div>
+                                ) : (
                                   <button
-                                    onClick={() => handleSaveClientBudget(c.id)}
-                                    disabled={savingBudget}
-                                    className="px-2 py-1 bg-emerald-600 text-white rounded text-[10px] font-bold uppercase tracking-wider"
+                                    onClick={() => {
+                                      setEditingClientId(c.id);
+                                      setEditingBudgetVal(c.budget?.toString() || '0');
+                                      setEditingCoreVal(c.core || c.core_owner || '');
+                                    }}
+                                    className="p-1 text-slate-400 hover:text-blue-600 hover:bg-slate-100 rounded"
                                   >
-                                    Save
+                                    <Edit2 className="w-3.5 h-3.5" />
                                   </button>
-                                  <button
-                                    onClick={() => setEditingClientId(null)}
-                                    className="px-2 py-1 bg-slate-300 text-slate-700 rounded text-[10px] font-bold uppercase tracking-wider"
-                                  >
-                                    Cancel
-                                  </button>
-                                </div>
+                                )
                               ) : (
-                                <button
-                                  onClick={() => {
-                                    setEditingClientId(c.id);
-                                    setEditingBudgetVal(c.budget?.toString() || '0');
-                                    setEditingCoreVal(c.core || c.core_owner || '');
-                                  }}
-                                  className="p-1 text-slate-400 hover:text-blue-600 hover:bg-slate-100 rounded"
-                                >
-                                  <Edit2 className="w-3.5 h-3.5" />
-                                </button>
+                                <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider select-none bg-slate-50 border border-slate-100 rounded-md px-1.5 py-0.5">Read-Only</span>
                               )}
                             </td>
                           </tr>
@@ -2116,20 +2190,37 @@ export default function FinancePortal() {
 
       {/* Expanded Chart Overlay Modal */}
       {expandedChart && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-955/70 backdrop-blur-md p-4 md:p-8 animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-slate-955/70 backdrop-blur-md p-4 md:p-8 animate-in fade-in duration-200">
           <div className="bg-white dark:bg-slate-900 rounded-[28px] border border-slate-100 shadow-2xl w-full max-w-[92vw] h-[86vh] flex flex-col p-6 md:p-8 relative">
             
             {/* Header of Modal */}
             <div className="flex items-center justify-between border-b border-slate-100 pb-4 mb-6">
               <div>
                 <span className="text-[10px] font-black text-blue-600 uppercase tracking-widest">
-                  {expandedChart === 'team' ? 'Core Team Distribution' : expandedChart === 'bar' ? 'Total Hours Bar Chart' : 'Daily Hours Line Chart'}
+                  {selectedDrillDownCoreTeam ? `${selectedDrillDownCoreTeam} Team - ` : ''}
+                  {expandedChart === 'team' 
+                    ? 'Core Team Distribution' 
+                    : expandedChart === 'bar' 
+                    ? 'Total Hours Bar Chart' 
+                    : expandedChart === 'costVsRevenue' 
+                    ? 'Cost vs Revenue Comparison'
+                    : expandedChart === 'profitVsLoss'
+                    ? 'Net Profit / Loss'
+                    : expandedChart === 'profitabilityMargin'
+                    ? 'Profit Margin'
+                    : 'Daily Hours Line Chart'}
                 </span>
                 <h3 className="text-xl font-bold text-slate-900 dark:text-white mt-1">
                   {expandedChart === 'team' 
                     ? 'Leadership Core Team, BD & Internal Allocation Share' 
                     : expandedChart === 'bar' 
                     ? `Total Allocation Hours (${analysisView === 'employee' ? 'by Team' : 'by Client'})` 
+                    : expandedChart === 'costVsRevenue'
+                    ? 'Budgeted Revenue & Distributed Resource Cost'
+                    : expandedChart === 'profitVsLoss'
+                    ? 'Absolute Net Margin Generated'
+                    : expandedChart === 'profitabilityMargin'
+                    ? 'Net Profit Margin by Client'
                     : 'Daily Hours Timeline Trend Curve'}
                 </h3>
               </div>
@@ -2235,7 +2326,7 @@ export default function FinancePortal() {
                 <div className="w-full h-full overflow-x-auto custom-scrollbar pt-2">
                   <div style={{ minWidth: `${Math.max(barChartData.length * 60, 600)}px` }} className="h-[90%]">
                     <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={barChartData} margin={{ top: 10, right: 10, left: -10, bottom: 40 }}>
+                      <BarChart data={barChartData} margin={{ top: 10, right: 10, left: 20, bottom: 50 }}>
                         <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
                         <XAxis 
                           dataKey="name" 
@@ -2248,6 +2339,7 @@ export default function FinancePortal() {
                           angle={-25}
                           dx={-10}
                           dy={10}
+                          label={{ value: analysisView === 'employee' ? 'Team Members' : 'Clients', position: 'insideBottom', offset: -15, fill: '#64748b', fontSize: 11, fontWeight: 'bold' }}
                         />
                         <YAxis 
                           stroke="#64748b" 
@@ -2257,17 +2349,18 @@ export default function FinancePortal() {
                           axisLine={false} 
                           allowDecimals={false}
                           ticks={analysisView === 'employee' ? [0, 40, 80, 120, 160, 200] : undefined}
+                          label={{ value: 'Allocation Hours (h)', angle: -90, position: 'insideLeft', offset: -5, fill: '#64748b', fontSize: 11, fontWeight: 'bold' }}
                         />
                         {analysisView === 'employee' && (
                           <ReferenceLine 
                             y={160} 
-                            stroke="#f43f5e" 
+                            stroke="#000000" 
                             strokeDasharray="3 3" 
                             strokeWidth={2} 
                             label={{ 
                               value: '160h Benchmark', 
                               position: 'top', 
-                              fill: '#f43f5e', 
+                              fill: '#000000', 
                               fontSize: 11, 
                               fontWeight: 'bold' 
                             }} 
@@ -2345,7 +2438,7 @@ export default function FinancePortal() {
                   {/* Line Chart */}
                   <div className="flex-1 min-w-0">
                     <ResponsiveContainer width="100%" height="95%">
-                      <LineChart data={dailyLineChartData.chartData} margin={{ top: 10, right: 10, left: -10, bottom: 20 }}>
+                      <LineChart data={dailyLineChartData.chartData} margin={{ top: 10, right: 10, left: 20, bottom: 30 }}>
                         <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
                         <XAxis 
                           dataKey="day" 
@@ -2354,7 +2447,7 @@ export default function FinancePortal() {
                           fontWeight="bold" 
                           tickLine={false} 
                           axisLine={false}
-                          label={{ value: 'Day of Month', position: 'insideBottom', offset: -10, fill: '#64748b', fontSize: 11, fontWeight: 'bold' }}
+                          label={{ value: 'Day of Month', position: 'insideBottom', offset: -15, fill: '#64748b', fontSize: 11, fontWeight: 'bold' }}
                         />
                         <YAxis 
                           stroke="#64748b" 
@@ -2363,6 +2456,7 @@ export default function FinancePortal() {
                           tickLine={false} 
                           axisLine={false} 
                           allowDecimals={false}
+                          label={{ value: 'Logged Hours (h)', angle: -90, position: 'insideLeft', offset: -5, fill: '#64748b', fontSize: 11, fontWeight: 'bold' }}
                         />
                         <RechartsTooltip 
                           contentStyle={{ 
@@ -2399,44 +2493,66 @@ export default function FinancePortal() {
               )}
 
               {expandedChart === 'costVsRevenue' && (
-                <div className="w-full h-full overflow-x-auto custom-scrollbar select-none pt-2">
-                  <div style={{ minWidth: `${Math.max(budgetAnalysisData.length * 90, 1200)}px` }} className="h-[90%]">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={budgetAnalysisData} margin={{ top: 20, right: 10, left: 10, bottom: 80 }}>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                        <XAxis 
-                          dataKey="name" 
-                          stroke="#64748b" 
-                          fontSize={10} 
-                          fontWeight="bold" 
-                          tickLine={false} 
-                          axisLine={false}
-                          interval={0}
-                          angle={-25}
-                          dx={-10}
-                          dy={10}
-                        />
-                        <YAxis stroke="#64748b" fontSize={10} fontWeight="bold" tickLine={false} axisLine={false} tickFormatter={(v) => `₹${v/1000}k`} />
-                        <RechartsTooltip 
-                          formatter={(v) => [fmtCurrency(Number(v)), '']}
-                          contentStyle={{ background: '#0f172a', border: 'none', borderRadius: '12px', color: '#fff', fontSize: '12px', fontWeight: 'bold' }}
-                          itemStyle={{ color: '#fff' }}
-                          labelStyle={{ color: '#fff' }}
-                        />
-                        <Legend verticalAlign="top" height={36} iconType="circle" wrapperStyle={{ fontSize: '12px', fontWeight: 'bold' }} />
-                        <Bar dataKey="revenueFormatted" name="Revenue (Budget)" fill="#10b981" radius={[8, 8, 0, 0]} />
-                        <Bar dataKey="costFormatted" name="Allocated Resource Cost" fill="#3b82f6" radius={[8, 8, 0, 0]} />
-                      </BarChart>
-                    </ResponsiveContainer>
+                <div className="w-full h-full flex flex-col">
+                  {/* Constant/Fixed HTML Legend */}
+                  <div className="flex items-center justify-center gap-6 pb-4 pt-1 select-none border-b border-slate-50">
+                    <div className="flex items-center gap-2">
+                      <span className="w-3 h-3 rounded-full bg-[#3b82f6]" />
+                      <span className="text-xs font-black text-slate-500 uppercase tracking-wider">Allocated Resource Cost</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="w-3 h-3 rounded-full bg-[#10b981]" />
+                      <span className="text-xs font-black text-slate-500 uppercase tracking-wider">Revenue (Budget)</span>
+                    </div>
+                  </div>
+
+                  <div className="w-full flex-1 overflow-x-auto custom-scrollbar select-none pt-4">
+                    <div style={{ minWidth: `${Math.max(maximizedData.length * 90, 1200)}px` }} className="h-[90%]">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={maximizedData} margin={{ top: 20, right: 10, left: 25, bottom: 95 }}>
+                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                          <XAxis 
+                            dataKey="name" 
+                            stroke="#64748b" 
+                            fontSize={10} 
+                            fontWeight="bold" 
+                            tickLine={false} 
+                            axisLine={false}
+                            interval={0}
+                            angle={-25}
+                            dx={-10}
+                            dy={10}
+                            label={{ value: 'Clients', position: 'insideBottom', offset: -10, fill: '#64748b', fontSize: 10, fontWeight: 'bold' }}
+                          />
+                          <YAxis 
+                            stroke="#64748b" 
+                            fontSize={10} 
+                            fontWeight="bold" 
+                            tickLine={false} 
+                            axisLine={false} 
+                            tickFormatter={(v) => `₹${v/1000}k`}
+                            label={{ value: 'Amount (INR)', angle: -90, position: 'insideLeft', offset: -10, fill: '#64748b', fontSize: 10, fontWeight: 'bold' }}
+                          />
+                          <RechartsTooltip 
+                            formatter={(v) => [fmtCurrency(Number(v)), '']}
+                            contentStyle={{ background: '#0f172a', border: 'none', borderRadius: '12px', color: '#fff', fontSize: '12px', fontWeight: 'bold' }}
+                            itemStyle={{ color: '#fff' }}
+                            labelStyle={{ color: '#fff' }}
+                          />
+                          <Bar dataKey="revenueFormatted" name="Revenue (Budget)" fill="#10b981" radius={[8, 8, 0, 0]} />
+                          <Bar dataKey="costFormatted" name="Allocated Resource Cost" fill="#3b82f6" radius={[8, 8, 0, 0]} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
                   </div>
                 </div>
               )}
 
               {expandedChart === 'profitVsLoss' && (
                 <div className="w-full h-full overflow-x-auto custom-scrollbar select-none pt-2">
-                  <div style={{ minWidth: `${Math.max(budgetAnalysisData.length * 90, 1200)}px` }} className="h-[90%]">
+                  <div style={{ minWidth: `${Math.max(maximizedData.length * 90, 1200)}px` }} className="h-[90%]">
                     <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={budgetAnalysisData} margin={{ top: 20, right: 10, left: 10, bottom: 80 }}>
+                      <BarChart data={maximizedData} margin={{ top: 20, right: 10, left: 25, bottom: 95 }}>
                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                         <XAxis 
                           dataKey="name" 
@@ -2449,8 +2565,17 @@ export default function FinancePortal() {
                           angle={-25}
                           dx={-10}
                           dy={10}
+                          label={{ value: 'Clients', position: 'insideBottom', offset: -10, fill: '#64748b', fontSize: 10, fontWeight: 'bold' }}
                         />
-                        <YAxis stroke="#64748b" fontSize={10} fontWeight="bold" tickLine={false} axisLine={false} tickFormatter={(v) => `₹${v/1000}k`} />
+                        <YAxis 
+                          stroke="#64748b" 
+                          fontSize={10} 
+                          fontWeight="bold" 
+                          tickLine={false} 
+                          axisLine={false} 
+                          tickFormatter={(v) => `₹${v/1000}k`}
+                          label={{ value: 'Profit / Loss (INR)', angle: -90, position: 'insideLeft', offset: -10, fill: '#64748b', fontSize: 10, fontWeight: 'bold' }}
+                        />
                         <RechartsTooltip 
                           formatter={(v) => [fmtCurrency(Number(v)), 'Net Profit/Loss']}
                           contentStyle={{ background: '#0f172a', border: 'none', borderRadius: '12px', color: '#fff', fontSize: '12px', fontWeight: 'bold' }}
@@ -2458,7 +2583,7 @@ export default function FinancePortal() {
                           labelStyle={{ color: '#fff' }}
                         />
                         <Bar dataKey="profitFormatted" name="Net Profit / Loss" radius={[8, 8, 0, 0]}>
-                          {budgetAnalysisData.map((entry, idx) => (
+                          {maximizedData.map((entry, idx) => (
                             <Cell key={`cell-${idx}`} fill={entry.profit >= 0 ? '#10b981' : '#ef4444'} />
                           ))}
                         </Bar>
@@ -2470,9 +2595,9 @@ export default function FinancePortal() {
 
               {expandedChart === 'profitabilityMargin' && (
                 <div className="w-full h-full overflow-x-auto custom-scrollbar select-none pt-2">
-                  <div style={{ minWidth: `${Math.max(budgetAnalysisData.filter(item => item.revenue > 0).length * 90, 1200)}px` }} className="h-[90%]">
+                  <div style={{ minWidth: `${Math.max(maximizedData.filter(item => item.revenue > 0).length * 90, 1200)}px` }} className="h-[90%]">
                     <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={budgetAnalysisData.filter(item => item.revenue > 0)} margin={{ top: 20, right: 10, left: 10, bottom: 80 }}>
+                      <LineChart data={maximizedData.filter(item => item.revenue > 0)} margin={{ top: 20, right: 10, left: 25, bottom: 95 }}>
                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                         <XAxis 
                           dataKey="name" 
@@ -2485,8 +2610,17 @@ export default function FinancePortal() {
                           angle={-25}
                           dx={-10}
                           dy={10}
+                          label={{ value: 'Clients', position: 'insideBottom', offset: -10, fill: '#64748b', fontSize: 10, fontWeight: 'bold' }}
                         />
-                        <YAxis stroke="#64748b" fontSize={10} fontWeight="bold" tickLine={false} axisLine={false} tickFormatter={(v) => `${v}%`} />
+                        <YAxis 
+                          stroke="#64748b" 
+                          fontSize={10} 
+                          fontWeight="bold" 
+                          tickLine={false} 
+                          axisLine={false} 
+                          tickFormatter={(v) => `${v}%`}
+                          label={{ value: 'Profit Margin (%)', angle: -90, position: 'insideLeft', offset: -10, fill: '#64748b', fontSize: 10, fontWeight: 'bold' }}
+                        />
                         <RechartsTooltip 
                           formatter={(v) => [`${v}%`, 'Margin']}
                           contentStyle={{ background: '#0f172a', border: 'none', borderRadius: '12px', color: '#fff', fontSize: '12px', fontWeight: 'bold' }}
@@ -2565,81 +2699,190 @@ export default function FinancePortal() {
                 </div>
 
                 {/* Charts Section */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                  {/* Chart 1: Revenue vs Cost */}
-                  <div className="border border-slate-100 rounded-3xl p-6 bg-white space-y-4">
-                    <h5 className="text-sm font-bold text-slate-800">Budgeted Revenue & Distributed Resource Cost</h5>
-                    <div className="w-full overflow-x-auto custom-scrollbar select-none pb-2">
-                      <div style={{ minWidth: drillDownData.length > 0 ? `${Math.max(600, drillDownData.length * 60)}px` : '100%', height: '280px' }}>
-                        <ResponsiveContainer width="100%" height="100%">
-                          <BarChart data={drillDownData} margin={{ top: 20, right: 10, left: 10, bottom: 70 }}>
-                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                            <XAxis 
-                              dataKey="name" 
-                              stroke="#64748b" 
-                              fontSize={8} 
-                              fontWeight="bold" 
-                              tickLine={false} 
-                              axisLine={false}
-                              interval={0}
-                              angle={-30}
-                              dx={-8}
-                              dy={8}
-                            />
-                            <YAxis stroke="#64748b" fontSize={9} fontWeight="bold" tickLine={false} axisLine={false} tickFormatter={(v) => `₹${v/1000}k`} />
-                            <RechartsTooltip 
-                              formatter={(v) => [fmtCurrency(Number(v)), '']} 
-                              contentStyle={{ background: '#0f172a', border: 'none', borderRadius: '12px', color: '#fff', fontSize: '11px', fontWeight: 'bold' }} 
-                              itemStyle={{ color: '#fff' }}
-                              labelStyle={{ color: '#fff' }}
-                            />
-                            <Legend verticalAlign="top" height={36} iconType="circle" wrapperStyle={{ fontSize: '11px', fontWeight: 'bold' }} />
-                            <Bar dataKey="revenueFormatted" name="Revenue (Budget)" fill="#10b981" radius={[6, 6, 0, 0]} />
-                            <Bar dataKey="costFormatted" name="Allocated Resource Cost" fill="#3b82f6" radius={[6, 6, 0, 0]} />
-                          </BarChart>
-                        </ResponsiveContainer>
-                      </div>
-                    </div>
-                  </div>
+                {(() => {
+                  const isBdOrInternal = selectedDrillDownCoreTeam === 'BD' || selectedDrillDownCoreTeam === 'Internal';
+                  return (
+                    <div className={`grid grid-cols-1 gap-8 ${isBdOrInternal ? 'lg:grid-cols-2' : 'xl:grid-cols-3'}`}>
+                      {/* Chart 1: Revenue vs Cost */}
+                      <div className="border border-slate-100 rounded-3xl p-6 bg-white space-y-4">
+                        <div className="flex justify-between items-center">
+                          <h5 className="text-sm font-bold text-slate-800">Budgeted Revenue & Distributed Resource Cost</h5>
+                          <button
+                            onClick={() => setExpandedChart('costVsRevenue')}
+                            className="p-2 hover:bg-slate-100 text-slate-400 hover:text-slate-700 rounded-xl transition-all shadow-sm"
+                            title="Maximize Chart"
+                          >
+                            <Maximize2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                        {/* Constant/Fixed HTML Legend */}
+                        <div className="flex items-center justify-center gap-6 pb-2 pt-1 select-none border-b border-slate-50/50">
+                          <div className="flex items-center gap-2">
+                            <span className="w-2.5 h-2.5 rounded-full bg-[#3b82f6]" />
+                            <span className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Allocated Resource Cost</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="w-2.5 h-2.5 rounded-full bg-[#10b981]" />
+                            <span className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Revenue (Budget)</span>
+                          </div>
+                        </div>
 
-                  {/* Chart 2: Net Profit / Loss */}
-                  <div className="border border-slate-100 rounded-3xl p-6 bg-white space-y-4">
-                    <h5 className="text-sm font-bold text-slate-800">Absolute Net Margin Generated</h5>
-                    <div className="w-full overflow-x-auto custom-scrollbar select-none pb-2">
-                      <div style={{ minWidth: drillDownData.length > 0 ? `${Math.max(600, drillDownData.length * 60)}px` : '100%', height: '280px' }}>
-                        <ResponsiveContainer width="100%" height="100%">
-                          <BarChart data={drillDownData} margin={{ top: 20, right: 10, left: 10, bottom: 70 }}>
-                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                            <XAxis 
-                              dataKey="name" 
-                              stroke="#64748b" 
-                              fontSize={8} 
-                              fontWeight="bold" 
-                              tickLine={false} 
-                              axisLine={false}
-                              interval={0}
-                              angle={-30}
-                              dx={-8}
-                              dy={8}
-                            />
-                            <YAxis stroke="#64748b" fontSize={9} fontWeight="bold" tickLine={false} axisLine={false} tickFormatter={(v) => `₹${v/1000}k`} />
-                            <RechartsTooltip 
-                              formatter={(v) => [fmtCurrency(Number(v)), 'Net Profit/Loss']} 
-                              contentStyle={{ background: '#0f172a', border: 'none', borderRadius: '12px', color: '#fff', fontSize: '11px', fontWeight: 'bold' }} 
-                              itemStyle={{ color: '#fff' }}
-                              labelStyle={{ color: '#fff' }}
-                            />
-                            <Bar dataKey="profitFormatted" name="Net Profit / Loss" radius={[6, 6, 0, 0]}>
-                              {drillDownData.map((entry, idx) => (
-                                <Cell key={`cell-${idx}`} fill={entry.profit >= 0 ? '#10b981' : '#ef4444'} />
-                              ))}
-                            </Bar>
-                          </BarChart>
-                        </ResponsiveContainer>
+                        <div className="w-full overflow-x-auto custom-scrollbar select-none pb-2">
+                          <div style={{ minWidth: drillDownData.length > 0 ? `${Math.max(600, drillDownData.length * 60)}px` : '100%', height: '280px' }}>
+                            <ResponsiveContainer width="100%" height="100%">
+                              <BarChart data={drillDownData} margin={{ top: 20, right: 10, left: 25, bottom: 85 }}>
+                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                                <XAxis 
+                                  dataKey="name" 
+                                  stroke="#64748b" 
+                                  fontSize={8} 
+                                  fontWeight="bold" 
+                                  tickLine={false} 
+                                  axisLine={false}
+                                  interval={0}
+                                  angle={-30}
+                                  dx={-8}
+                                  dy={8}
+                                  label={{ value: 'Clients', position: 'insideBottom', offset: -10, fill: '#64748b', fontSize: 10, fontWeight: 'bold' }}
+                                />
+                                <YAxis 
+                                  stroke="#64748b" 
+                                  fontSize={9} 
+                                  fontWeight="bold" 
+                                  tickLine={false} 
+                                  axisLine={false} 
+                                  tickFormatter={(v) => `₹${v/1000}k`}
+                                  label={{ value: 'Amount (INR)', angle: -90, position: 'insideLeft', offset: -10, fill: '#64748b', fontSize: 10, fontWeight: 'bold' }}
+                                />
+                                <RechartsTooltip 
+                                  formatter={(v) => [fmtCurrency(Number(v)), '']} 
+                                  contentStyle={{ background: '#0f172a', border: 'none', borderRadius: '12px', color: '#fff', fontSize: '11px', fontWeight: 'bold' }} 
+                                  itemStyle={{ color: '#fff' }}
+                                  labelStyle={{ color: '#fff' }}
+                                />
+                                <Bar dataKey="revenueFormatted" name="Revenue (Budget)" fill="#10b981" radius={[6, 6, 0, 0]} />
+                                <Bar dataKey="costFormatted" name="Allocated Resource Cost" fill="#3b82f6" radius={[6, 6, 0, 0]} />
+                              </BarChart>
+                            </ResponsiveContainer>
+                          </div>
+                        </div>
                       </div>
+
+                      {/* Chart 2: Net Profit / Loss */}
+                      <div className="border border-slate-100 rounded-3xl p-6 bg-white space-y-4">
+                        <div className="flex justify-between items-center">
+                          <h5 className="text-sm font-bold text-slate-800">Absolute Net Margin Generated</h5>
+                          <button
+                            onClick={() => setExpandedChart('profitVsLoss')}
+                            className="p-2 hover:bg-slate-100 text-slate-400 hover:text-slate-700 rounded-xl transition-all shadow-sm"
+                            title="Maximize Chart"
+                          >
+                            <Maximize2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                        <div className="w-full overflow-x-auto custom-scrollbar select-none pb-2">
+                          <div style={{ minWidth: drillDownData.length > 0 ? `${Math.max(600, drillDownData.length * 60)}px` : '100%', height: '280px' }}>
+                            <ResponsiveContainer width="100%" height="100%">
+                              <BarChart data={drillDownData} margin={{ top: 20, right: 10, left: 25, bottom: 85 }}>
+                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                                <XAxis 
+                                  dataKey="name" 
+                                  stroke="#64748b" 
+                                  fontSize={8} 
+                                  fontWeight="bold" 
+                                  tickLine={false} 
+                                  axisLine={false}
+                                  interval={0}
+                                  angle={-30}
+                                  dx={-8}
+                                  dy={8}
+                                  label={{ value: 'Clients', position: 'insideBottom', offset: -10, fill: '#64748b', fontSize: 10, fontWeight: 'bold' }}
+                                />
+                                <YAxis 
+                                  stroke="#64748b" 
+                                  fontSize={9} 
+                                  fontWeight="bold" 
+                                  tickLine={false} 
+                                  axisLine={false} 
+                                  tickFormatter={(v) => `₹${v/1000}k`}
+                                  label={{ value: 'Profit / Loss (INR)', angle: -90, position: 'insideLeft', offset: -10, fill: '#64748b', fontSize: 10, fontWeight: 'bold' }}
+                                />
+                                <RechartsTooltip 
+                                  formatter={(v) => [fmtCurrency(Number(v)), 'Net Profit/Loss']} 
+                                  contentStyle={{ background: '#0f172a', border: 'none', borderRadius: '12px', color: '#fff', fontSize: '11px', fontWeight: 'bold' }} 
+                                  itemStyle={{ color: '#fff' }}
+                                  labelStyle={{ color: '#fff' }}
+                                />
+                                <Bar dataKey="profitFormatted" name="Net Profit / Loss" radius={[6, 6, 0, 0]}>
+                                  {drillDownData.map((entry, idx) => (
+                                    <Cell key={`cell-${idx}`} fill={entry.profit >= 0 ? '#10b981' : '#ef4444'} />
+                                  ))}
+                                </Bar>
+                              </BarChart>
+                            </ResponsiveContainer>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Chart 3: Profitability Margin (%) */}
+                      {!isBdOrInternal && (
+                        <div className="border border-slate-100 rounded-3xl p-6 bg-white space-y-4">
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Profitability Margin (%)</span>
+                              <h5 className="text-sm font-bold text-slate-800 mt-0.5">Net Profit Margin by Client</h5>
+                            </div>
+                            <button
+                              onClick={() => setExpandedChart('profitabilityMargin')}
+                              className="p-2 hover:bg-slate-100 text-slate-400 hover:text-slate-700 rounded-xl transition-all shadow-sm"
+                              title="Maximize Chart"
+                            >
+                              <Maximize2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                          <div className="w-full overflow-x-auto custom-scrollbar select-none pb-2">
+                            <div style={{ minWidth: drillDownData.length > 0 ? `${Math.max(600, drillDownData.filter(item => item.revenue > 0).length * 60)}px` : '100%', height: '280px' }}>
+                              <ResponsiveContainer width="100%" height="100%">
+                                <LineChart data={drillDownData.filter(item => item.revenue > 0)} margin={{ top: 20, right: 10, left: 25, bottom: 85 }}>
+                                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                                  <XAxis 
+                                    dataKey="name" 
+                                    stroke="#64748b" 
+                                    fontSize={8} 
+                                    fontWeight="bold" 
+                                    tickLine={false} 
+                                    axisLine={false}
+                                    interval={0}
+                                    angle={-30}
+                                    dx={-8}
+                                    dy={8}
+                                    label={{ value: 'Clients', position: 'insideBottom', offset: -10, fill: '#64748b', fontSize: 10, fontWeight: 'bold' }}
+                                  />
+                                  <YAxis 
+                                    stroke="#64748b" 
+                                    fontSize={9} 
+                                    fontWeight="bold" 
+                                    tickLine={false} 
+                                    axisLine={false} 
+                                    tickFormatter={(v) => `${v}%`}
+                                    label={{ value: 'Profit Margin (%)', angle: -90, position: 'insideLeft', offset: -10, fill: '#64748b', fontSize: 10, fontWeight: 'bold' }}
+                                  />
+                                  <RechartsTooltip 
+                                    formatter={(v) => [`${v}%`, 'Margin']}
+                                    contentStyle={{ background: '#0f172a', border: 'none', borderRadius: '12px', color: '#fff', fontSize: '11px', fontWeight: 'bold' }}
+                                    itemStyle={{ color: '#fff' }}
+                                    labelStyle={{ color: '#fff' }}
+                                  />
+                                  <Line type="monotone" dataKey="profitMargin" stroke="#8b5cf6" strokeWidth={3} dot={{ r: 3 }} activeDot={{ r: 6 }} />
+                                </LineChart>
+                              </ResponsiveContainer>
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
-                  </div>
-                </div>
+                  );
+                })()}
 
                 {/* Table Breakdown */}
                 <div className="border border-slate-200 rounded-2xl overflow-hidden shadow-sm">

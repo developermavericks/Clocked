@@ -3,15 +3,42 @@
 export const dynamic = 'force-dynamic';
 
 import { useState, useEffect, useMemo } from 'react';
-import { Settings, FileText, Briefcase, Download, Plus, Search, ShieldCheck, User as UserIcon, Users, Trash2, UserPlus, Calendar, RefreshCw, Lock, Unlock } from 'lucide-react';
+import { Settings, FileText, Briefcase, Download, Plus, Search, ShieldCheck, User as UserIcon, Users, Trash2, UserPlus, Calendar, RefreshCw, Lock, Unlock, BarChart3 } from 'lucide-react';
 import StatsCard from '@/components/StatsCard';
 import { apiFetch } from '@/lib/api';
 import { Loader } from '@/components/Loader';
 import ClientAdmin from '@/components/ClientAdmin';
 import MemberInsights from '@/components/MemberInsights';
+import TeamAnalytics from '@/components/TeamAnalytics';
 
 export default function CorePortal() {
-  const [activeTab, setActiveTab] = useState<'admin' | 'members' | 'master' | 'clients' | 'exit-date'>('admin');
+  const [activeTab, setActiveTab] = useState<'admin' | 'members' | 'master' | 'clients' | 'exit-date' | 'team-analytics'>('admin');
+  const [currentUserEmail, setCurrentUserEmail] = useState<string>('');
+
+  useEffect(() => {
+    const fetchUserSession = async () => {
+      try {
+        const { supabase } = await import('@/lib/supabase');
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user?.email) {
+          setCurrentUserEmail(user.email);
+        }
+      } catch (err) {
+        console.error('Failed to get user session:', err);
+      }
+    };
+    fetchUserSession();
+  }, []);
+
+  const isAuthorizedForTeamAnalytics = useMemo(() => {
+    const email = currentUserEmail.toLowerCase().trim();
+    return [
+      'chetan@themavericksindia.com',
+      'smriti@themavericksindia.com',
+      'archana@themavericksindia.com',
+      'mitali.p@themavericksindia.com'
+    ].includes(email);
+  }, [currentUserEmail]);
   const [month, setMonth] = useState(new Date().toISOString().slice(0, 7));
   const [clients, setClients] = useState<any[]>([]);
   const [users, setUsers] = useState<any[]>([]);
@@ -456,6 +483,17 @@ export default function CorePortal() {
               <UserIcon className="w-4 h-4" />
               Exit & Joining (Team)
             </button>
+            {isAuthorizedForTeamAnalytics && (
+              <button 
+                onClick={() => setActiveTab('team-analytics')}
+                className={`px-6 py-4 text-sm font-bold border-b-2 transition-all flex items-center gap-2 ${
+                  activeTab === 'team-analytics' ? 'border-orange-600 text-orange-600' : 'border-transparent text-slate-500 hover:text-slate-700'
+                }`}
+              >
+                <BarChart3 className="w-4 h-4" />
+                Team Analytics
+              </button>
+            )}
           </div>
           {activeTab === 'clients' && (
             <button
@@ -500,21 +538,21 @@ export default function CorePortal() {
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 {/* Active Users Section */}
                 <div className="lg:col-span-2 space-y-4">
-                  <h3 className="text-lg font-bold text-slate-900 dark:text-white px-1">Manage User Roles</h3>
-                  <div className="overflow-x-auto border border-slate-100 dark:border-slate-800 rounded-2xl bg-white dark:bg-slate-900 shadow-sm">
+                  <h3 className="text-lg font-bold text-slate-900 px-1">Manage User Roles</h3>
+                  <div className="overflow-x-auto border border-slate-100 rounded-2xl bg-white shadow-sm">
                     <table className="w-full text-left border-collapse">
-                      <thead className="bg-slate-50 dark:bg-slate-950/20">
+                      <thead className="bg-slate-50">
                         <tr>
-                          <th className="px-6 py-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">User</th>
-                          <th className="px-6 py-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Email</th>
-                          <th className="px-6 py-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase text-right">Role</th>
-                          <th className="px-6 py-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase text-right">Action</th>
+                          <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase">User</th>
+                          <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase">Email</th>
+                          <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase text-right">Role</th>
+                          <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase text-right">Action</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                      <tbody className="divide-y divide-slate-100">
                         {loading ? (
                           <tr>
-                            <td colSpan={4} className="text-center py-10 bg-white dark:bg-slate-900">
+                            <td colSpan={4} className="text-center py-10 bg-white">
                               <Loader size="md" text="Loading roles..." />
                             </td>
                           </tr>
@@ -532,12 +570,12 @@ export default function CorePortal() {
                             // Optimistic role cycle update
                             setUsers(prevUsers => 
                               prevUsers.map(u => {
-                                if (u.id === userId) {
-                                  const isManager = nextRole === 'manager';
-                                  return { ...u, role: nextRole, is_manager: isManager };
-                                }
-                                return u;
-                              })
+                                  if (u.id === userId) {
+                                    const isManager = nextRole === 'manager';
+                                    return { ...u, role: nextRole, is_manager: isManager };
+                                  }
+                                  return u;
+                                })
                             );
                             
                             try {
@@ -566,23 +604,23 @@ export default function CorePortal() {
                           const initial = (u.name?.[0] || u.email?.[0] || '?').toUpperCase();
 
                           return (
-                            <tr key={u.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
+                            <tr key={u.id} className="hover:bg-slate-50 transition-colors">
                               <td className="px-6 py-4 flex items-center gap-3">
                                 {u.picture ? (
-                                  <img src={u.picture} className="w-9 h-9 rounded-xl object-cover shadow-sm ring-2 ring-white dark:ring-slate-850" />
+                                  <img src={u.picture} className="w-9 h-9 rounded-xl object-cover shadow-sm ring-2 ring-white" />
                                 ) : (
-                                  <div className={`w-9 h-9 ${avatarColor} rounded-xl flex items-center justify-center ${initialColor} text-sm font-black shadow-sm ring-2 ring-white dark:ring-slate-850`}>
+                                  <div className={`w-9 h-9 ${avatarColor} rounded-xl flex items-center justify-center ${initialColor} text-sm font-black shadow-sm ring-2 ring-white`}>
                                     {initial}
                                   </div>
                                 )}
                                 <div>
-                                  <span className="text-sm font-bold text-slate-900 dark:text-slate-100 block leading-tight">
+                                  <span className="text-sm font-bold text-slate-900 block leading-tight">
                                     {u.name || u.email.split('@')[0]}
                                   </span>
-                                  <span className="text-[10px] text-slate-400 dark:text-slate-500 font-medium uppercase tracking-wider">{u.email.split('@')[1]}</span>
+                                  <span className="text-[10px] text-slate-400 font-medium uppercase tracking-wider">{u.email.split('@')[1]}</span>
                                 </div>
                               </td>
-                              <td className="px-6 py-4 text-sm text-slate-600 dark:text-slate-300 font-medium">{u.email}</td>
+                              <td className="px-6 py-4 text-sm text-slate-600 font-medium">{u.email}</td>
                               <td className="px-6 py-4 text-sm text-right">
                                 <button 
                                   onClick={() => handleRoleChange(u.id, u.role || 'team')}
@@ -615,14 +653,14 @@ export default function CorePortal() {
 
                 {/* Locked Months Manager Section */}
                 <div className="space-y-4">
-                  <h3 className="text-lg font-bold text-slate-900 dark:text-white px-1">Lock Override</h3>
-                  <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 p-6 rounded-2xl space-y-5 shadow-sm">
+                  <h3 className="text-lg font-bold text-slate-900 px-1">Lock Override</h3>
+                  <div className="bg-slate-50 border border-slate-200/60 p-6 rounded-2xl space-y-5 shadow-sm">
                     <div>
-                      <h4 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                      <h4 className="text-sm font-bold text-slate-900 flex items-center gap-2">
                         <Unlock className="w-4 h-4 text-orange-600" />
                         Unlock Previous Month
                       </h4>
-                      <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-1 leading-relaxed">
+                      <p className="text-xs text-slate-500 font-medium mt-1 leading-relaxed">
                         Normally, time logging is capped after the 5th date of the current month. Unlock a month below to allow team edits.
                       </p>
                     </div>
@@ -633,7 +671,7 @@ export default function CorePortal() {
                         required
                         value={newUnlockMonth}
                         onChange={(e) => setNewUnlockMonth(e.target.value)}
-                        className="flex-1 px-3 py-2.5 text-xs border border-slate-200 dark:border-slate-800 rounded-xl focus:ring-2 focus:ring-orange-600 focus:border-transparent outline-none bg-white dark:bg-slate-800 font-semibold text-slate-800 dark:text-slate-100"
+                        className="flex-1 px-3 py-2.5 text-xs border border-slate-200 rounded-xl focus:ring-2 focus:ring-orange-600 focus:border-transparent outline-none bg-white font-semibold text-slate-800"
                       />
                       <button 
                         type="submit"
@@ -644,23 +682,23 @@ export default function CorePortal() {
                       </button>
                     </form>
 
-                    <div className="pt-3 border-t border-slate-200/60 dark:border-slate-800">
-                      <h5 className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-550 tracking-widest mb-3 flex items-center gap-1.5">
-                        <Lock className="w-3 h-3 text-slate-400 dark:text-slate-500" />
+                    <div className="pt-3 border-t border-slate-200/60">
+                      <h5 className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-3 flex items-center gap-1.5">
+                        <Lock className="w-3 h-3 text-slate-400" />
                         Active Overrides
                       </h5>
                       {unlockedMonthsList.length === 0 ? (
-                        <p className="text-xs text-slate-400 dark:text-slate-500 italic">No overrides set. Default locks active.</p>
+                        <p className="text-xs text-slate-400 italic">No overrides set. Default locks active.</p>
                       ) : (
                         <div className="space-y-2.5 max-h-[220px] overflow-y-auto pr-1">
                           {unlockedMonthsList.map((item) => (
-                            <div key={item.month} className="flex items-center justify-between bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 px-4 py-3 rounded-xl shadow-sm">
-                              <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                            <div key={item.month} className="flex items-center justify-between bg-white border border-slate-100 px-4 py-3 rounded-xl shadow-sm">
+                              <span className="text-xs font-bold text-slate-800">
                                 {new Date(item.month + '-02').toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
                               </span>
                               <button 
                                 onClick={() => handleLockMonth(item.month)}
-                                className="text-[10px] font-black text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 px-2.5 py-1.5 rounded-lg uppercase tracking-wider transition-all"
+                                className="text-[10px] font-black text-rose-600 hover:bg-rose-50 px-2.5 py-1.5 rounded-lg uppercase tracking-wider transition-all"
                                 title="Re-lock month"
                               >
                                 Re-Lock
@@ -1020,6 +1058,10 @@ export default function CorePortal() {
                 </table>
               </div>
             </div>
+          )}
+
+          {activeTab === 'team-analytics' && (
+            <TeamAnalytics month={month} currentUserEmail={currentUserEmail} />
           )}
         </div>
       </div>

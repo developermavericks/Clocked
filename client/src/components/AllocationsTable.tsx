@@ -55,12 +55,18 @@ export default function AllocationsTable({
     };
   };
 
+  const showCheckbox = displayMode === 'detailed' && !isLocked && !!onSelectionChange;
+  const showActions = displayMode === 'detailed' && (!!onEdit || !!onDelete);
+
+  const leftColSpan = 3 + (type === 'weekly' && displayMode === 'detailed' ? 1 : 0) + (showCheckbox ? 1 : 0);
+  const rightColSpan = 1 + (showActions ? 1 : 0);
+
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-left border-collapse">
         <thead>
           <tr className="bg-slate-50 border-b border-slate-100">
-            {displayMode === 'detailed' && !isLocked && (
+            {showCheckbox && (
               <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider text-center w-12">
                 <input 
                   type="checkbox" 
@@ -82,7 +88,7 @@ export default function AllocationsTable({
             {displayMode === 'detailed' && <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Category</th>}
             <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider text-right">Hours</th>
             {displayMode === 'detailed' && <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Notes</th>}
-            {displayMode === 'detailed' && <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider text-right">Actions</th>}
+            {showActions && <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider text-right">Actions</th>}
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-100">
@@ -97,7 +103,7 @@ export default function AllocationsTable({
               const sourceInfo = getSourceInfo(item);
               return (
                 <tr key={item.id || idx} className="hover:bg-slate-50 transition-colors group">
-                  {displayMode === 'detailed' && !isLocked && (
+                  {showCheckbox && (
                     <td className="px-6 py-4 text-center w-12">
                       <input 
                         type="checkbox" 
@@ -135,7 +141,7 @@ export default function AllocationsTable({
                   )}
                   <td className="px-6 py-4 text-sm text-slate-900 font-bold text-right font-mono">{item.hours.toFixed(2)}</td>
                   {displayMode === 'detailed' && <td className="px-6 py-4 text-sm text-slate-500 max-w-xs truncate">{sourceInfo.cleanNotes}</td>}
-                  {displayMode === 'detailed' && (
+                  {showActions && (
                     <td className="px-6 py-4 text-right">
                       {isLocked ? (
                         <div className="flex justify-end pr-2 text-slate-400">
@@ -143,18 +149,22 @@ export default function AllocationsTable({
                         </div>
                       ) : (
                         <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <button 
-                            onClick={() => onEdit?.(item.id)}
-                            className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
-                          >
-                            <Edit2 className="w-4 h-4" />
-                          </button>
-                          <button 
-                            onClick={() => onDelete?.(item.id)}
-                            className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                          {onEdit && (
+                            <button 
+                              onClick={() => onEdit(item.id)}
+                              className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
+                            >
+                              <Edit2 className="w-4 h-4" />
+                            </button>
+                          )}
+                          {onDelete && (
+                            <button 
+                              onClick={() => onDelete(item.id)}
+                              className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
                         </div>
                       )}
                     </td>
@@ -168,7 +178,7 @@ export default function AllocationsTable({
           <tfoot className="bg-slate-50 border-t-2 border-slate-200">
             <tr>
               <td 
-                colSpan={displayMode === 'detailed' ? (type === 'weekly' ? (isLocked ? 4 : 5) : (isLocked ? 3 : 4)) : 1} 
+                colSpan={leftColSpan} 
                 className="px-6 py-4 text-sm font-black text-slate-900 text-right"
               >
                 GRAND TOTAL
@@ -177,7 +187,7 @@ export default function AllocationsTable({
                 {displayData.reduce((acc, item) => acc + item.hours, 0).toFixed(2)}
               </td>
               {displayMode === 'detailed' && (
-                <td colSpan={2} className="px-6 py-4"></td>
+                <td colSpan={rightColSpan} className="px-6 py-4"></td>
               )}
             </tr>
           </tfoot>

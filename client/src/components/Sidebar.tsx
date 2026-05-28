@@ -22,7 +22,6 @@ const CORE_EMAILS = [
   'chetan@themavericksindia.com',
   'developerteam@themavericksindia.com',
   'divyanshsharma@themavericksindia.com',
-  'gaurav@themavericksindia.com',
   'mitali.p@themavericksindia.com',
   'pooja@themavericksindia.com',
   'satyam.singh@themavericksindia.com',
