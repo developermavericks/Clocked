@@ -3,7 +3,7 @@
 export const dynamic = 'force-dynamic';
 
 import { useState, useEffect, useMemo } from 'react';
-import { Settings, FileText, Briefcase, Download, Plus, Search, ShieldCheck, User as UserIcon, Users, Trash2, UserPlus, Calendar, RefreshCw, Lock, Unlock, BarChart3 } from 'lucide-react';
+import { Settings, FileText, Briefcase, Download, Plus, Search, ShieldCheck, User as UserIcon, Users, Trash2, UserPlus, Calendar, RefreshCw, Lock, Unlock, BarChart3, CheckCircle2 } from 'lucide-react';
 import StatsCard from '@/components/StatsCard';
 import { apiFetch } from '@/lib/api';
 import { Loader } from '@/components/Loader';
@@ -50,6 +50,9 @@ export default function CorePortal() {
 
   // Unlocked months state
   const [unlockedMonthsList, setUnlockedMonthsList] = useState<any[]>([]);
+  
+  // Save feedback state
+  const [saveStatus, setSaveStatus] = useState<Record<string, 'saving' | 'saved' | null>>({});
   const [newUnlockMonth, setNewUnlockMonth] = useState('');
   const [isUnlocking, setIsUnlocking] = useState(false);
 
@@ -147,15 +150,21 @@ export default function CorePortal() {
     setUsers(prevUsers => 
       prevUsers.map(u => u.id === userId ? { ...u, exit_date: date } : u)
     );
+    setSaveStatus(prev => ({ ...prev, [userId]: 'saving' }));
     try {
       await apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/teams/users/${userId}/exit-date`, {
         method: 'PATCH',
         body: JSON.stringify({ exitDate: date })
       });
+      setSaveStatus(prev => ({ ...prev, [userId]: 'saved' }));
+      setTimeout(() => {
+        setSaveStatus(prev => ({ ...prev, [userId]: null }));
+      }, 3000);
       // Silent background fetch, absolutely NO loading spinner to avoid date unmount
       await fetchUsers(false);
     } catch (err) {
       console.error('Failed to update exit date:', err);
+      setSaveStatus(prev => ({ ...prev, [userId]: null }));
       // Rollback on error
       fetchUsers(true);
     }
@@ -166,14 +175,20 @@ export default function CorePortal() {
     setUsers(prevUsers => 
       prevUsers.map(u => u.id === userId ? { ...u, joining_date: date } : u)
     );
+    setSaveStatus(prev => ({ ...prev, [userId]: 'saving' }));
     try {
       await apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/teams/users/${userId}/joining-date`, {
         method: 'PATCH',
         body: JSON.stringify({ joiningDate: date })
       });
+      setSaveStatus(prev => ({ ...prev, [userId]: 'saved' }));
+      setTimeout(() => {
+        setSaveStatus(prev => ({ ...prev, [userId]: null }));
+      }, 3000);
       await fetchUsers(false);
     } catch (err) {
       console.error('Failed to update joining date:', err);
+      setSaveStatus(prev => ({ ...prev, [userId]: null }));
       fetchUsers(true);
     }
   };
@@ -1041,8 +1056,18 @@ export default function CorePortal() {
                               className="px-3 py-1.5 text-xs font-bold text-slate-700 border border-slate-200 rounded-lg focus:ring-2 focus:ring-orange-600 outline-none bg-white cursor-pointer"
                             />
                           </td>
-                          <td className="px-6 py-4 text-right">
-                            {u.exit_date && (
+                          <td className="px-6 py-4 text-right min-w-[120px]">
+                            {saveStatus[u.id] === 'saving' && (
+                              <span className="inline-flex items-center gap-1 text-xs font-bold text-slate-400 animate-pulse uppercase tracking-wider">
+                                Saving...
+                              </span>
+                            )}
+                            {saveStatus[u.id] === 'saved' && (
+                              <span className="inline-flex items-center gap-1.5 text-xs font-black text-emerald-600 bg-emerald-50 px-2.5 py-1.5 rounded-lg uppercase tracking-wider animate-in fade-in duration-300">
+                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Saved
+                              </span>
+                            )}
+                            {!saveStatus[u.id] && u.exit_date && (
                               <button 
                                 onClick={() => handleExitDateChange(u.id, null)}
                                 className="text-xs font-black text-slate-500 hover:text-orange-600 bg-slate-100 hover:bg-orange-50 px-3 py-1.5 rounded-lg uppercase tracking-widest transition-all cursor-pointer"

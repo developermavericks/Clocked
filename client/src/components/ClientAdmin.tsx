@@ -42,6 +42,9 @@ export default function ClientAdmin({
   const [newClientJoinDate, setNewClientJoinDate] = useState('2025-11-01');
   const [localIsAddFormOpen, setLocalIsAddFormOpen] = useState(false);
   const [isAddingClient, setIsAddingClient] = useState(false);
+  
+  // Save feedback state
+  const [saveStatus, setSaveStatus] = useState<Record<string, 'saving' | 'saved' | null>>({});
 
   const isAddFormOpen = parentIsAddFormOpen !== undefined ? parentIsAddFormOpen : localIsAddFormOpen;
   const setIsAddFormOpen = parentSetIsAddFormOpen !== undefined ? parentSetIsAddFormOpen : setLocalIsAddFormOpen;
@@ -80,6 +83,8 @@ export default function ClientAdmin({
       [field === 'joiningDate' ? 'joining_date' : 'exit_date']: value 
     } : c));
 
+    setSaveStatus(prev => ({ ...prev, [clientId]: 'saving' }));
+
     try {
       const res = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/clients/${clientId}/dates`, {
         method: 'PATCH',
@@ -91,8 +96,13 @@ export default function ClientAdmin({
       if (!res.ok) {
         throw new Error('Failed to update client dates');
       }
+      setSaveStatus(prev => ({ ...prev, [clientId]: 'saved' }));
+      setTimeout(() => {
+        setSaveStatus(prev => ({ ...prev, [clientId]: null }));
+      }, 3000);
       fetchClients();
     } catch (err: any) {
+      setSaveStatus(prev => ({ ...prev, [clientId]: null }));
       alert(err.message);
       fetchClients();
     }
@@ -432,8 +442,18 @@ export default function ClientAdmin({
                             className="px-3 py-1.5 text-xs font-bold text-slate-700 border border-slate-200 rounded-lg focus:ring-2 focus:ring-orange-600 outline-none bg-white cursor-pointer"
                           />
                         </td>
-                        <td className="px-8 py-5 text-right text-sm">
-                          {c.exit_date && (
+                        <td className="px-8 py-5 text-right text-sm min-w-[120px]">
+                          {saveStatus[c.id] === 'saving' && (
+                            <span className="inline-flex items-center gap-1 text-xs font-bold text-slate-400 animate-pulse uppercase tracking-wider">
+                              Saving...
+                            </span>
+                          )}
+                          {saveStatus[c.id] === 'saved' && (
+                            <span className="inline-flex items-center gap-1.5 text-xs font-black text-emerald-600 bg-emerald-50 px-2.5 py-1.5 rounded-lg uppercase tracking-wider animate-in fade-in duration-300">
+                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Saved
+                            </span>
+                          )}
+                          {!saveStatus[c.id] && c.exit_date && (
                             <button 
                               onClick={() => handleClientDateChange(c.id, 'exitDate', null)}
                               className="text-xs font-black text-slate-500 hover:text-orange-600 bg-slate-100 hover:bg-orange-50 px-3 py-1.5 rounded-lg uppercase tracking-widest transition-all cursor-pointer"
