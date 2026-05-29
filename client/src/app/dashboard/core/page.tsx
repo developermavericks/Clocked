@@ -426,20 +426,20 @@ export default function CorePortal() {
             <select 
               value={month.split('-')[1]} 
               onChange={(e) => setMonth(`${month.split('-')[0]}-${e.target.value}`)}
-              className="px-4 py-2 text-sm font-bold bg-white border-none focus:ring-0 outline-none cursor-pointer text-slate-900 min-w-[120px] rounded-l-xl"
+              className="px-4 py-2 text-sm font-bold bg-transparent border-none focus:ring-0 outline-none cursor-pointer text-slate-900 min-w-[120px] rounded-l-xl"
             >
               {['01','02','03','04','05','06','07','08','09','10','11','12'].map(m => (
-                <option key={m} value={m} className="bg-white text-slate-900">{new Date(2025, parseInt(m)-1).toLocaleString('en-US', { month: 'long' })}</option>
+                <option key={m} value={m}>{new Date(2025, parseInt(m)-1).toLocaleString('en-US', { month: 'long' })}</option>
               ))}
             </select>
             <div className="w-[1px] bg-slate-100 my-2" />
             <select 
               value={month.split('-')[0]} 
               onChange={(e) => setMonth(`${e.target.value}-${month.split('-')[1]}`)}
-              className="px-4 py-2 text-sm font-bold bg-white border-none focus:ring-0 outline-none cursor-pointer text-orange-600 min-w-[90px] rounded-r-xl"
+              className="px-4 py-2 text-sm font-bold bg-transparent border-none focus:ring-0 outline-none cursor-pointer text-orange-600 min-w-[90px] rounded-r-xl"
             >
               {[2025, 2026, 2027, 2028, 2029, 2030].map(y => (
-                <option key={y} value={y} className="bg-white text-slate-900">{y}</option>
+                <option key={y} value={y}>{y}</option>
               ))}
             </select>
           </div>
@@ -776,20 +776,20 @@ export default function CorePortal() {
                     <select 
                       value={month.split('-')[1]} 
                       onChange={(e) => setMonth(`${month.split('-')[0]}-${e.target.value}`)}
-                      className="px-3 py-1.5 text-xs font-black bg-white border-none focus:ring-0 outline-none cursor-pointer uppercase tracking-wider text-slate-900 min-w-[80px] rounded-l-lg"
+                      className="px-3 py-1.5 text-xs font-black bg-transparent border-none focus:ring-0 outline-none cursor-pointer uppercase tracking-wider text-slate-900 min-w-[80px] rounded-l-lg"
                     >
                       {['01','02','03','04','05','06','07','08','09','10','11','12'].map(m => (
-                        <option key={m} value={m} className="bg-white text-slate-900">{new Date(2025, parseInt(m)-1).toLocaleString('en-US', { month: 'short' })}</option>
+                        <option key={m} value={m}>{new Date(2025, parseInt(m)-1).toLocaleString('en-US', { month: 'short' })}</option>
                       ))}
                     </select>
                     <div className="w-[1px] bg-slate-300 my-1.5" />
                     <select 
                       value={month.split('-')[0]} 
                       onChange={(e) => setMonth(`${e.target.value}-${month.split('-')[1]}`)}
-                      className="px-3 py-1.5 text-xs font-black bg-white border-none focus:ring-0 outline-none cursor-pointer text-orange-600 min-w-[80px] rounded-r-lg"
+                      className="px-3 py-1.5 text-xs font-black bg-transparent border-none focus:ring-0 outline-none cursor-pointer text-orange-600 min-w-[80px] rounded-r-lg"
                     >
                       {[2025, 2026, 2027, 2028, 2029, 2030].map(y => (
-                        <option key={y} value={y} className="bg-white text-slate-900">{y}</option>
+                        <option key={y} value={y}>{y}</option>
                       ))}
                     </select>
                   </div>

@@ -23,6 +23,7 @@ interface AllocationsTableProps {
   isLocked?: boolean;
   selectedIds?: string[];
   onSelectionChange?: (ids: string[]) => void;
+  isDeleting?: boolean;
 }
 
 export default function AllocationsTable({ 
@@ -33,7 +34,8 @@ export default function AllocationsTable({
   onDelete,
   isLocked = false,
   selectedIds = [],
-  onSelectionChange
+  onSelectionChange,
+  isDeleting = false
 }: AllocationsTableProps) {
   // Aggregate data if in summary mode
   const displayData = displayMode === 'summary' ? 
@@ -71,6 +73,7 @@ export default function AllocationsTable({
                 <input 
                   type="checkbox" 
                   checked={displayData.length > 0 && selectedIds.length === displayData.length}
+                  disabled={isDeleting}
                   onChange={(e) => {
                     if (e.target.checked) {
                       onSelectionChange?.(displayData.map(item => item.id));
@@ -78,7 +81,7 @@ export default function AllocationsTable({
                       onSelectionChange?.([]);
                     }
                   }}
-                  className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer w-4 h-4"
+                  className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer w-4 h-4 disabled:opacity-50 disabled:cursor-not-allowed"
                 />
               </th>
             )}
@@ -108,6 +111,7 @@ export default function AllocationsTable({
                       <input 
                         type="checkbox" 
                         checked={selectedIds.includes(item.id)}
+                        disabled={isDeleting}
                         onChange={(e) => {
                           if (e.target.checked) {
                             onSelectionChange?.([...selectedIds, item.id]);
@@ -115,7 +119,7 @@ export default function AllocationsTable({
                             onSelectionChange?.(selectedIds.filter(id => id !== item.id));
                           }
                         }}
-                        className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer w-4 h-4"
+                        className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer w-4 h-4 disabled:opacity-50 disabled:cursor-not-allowed"
                       />
                     </td>
                   )}
@@ -148,11 +152,12 @@ export default function AllocationsTable({
                           <Lock className="w-4.5 h-4.5" />
                         </div>
                       ) : (
-                        <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className={`flex justify-end gap-2 transition-opacity ${isDeleting ? 'opacity-30 pointer-events-none' : 'opacity-0 group-hover:opacity-100'}`}>
                           {onEdit && (
                             <button 
                               onClick={() => onEdit(item.id)}
-                              className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
+                              disabled={isDeleting}
+                              className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                               <Edit2 className="w-4 h-4" />
                             </button>
@@ -160,7 +165,8 @@ export default function AllocationsTable({
                           {onDelete && (
                             <button 
                               onClick={() => onDelete(item.id)}
-                              className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                              disabled={isDeleting}
+                              className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                               <Trash2 className="w-4 h-4" />
                             </button>

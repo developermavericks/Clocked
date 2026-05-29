@@ -291,7 +291,7 @@ export default function ClientAdmin({
                <select 
                  value={selectedMonth.split('-')[1]} 
                  onChange={(e) => setSelectedMonth(`${selectedMonth.split('-')[0]}-${e.target.value}`)}
-                 className="pl-4 pr-2 py-2.5 text-sm font-bold bg-transparent border-none focus:ring-0 outline-none cursor-pointer"
+                 className="pl-4 pr-2 py-2.5 text-sm font-bold bg-transparent border-none focus:ring-0 outline-none cursor-pointer text-slate-800"
                >
                  {['01','02','03','04','05','06','07','08','09','10','11','12'].map(m => (
                    <option key={m} value={m}>{new Date(2025, parseInt(m)-1).toLocaleString('en-US', { month: 'long' })}</option>
@@ -431,7 +431,7 @@ export default function ClientAdmin({
                             type="date"
                             value={c.joining_date ? c.joining_date.substring(0, 10) : '2025-11-01'}
                             onChange={(e) => handleClientDateChange(c.id, 'joiningDate', e.target.value)}
-                            className="px-3 py-1.5 text-xs font-bold text-slate-700 border border-slate-200 rounded-lg focus:ring-2 focus:ring-orange-600 outline-none bg-white cursor-pointer"
+                            className="px-3 py-1.5 text-xs font-bold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-orange-600 outline-none bg-white dark:bg-slate-800 cursor-pointer"
                           />
                         </td>
                         <td className="px-8 py-5 text-sm">
@@ -439,7 +439,7 @@ export default function ClientAdmin({
                             type="date"
                             value={c.exit_date ? c.exit_date.substring(0, 10) : ''}
                             onChange={(e) => handleClientDateChange(c.id, 'exitDate', e.target.value)}
-                            className="px-3 py-1.5 text-xs font-bold text-slate-700 border border-slate-200 rounded-lg focus:ring-2 focus:ring-orange-600 outline-none bg-white cursor-pointer"
+                            className="px-3 py-1.5 text-xs font-bold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-orange-600 outline-none bg-white dark:bg-slate-800 cursor-pointer"
                           />
                         </td>
                         <td className="px-8 py-5 text-right text-sm min-w-[120px]">

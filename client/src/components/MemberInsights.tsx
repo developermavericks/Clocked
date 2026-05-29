@@ -91,7 +91,7 @@ export default function MemberInsights({ month: initialMonth }: { month: string 
 
   // Logic for Zero Hour Members
   const [zeroHourMembers, setZeroHourMembers] = useState<string[]>([]);
-  const [zeroHourLoading, setZeroHourLoading] = useState(false);
+  const [zeroHourLoading, setZeroHourLoading] = useState(true);
   const [zeroHourError, setZeroHourError] = useState<string | null>(null);
   
   useEffect(() => {
@@ -285,10 +285,10 @@ export default function MemberInsights({ month: initialMonth }: { month: string 
                 <select 
                   value={currentMonth}
                   onChange={(e) => handleMonthChange(e.target.value)}
-                  className="flex-1 bg-white/5 border border-white/10 rounded-2xl px-4 py-3.5 text-sm text-white font-bold outline-none focus:ring-4 focus:ring-orange-500/20 transition-all cursor-pointer appearance-none"
+                  className="flex-1 bg-white/5 dark:bg-slate-800 border border-white/10 dark:border-slate-700 rounded-2xl px-4 py-3.5 text-sm text-white font-bold outline-none focus:ring-4 focus:ring-orange-500/20 transition-all cursor-pointer appearance-none"
                 >
                   {["01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12"].map(m => (
-                    <option key={m} value={m} className="text-slate-900">
+                    <option key={m} value={m}>
                       {new Date(`2025-${m}-02`).toLocaleDateString('en-US', { month: 'long' })}
                     </option>
                   ))}
@@ -296,10 +296,10 @@ export default function MemberInsights({ month: initialMonth }: { month: string 
                 <select 
                   value={currentYear}
                   onChange={(e) => handleYearChange(e.target.value)}
-                  className="bg-white/5 border border-white/10 rounded-2xl px-4 py-3.5 text-sm text-white font-bold outline-none focus:ring-4 focus:ring-orange-500/20 transition-all cursor-pointer appearance-none"
+                  className="bg-white/5 dark:bg-slate-800 border border-white/10 dark:border-slate-700 rounded-2xl px-4 py-3.5 text-sm text-white font-bold outline-none focus:ring-4 focus:ring-orange-500/20 transition-all cursor-pointer appearance-none"
                 >
                   {[2025, 2026, 2027, 2028, 2029, 2030].map(y => (
-                    <option key={y} value={y.toString()} className="text-slate-900">{y}</option>
+                    <option key={y} value={y.toString()}>{y}</option>
                   ))}
                 </select>
              </div>

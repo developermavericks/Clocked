@@ -28,6 +28,7 @@ export default function TeamPortal() {
   const [isLocked, setIsLocked] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [missedCalendarEventsCount, setMissedCalendarEventsCount] = useState<number | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     setSelectedIds([]);
@@ -161,6 +162,7 @@ export default function TeamPortal() {
 
   const handleDelete = async (id: string) => {
     if (!confirm('Are you sure you want to delete this entry?')) return;
+    setIsDeleting(true);
     try {
       const response = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/allocations/${id}?kind=${activeTab}`, {
         method: 'DELETE',
@@ -168,18 +170,22 @@ export default function TeamPortal() {
       if (response.ok) {
         setSelectedIds(prev => prev.filter(item => item !== id));
         handleRefreshAll();
+        alert('Entry deleted successfully!');
       } else {
         const result = await response.json();
-        alert(result.error);
+        alert(result.error || 'Failed to delete the entry.');
       }
     } catch (err: any) {
       alert(err.message);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
   const handleBulkDelete = async () => {
     if (selectedIds.length === 0) return;
     if (!confirm(`Are you sure you want to delete the ${selectedIds.length} selected entries?`)) return;
+    setIsDeleting(true);
     try {
       let successCount = 0;
       let errorMsg = '';
@@ -199,11 +205,17 @@ export default function TeamPortal() {
       setSelectedIds([]);
       handleRefreshAll();
       
-      if (successCount < selectedIds.length) {
-        alert(`Successfully deleted ${successCount} entries. Error for others: ${errorMsg}`);
+      if (successCount === selectedIds.length) {
+        alert(`Successfully deleted all ${successCount} selected entries!`);
+      } else if (successCount > 0) {
+        alert(`Deleted ${successCount} of ${selectedIds.length} entries. Error for others: ${errorMsg}`);
+      } else {
+        alert(`Failed to delete entries: ${errorMsg}`);
       }
     } catch (err: any) {
       alert(err.message);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -341,20 +353,22 @@ export default function TeamPortal() {
             <select 
               value={month.split('-')[1]} 
               onChange={(e) => setMonth(`${month.split('-')[0]}-${e.target.value}`)}
-              className="pl-4 pr-2 py-2 text-sm font-bold bg-white border-none focus:ring-0 outline-none cursor-pointer text-slate-900 min-w-[120px] rounded-l-xl"
+              disabled={isDeleting}
+              className="pl-4 pr-2 py-2 text-sm font-bold bg-transparent border-none focus:ring-0 outline-none cursor-pointer text-slate-900 min-w-[120px] rounded-l-xl disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {['01','02','03','04','05','06','07','08','09','10','11','12'].map(m => (
-                <option key={m} value={m} className="bg-white text-slate-900">{new Date(2025, parseInt(m)-1).toLocaleString('en-US', { month: 'long' })}</option>
+                <option key={m} value={m}>{new Date(2025, parseInt(m)-1).toLocaleString('en-US', { month: 'long' })}</option>
               ))}
             </select>
             <div className="w-[1px] bg-slate-100 my-2" />
             <select 
               value={month.split('-')[0]} 
               onChange={(e) => setMonth(`${e.target.value}-${month.split('-')[1]}`)}
-              className="pl-2 pr-4 py-2 text-sm font-bold bg-white border-none focus:ring-0 outline-none cursor-pointer text-blue-600 min-w-[90px] rounded-r-xl"
+              disabled={isDeleting}
+              className="pl-2 pr-4 py-2 text-sm font-bold bg-transparent border-none focus:ring-0 outline-none cursor-pointer text-blue-600 min-w-[90px] rounded-r-xl disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {[2025, 2026, 2027, 2028, 2029, 2030].map(y => (
-                <option key={y} value={y} className="bg-white text-slate-900">{y}</option>
+                <option key={y} value={y}>{y}</option>
               ))}
             </select>
           </div>
@@ -366,7 +380,8 @@ export default function TeamPortal() {
               }
               setIsModalOpen(true);
             }}
-            className="bg-blue-600 text-white px-5 py-2.5 rounded-xl text-sm font-bold hover:bg-blue-700 transition-all flex items-center gap-2 shadow-lg shadow-blue-100"
+            disabled={isDeleting}
+            className="bg-blue-600 text-white px-5 py-2.5 rounded-xl text-sm font-bold hover:bg-blue-700 transition-all flex items-center gap-2 shadow-lg shadow-blue-100 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Plus className="w-4 h-4" />
             Add Entry
@@ -387,29 +402,33 @@ export default function TeamPortal() {
                 {selectedIds.length > 0 && (
                   <button 
                     onClick={handleBulkDelete}
-                    className="flex items-center gap-1.5 px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg text-xs font-bold border border-red-200 transition-all shadow-sm animate-in fade-in zoom-in duration-200"
+                    disabled={isDeleting}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg text-xs font-bold border border-red-200 transition-all shadow-sm animate-in fade-in zoom-in duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <Trash2 className="w-4 h-4" />
-                    Delete Selected ({selectedIds.length})
+                    {isDeleting ? "Deleting..." : `Delete Selected (${selectedIds.length})`}
                   </button>
                 )}
                 <div className="flex bg-slate-100 p-1 rounded-lg">
                   <button 
                     onClick={() => setDisplayMode('detailed')}
-                    className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${displayMode === 'detailed' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500 hover:text-slate-700'}`}
+                    disabled={isDeleting}
+                    className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${displayMode === 'detailed' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500 hover:text-slate-700'} disabled:opacity-50`}
                   >
                     Detailed
                   </button>
                   <button 
                     onClick={() => setDisplayMode('summary')}
-                    className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${displayMode === 'summary' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500 hover:text-slate-700'}`}
+                    disabled={isDeleting}
+                    className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${displayMode === 'summary' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500 hover:text-slate-700'} disabled:opacity-50`}
                   >
                     Summary
                   </button>
                 </div>
                 <button 
                   onClick={handleDownload}
-                  className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-all"
+                  disabled={isDeleting}
+                  className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Download className="w-5 h-5" />
                 </button>
@@ -417,9 +436,9 @@ export default function TeamPortal() {
             </div>
 
             <div className="p-0 relative min-h-[200px]">
-              {isTableLoading && (
+              {(isTableLoading || isDeleting) && (
                 <div className="absolute inset-0 bg-white/60 dark:bg-slate-900/60 backdrop-blur-[1px] z-10 flex items-center justify-center rounded-2xl animate-in fade-in duration-200">
-                  <Loader size="md" text="Loading allocations..." />
+                  <Loader size="md" text={isDeleting ? "Processing deletion..." : "Loading allocations..."} />
                 </div>
               )}
               <div className="space-y-8">
@@ -435,6 +454,7 @@ export default function TeamPortal() {
                   isLocked={isLocked}
                   selectedIds={selectedIds}
                   onSelectionChange={setSelectedIds}
+                  isDeleting={isDeleting}
                 />
               </div>
             </div>
