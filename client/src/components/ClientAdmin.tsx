@@ -207,6 +207,59 @@ export default function ClientAdmin({
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
+      {/* Add Client Collapsible Form */}
+      {isAddFormOpen && (
+        <form onSubmit={handleAddClient} className="bg-slate-50 border border-slate-200/60 p-6 rounded-2xl space-y-4 max-w-2xl animate-in fade-in slide-in-from-top-4 duration-300">
+          <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+            <h4 className="text-sm font-black text-slate-800 uppercase tracking-widest flex items-center gap-2">
+              <Briefcase className="w-4 h-4 text-orange-600" />
+              Add New Client Record
+            </h4>
+            <button
+              type="button"
+              onClick={() => setIsAddFormOpen(false)}
+              className="text-xs font-bold text-slate-400 hover:text-slate-600"
+            >
+              Cancel
+            </button>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-black uppercase text-slate-500 tracking-wider">Client Name</label>
+              <input 
+                type="text"
+                placeholder="e.g. Acme Corp"
+                required
+                value={newClientName}
+                onChange={(e) => setNewClientName(e.target.value)}
+                className="w-full px-3 py-2.5 text-xs border border-slate-200 rounded-xl focus:ring-2 focus:ring-orange-600 focus:border-transparent outline-none bg-white font-medium text-slate-800"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-black uppercase text-slate-500 tracking-wider">Joining Date</label>
+              <input 
+                type="date"
+                required
+                value={newClientJoinDate}
+                onChange={(e) => setNewClientJoinDate(e.target.value)}
+                className="w-full px-3 py-2.5 text-xs border border-slate-200 rounded-xl focus:ring-2 focus:ring-orange-600 focus:border-transparent outline-none bg-white font-semibold text-slate-800"
+              />
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-3 pt-2">
+            <button
+              type="submit"
+              disabled={isAddingClient}
+              className="bg-slate-900 hover:bg-orange-600 text-white px-5 py-2 rounded-xl text-xs font-black transition-all shadow-md shadow-slate-100 uppercase tracking-widest cursor-pointer disabled:opacity-50"
+            >
+              {isAddingClient ? 'Saving...' : 'Save Client'}
+            </button>
+          </div>
+        </form>
+      )}
+
       <div className="space-y-6">
         {/* Month Selector for Actuals */}
         <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -320,60 +373,7 @@ export default function ClientAdmin({
           </div>
         </div>
 
-        {/* Add Client Collapsible Form */}
-        {isAddFormOpen && (
-          <form onSubmit={handleAddClient} className="bg-slate-50 border border-slate-200/60 p-6 rounded-2xl space-y-4 max-w-2xl animate-in fade-in slide-in-from-top-4 duration-300">
-            <div className="flex items-center justify-between border-b border-slate-200 pb-3">
-              <h4 className="text-sm font-black text-slate-800 uppercase tracking-widest flex items-center gap-2">
-                <Briefcase className="w-4 h-4 text-orange-600" />
-                Add New Client Record
-              </h4>
-              <button
-                type="button"
-                onClick={() => setIsAddFormOpen(false)}
-                className="text-xs font-bold text-slate-400 hover:text-slate-600"
-              >
-                Cancel
-              </button>
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-black uppercase text-slate-500 tracking-wider">Client Name</label>
-                <input 
-                  type="text"
-                  placeholder="e.g. Acme Corp"
-                  required
-                  value={newClientName}
-                  onChange={(e) => setNewClientName(e.target.value)}
-                  className="w-full px-3 py-2.5 text-xs border border-slate-200 rounded-xl focus:ring-2 focus:ring-orange-600 focus:border-transparent outline-none bg-white font-medium text-slate-800"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-black uppercase text-slate-500 tracking-wider">Joining Date</label>
-                <input 
-                  type="date"
-                  required
-                  value={newClientJoinDate}
-                  onChange={(e) => setNewClientJoinDate(e.target.value)}
-                  className="w-full px-3 py-2.5 text-xs border border-slate-200 rounded-xl focus:ring-2 focus:ring-orange-600 focus:border-transparent outline-none bg-white font-semibold text-slate-800"
-                />
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-3 pt-2">
-              <button
-                type="submit"
-                disabled={isAddingClient}
-                className="bg-slate-900 hover:bg-orange-600 text-white px-5 py-2 rounded-xl text-xs font-black transition-all shadow-md shadow-slate-100 uppercase tracking-widest cursor-pointer disabled:opacity-50"
-              >
-                {isAddingClient ? 'Saving...' : 'Save Client'}
-              </button>
-            </div>
-          </form>
-        )}
-
-        {/* Client Roster List */}
+                {/* Client Roster List */}
         <div className="bg-white rounded-[32px] border border-slate-100 shadow-sm overflow-hidden">
           <div className="max-h-[500px] overflow-y-auto">
             <table className="w-full text-left border-collapse">

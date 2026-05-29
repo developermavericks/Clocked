@@ -779,7 +779,7 @@ export default function FinancePortal() {
       </div>
 
       {/* Workspace Tabs & View Filters Container */}
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+      <div className="bg-white text-slate-900 rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
         
         {/* Workspace Level Selector */}
         <div className="border-b border-slate-100 px-6 py-2 flex items-center bg-slate-50/50">
@@ -787,7 +787,7 @@ export default function FinancePortal() {
             onClick={() => setActiveWorkspace('pivot')}
             className={`px-6 py-4 text-sm font-bold border-b-2 transition-all flex items-center gap-2 ${
               activeWorkspace === 'pivot'
-                ? 'border-blue-600 text-blue-600'
+                ? 'border-blue-600 text-blue-600 font-black'
                 : 'border-transparent text-slate-500 hover:text-slate-700'
             }`}
           >
@@ -798,7 +798,7 @@ export default function FinancePortal() {
             onClick={() => setActiveWorkspace('analysis')}
             className={`px-6 py-4 text-sm font-bold border-b-2 transition-all flex items-center gap-2 ${
               activeWorkspace === 'analysis'
-                ? 'border-blue-600 text-blue-600'
+                ? 'border-blue-600 text-blue-600 font-black'
                 : 'border-transparent text-slate-500 hover:text-slate-700'
             }`}
           >
@@ -809,7 +809,7 @@ export default function FinancePortal() {
             onClick={() => setActiveWorkspace('manager')}
             className={`px-6 py-4 text-sm font-bold border-b-2 transition-all flex items-center gap-2 ${
               activeWorkspace === 'manager'
-                ? 'border-blue-600 text-blue-600'
+                ? 'border-blue-600 text-blue-600 font-black'
                 : 'border-transparent text-slate-500 hover:text-slate-700'
             }`}
           >
@@ -1987,10 +1987,10 @@ export default function FinancePortal() {
                       </thead>
                       <tbody className="divide-y divide-slate-100">
                         {users.map((u) => (
-                          <tr key={u.id} className="hover:bg-slate-50">
+                          <tr key={u.id} className="hover:bg-slate-50 transition-colors">
                             <td className="px-4 py-3 text-sm">
                               <span className="font-bold text-slate-950 block leading-tight">{u.name || u.email.split('@')[0]}</span>
-                              <span className="text-[10px] text-slate-505 truncate block">{u.email}</span>
+                              <span className="text-[10px] text-slate-500 truncate block">{u.email}</span>
                             </td>
                             <td className="px-4 py-3 text-sm text-right font-mono font-bold text-emerald-600">
                               {editingUserId === u.id ? (
@@ -2080,8 +2080,8 @@ export default function FinancePortal() {
                       </thead>
                       <tbody className="divide-y divide-slate-100">
                         {clients.map((c) => (
-                          <tr key={c.id} className="hover:bg-slate-50">
-                            <td className="px-4 py-3 text-sm font-bold text-slate-955">
+                          <tr key={c.id} className="hover:bg-slate-50 transition-colors">
+                            <td className="px-4 py-3 text-sm font-bold text-slate-900">
                               {c.name}
                             </td>
                             <td className="px-4 py-3 text-sm">
@@ -2095,7 +2095,7 @@ export default function FinancePortal() {
                                     type="text"
                                     value={editingCoreVal}
                                     onChange={(e) => setEditingCoreVal(e.target.value)}
-                                    className="w-24 px-2 py-1 border border-slate-300 rounded focus:ring-1 focus:ring-blue-600 bg-white text-slate-955"
+                                    className="w-24 px-2 py-1 border border-slate-300 rounded focus:ring-1 focus:ring-blue-600 bg-white text-slate-900"
                                     placeholder="e.g. PR"
                                   />
                                 )
@@ -2116,7 +2116,7 @@ export default function FinancePortal() {
                                     type="number"
                                     value={editingBudgetVal}
                                     onChange={(e) => setEditingBudgetVal(e.target.value)}
-                                    className="w-28 px-2 py-1 border border-slate-300 rounded focus:ring-1 focus:ring-blue-600 text-right bg-white text-slate-955"
+                                    className="w-28 px-2 py-1 border border-slate-300 rounded focus:ring-1 focus:ring-blue-600 text-right bg-white text-slate-900"
                                   />
                                 )
                               ) : (

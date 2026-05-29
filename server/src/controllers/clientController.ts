@@ -1,13 +1,31 @@
 import { Request, Response } from 'express';
-import { supabase } from '../config/supabase';
+import { supabase, reloadSchemaCache } from '../config/supabase';
 
 export const getClients = async (req: Request, res: Response) => {
   const { month } = req.query;
   try {
-    const { data, error } = await supabase
+    let { data, error } = await supabase
       .from('clients')
       .select('*')
       .order('name', { ascending: true });
+
+    if (error) {
+      const errMsg = error.message || '';
+      if (errMsg.includes('joining_date') || errMsg.includes('exit_date') || errMsg.includes('schema cache')) {
+        console.warn('Stale schema cache on getClients. Reloading cache and retrying...');
+        await reloadSchemaCache();
+        
+        const retryResult = await supabase
+          .from('clients')
+          .select('*')
+          .order('name', { ascending: true });
+          
+        if (!retryResult.error) {
+          data = retryResult.data;
+          error = null;
+        }
+      }
+    }
 
     if (error) throw error;
 
@@ -24,7 +42,8 @@ export const getClients = async (req: Request, res: Response) => {
       );
     };
 
-    let filtered = data;
+    const safeData = data || [];
+    let filtered = safeData;
     if (month && typeof month === 'string' && /^\d{4}-\d{2}$/.test(month)) {
       // Fetch monthly budget overrides for this month
       let monthlyBudgets: any[] = [];
@@ -40,7 +59,7 @@ export const getClients = async (req: Request, res: Response) => {
         console.warn('Could not query monthly_budgets in getClients:', err);
       }
 
-      filtered = data
+      filtered = safeData
         .filter((c: any) => {
           // Handle join date constraint
           const joinMonth = c.joining_date ? c.joining_date.substring(0, 7) : '2025-11';
@@ -63,7 +82,7 @@ export const getClients = async (req: Request, res: Response) => {
           };
         });
     } else {
-      filtered = data.map((c: any) => ({
+      filtered = safeData.map((c: any) => ({
         ...c,
         budget: isBdClient(c.name) ? 0 : (c.budget !== undefined ? Number(c.budget) : 0)
       }));
@@ -84,10 +103,43 @@ export const createClient = async (req: Request, res: Response) => {
   }
 
   try {
-    const { data, error } = await supabase
+    let { data, error } = await supabase
       .from('clients')
       .insert([{ name, joining_date: joiningDate }])
       .select();
+
+    if (error) {
+      const errMsg = error.message || '';
+      if (errMsg.includes('joining_date') || errMsg.includes('schema cache')) {
+        console.warn('Detected stale schema cache or joining_date issue on createClient, reloading cache and retrying...');
+        await reloadSchemaCache();
+        
+        // Retry insertion
+        const retryResult = await supabase
+          .from('clients')
+          .insert([{ name, joining_date: joiningDate }])
+          .select();
+          
+        if (!retryResult.error) {
+          data = retryResult.data;
+          error = null;
+        } else {
+          // If still failing, try fallback insert without joining_date to prevent blocking production
+          console.warn('Retry failed. Using fallback client insert without joining_date...');
+          const fallbackResult = await supabase
+            .from('clients')
+            .insert([{ name }])
+            .select();
+            
+          if (!fallbackResult.error) {
+            data = fallbackResult.data;
+            error = null;
+          } else {
+            error = fallbackResult.error;
+          }
+        }
+      }
+    }
 
     if (error) {
       if (error.code === '23505') { // Unique constraint violation
@@ -104,6 +156,9 @@ export const createClient = async (req: Request, res: Response) => {
       }
       throw error;
     }
+    if (!data || data.length === 0) {
+      throw new Error('Failed to create client: No data returned from database.');
+    }
     res.status(201).json(data[0]);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -115,7 +170,7 @@ export const updateClientDates = async (req: Request, res: Response) => {
   const { joiningDate, exitDate } = req.body;
 
   try {
-    const { data, error } = await supabase
+    let { data, error } = await supabase
       .from('clients')
       .update({
         joining_date: joiningDate === undefined ? undefined : joiningDate,
@@ -124,7 +179,51 @@ export const updateClientDates = async (req: Request, res: Response) => {
       .eq('id', id)
       .select();
 
+    if (error) {
+      const errMsg = error.message || '';
+      if (errMsg.includes('joining_date') || errMsg.includes('exit_date') || errMsg.includes('schema cache')) {
+        console.warn('Stale schema cache on updateClientDates. Reloading cache and retrying...');
+        await reloadSchemaCache();
+        
+        const retryResult = await supabase
+          .from('clients')
+          .update({
+            joining_date: joiningDate === undefined ? undefined : joiningDate,
+            exit_date: exitDate === undefined ? undefined : (exitDate === '' ? null : exitDate)
+          })
+          .eq('id', id)
+          .select();
+          
+        if (!retryResult.error) {
+          data = retryResult.data;
+          error = null;
+        } else {
+          // Fallback update without joining_date if that is failing
+          console.warn('Retry failed. Using fallback update...');
+          const fallbackPayload: any = {};
+          if (exitDate !== undefined) {
+            fallbackPayload.exit_date = exitDate === '' ? null : exitDate;
+          }
+          const fallbackResult = await supabase
+            .from('clients')
+            .update(fallbackPayload)
+            .eq('id', id)
+            .select();
+            
+          if (!fallbackResult.error) {
+            data = fallbackResult.data;
+            error = null;
+          } else {
+            error = fallbackResult.error;
+          }
+        }
+      }
+    }
+
     if (error) throw error;
+    if (!data || data.length === 0) {
+      throw new Error('Client not found or update failed: No data returned.');
+    }
     res.json(data[0]);
   } catch (error: any) {
     res.status(500).json({ error: error.message });

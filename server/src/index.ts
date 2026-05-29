@@ -37,10 +37,14 @@ app.use('/api/teams', teamRoutes);
 app.use('/api/finance', financeRoutes);
 app.use('/api/notifications', notificationRoutes);
 
+import { reloadSchemaCache } from './config/supabase';
+
 app.get('/', (req: Request, res: Response) => {
   res.send('Clocked API is running');
 });
 
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
   console.log(`Server is running on port ${PORT}`);
+  // Force reload PostgREST schema cache on startup to prevent stale cache errors
+  await reloadSchemaCache();
 });
