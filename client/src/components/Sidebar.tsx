@@ -25,8 +25,7 @@ const CORE_EMAILS = [
   'mitali.p@themavericksindia.com',
   'pooja@themavericksindia.com',
   'satyam.singh@themavericksindia.com',
-  'smriti@themavericksindia.com',
-  'tech@themavericksindia.com'
+  'smriti@themavericksindia.com'
 ];
 
 const MANAGER_EMAILS = [

@@ -82,7 +82,16 @@ const ACTIVE_EMAILS = new Set([
 
 export const isActiveUser = (email: string | null | undefined): boolean => {
   if (!email) return false;
-  return ACTIVE_EMAILS.has(email.toLowerCase().trim());
+  const cleanEmail = email.toLowerCase().trim();
+  
+  // Dynamic Check: Include all valid @themavericksindia.com emails.
+  // This ensures the summary reports dynamically match the overall database sums
+  // without needing manual whitelisting when new team members are added.
+  if (cleanEmail.includes('@themavericksindia.com')) {
+    return true;
+  }
+
+  return ACTIVE_EMAILS.has(cleanEmail);
 };
 
 export const getActiveEmailsList = (): string[] => {

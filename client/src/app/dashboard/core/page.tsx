@@ -36,7 +36,8 @@ export default function CorePortal() {
       'chetan@themavericksindia.com',
       'smriti@themavericksindia.com',
       'archana@themavericksindia.com',
-      'mitali.p@themavericksindia.com'
+      'mitali.p@themavericksindia.com',
+      'satyam.singh@themavericksindia.com'
     ].includes(email);
   }, [currentUserEmail]);
   const [month, setMonth] = useState(new Date().toISOString().slice(0, 7));
@@ -730,7 +731,7 @@ export default function CorePortal() {
           )}
 
           {activeTab === 'members' && (
-            <MemberInsights month={month} />
+            <MemberInsights month={month} onMonthChange={setMonth} />
           )}
 
           {activeTab === 'master' && (

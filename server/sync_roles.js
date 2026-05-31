@@ -13,8 +13,7 @@ const mapping = {
     "mitali.p@themavericksindia.com",
     "pooja@themavericksindia.com",
     "satyam.singh@themavericksindia.com",
-    "smriti@themavericksindia.com",
-    "tech@themavericksindia.com"
+    "smriti@themavericksindia.com"
   ],
   manager: [
     "aashna@themavericksindia.com",

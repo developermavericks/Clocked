@@ -8,7 +8,7 @@ import { Loader, ErrorDisplay } from '@/components/Loader';
 
 
 
-export default function MemberInsights({ month: initialMonth }: { month: string }) {
+export default function MemberInsights({ month: initialMonth, onMonthChange }: { month: string; onMonthChange?: (month: string) => void }) {
   const [internalMonth, setInternalMonth] = useState(initialMonth);
   const [selectedEmail, setSelectedEmail] = useState('');
   const [memberData, setMemberData] = useState<any[]>([]);
@@ -54,11 +54,19 @@ export default function MemberInsights({ month: initialMonth }: { month: string 
   const currentMonth = internalMonth.split('-')[1];
 
   const handleMonthChange = (newMonth: string) => {
-    setInternalMonth(`${currentYear}-${newMonth}`);
+    const nextMonth = `${currentYear}-${newMonth}`;
+    setInternalMonth(nextMonth);
+    if (onMonthChange) {
+      onMonthChange(nextMonth);
+    }
   };
 
   const handleYearChange = (newYear: string) => {
-    setInternalMonth(`${newYear}-${currentMonth}`);
+    const nextMonth = `${newYear}-${currentMonth}`;
+    setInternalMonth(nextMonth);
+    if (onMonthChange) {
+      onMonthChange(nextMonth);
+    }
   };
 
   const fetchMemberReport = async () => {

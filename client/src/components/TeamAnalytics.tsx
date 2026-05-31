@@ -19,15 +19,32 @@ export default function TeamAnalytics({ month, currentUserEmail }: TeamAnalytics
   const [loading, setLoading] = useState(false);
   const [expandedChart, setExpandedChart] = useState<'bar' | 'line' | 'team' | 'costVsRevenue' | 'profitVsLoss' | 'profitabilityMargin' | null>(null);
 
-  // Resolve viewed Core Team context
-  const viewerCoreTeam = useMemo(() => {
+  const isSuperAdmin = useMemo(() => {
+    const email = (currentUserEmail || '').toLowerCase().trim();
+    return [
+      'satyam.singh@themavericksindia.com'
+    ].includes(email);
+  }, [currentUserEmail]);
+
+  const defaultVertical = useMemo(() => {
     const email = (currentUserEmail || '').toLowerCase().trim();
     if (email === 'chetan@themavericksindia.com') return 'Chetan';
     if (email === 'smriti@themavericksindia.com') return 'Smriti';
     if (email === 'archana@themavericksindia.com') return 'Archana';
     if (email === 'mitali.p@themavericksindia.com') return 'Mitali';
+    if (isSuperAdmin) return 'Smriti';
     return null;
-  }, [currentUserEmail]);
+  }, [currentUserEmail, isSuperAdmin]);
+
+  const [selectedVertical, setSelectedVertical] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (defaultVertical) {
+      setSelectedVertical(defaultVertical);
+    }
+  }, [defaultVertical]);
+
+  const viewerCoreTeam = selectedVertical;
 
   // Fetch report data
   useEffect(() => {
@@ -314,8 +331,25 @@ export default function TeamAnalytics({ month, currentUserEmail }: TeamAnalytics
           </p>
         </div>
 
-        {/* Switcher Toggle (Team / Client View) */}
-        <div className="flex bg-slate-200/60 p-1 rounded-xl">
+        <div className="flex items-center gap-4 flex-wrap">
+          {isSuperAdmin && (
+            <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-xl border border-slate-200 shadow-sm">
+              <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider font-sans">Vertical:</span>
+              <select
+                value={selectedVertical || ''}
+                onChange={(e) => setSelectedVertical(e.target.value)}
+                className="text-xs font-black text-blue-600 bg-transparent border-none outline-none focus:ring-0 cursor-pointer uppercase tracking-wider py-0"
+              >
+                <option value="Smriti">Smriti</option>
+                <option value="Archana">Archana</option>
+                <option value="Mitali">Mitali</option>
+                <option value="Chetan">Chetan</option>
+              </select>
+            </div>
+          )}
+
+          {/* Switcher Toggle (Team / Client View) */}
+          <div className="flex bg-slate-200/60 p-1 rounded-xl">
           <button
             onClick={() => setAnalysisView('employee')}
             className={`px-4 py-1.5 rounded-lg text-xs font-black transition-all ${
@@ -338,6 +372,7 @@ export default function TeamAnalytics({ month, currentUserEmail }: TeamAnalytics
           </button>
         </div>
       </div>
+    </div>
 
       {/* Grid container for side-by-side charts */}
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 items-stretch">
@@ -984,8 +1019,8 @@ export default function TeamAnalytics({ month, currentUserEmail }: TeamAnalytics
 
       {/* Expanded Chart Overlay Modal */}
       {expandedChart && (
-        <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-slate-955/70 backdrop-blur-md p-4 md:p-8 animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-slate-900 rounded-[28px] border border-slate-100 shadow-2xl w-full max-w-[92vw] h-[86vh] flex flex-col p-6 md:p-8 relative">
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-slate-950/70 backdrop-blur-md p-4 md:p-8 animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-slate-900 rounded-[28px] border border-slate-100 dark:border-slate-800 shadow-2xl w-full max-w-[92vw] h-[86vh] flex flex-col p-6 md:p-8 relative">
             
             {/* Header of Modal */}
             <div className="flex items-center justify-between border-b border-slate-100 pb-4 mb-6">
@@ -1079,16 +1114,16 @@ export default function TeamAnalytics({ month, currentUserEmail }: TeamAnalytics
           {expandedChart === 'line' && (
             <div className="w-full flex-1 flex flex-col lg:flex-row gap-6 min-h-0">
               {/* Toggle list in maximize view */}
-              <div className="w-full lg:w-56 flex flex-col border border-slate-100 rounded-xl overflow-hidden bg-slate-50/50 flex-shrink-0 max-h-[160px] lg:max-h-full">
-                <div className="bg-slate-100 px-3 py-2 text-xs font-black uppercase text-slate-600 tracking-wider">
+              <div className="w-full lg:w-56 flex flex-col border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden bg-slate-50 dark:bg-slate-800 flex-shrink-0 max-h-[160px] lg:max-h-full">
+                <div className="bg-slate-100 dark:bg-slate-800 px-3 py-2 text-xs font-black uppercase text-slate-800 dark:text-slate-200 tracking-wider">
                   Toggle Lines
                 </div>
-                <div className="p-3 overflow-y-auto space-y-2 custom-scrollbar flex-1">
+                <div className="p-3 overflow-y-auto space-y-2 custom-scrollbar flex-1 bg-white dark:bg-slate-900">
                   {dailyLineChartData.entities.map((entity, index) => {
                     const isChecked = selectedEntities.includes(entity);
                     const color = CHART_COLORS[index % CHART_COLORS.length];
                     return (
-                      <label key={entity} className="flex items-center gap-2 cursor-pointer p-1.5 rounded hover:bg-slate-100 transition-colors select-none text-xs font-bold">
+                      <label key={entity} className="flex items-center gap-2 cursor-pointer p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors select-none text-xs font-bold">
                         <input
                           type="checkbox"
                           checked={isChecked}
@@ -1101,8 +1136,8 @@ export default function TeamAnalytics({ month, currentUserEmail }: TeamAnalytics
                           }}
                           className="peer appearance-none w-4 h-4 border border-slate-300 rounded checked:bg-blue-600 checked:border-blue-600 cursor-pointer"
                         />
-                        <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
-                        <span className="text-slate-600 truncate flex-1" title={entity}>{entity}</span>
+                        <span className="w-2.5 h-2.5 rounded-full flex-shrink-0 border border-white dark:border-slate-800" style={{ backgroundColor: color }} />
+                        <span className="text-slate-800 dark:text-slate-100 truncate flex-1 font-bold" title={entity}>{entity}</span>
                       </label>
                     );
                   })}
@@ -1194,26 +1229,26 @@ export default function TeamAnalytics({ month, currentUserEmail }: TeamAnalytics
                 </ResponsiveContainer>
                 <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
                   <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Total Hours</span>
-                  <span className="text-3xl font-black text-slate-900 mt-1 font-mono">
+                  <span className="text-3xl font-black text-slate-900 dark:text-slate-50 mt-1 font-mono">
                     {clientHoursDistribution.reduce((acc, c) => acc + c.value, 0).toFixed(1)}
                   </span>
                 </div>
               </div>
-              <div className="w-full lg:w-96 flex flex-col border border-slate-100 rounded-xl overflow-hidden bg-slate-50/50 flex-shrink-0 max-h-[160px] lg:max-h-full">
-                <div className="bg-slate-100 px-3 py-2 text-xs font-black uppercase text-slate-600 tracking-wider">
+              <div className="w-full lg:w-96 flex flex-col border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden bg-slate-50 dark:bg-slate-800/80 flex-shrink-0 max-h-[160px] lg:max-h-full">
+                <div className="bg-slate-100 dark:bg-slate-800 px-3 py-2 text-xs font-black uppercase text-slate-800 dark:text-slate-200 tracking-wider">
                   Constituents Breakdown
                 </div>
-                <div className="p-3 overflow-y-auto space-y-2 custom-scrollbar flex-1">
+                <div className="p-3 overflow-y-auto space-y-2 custom-scrollbar flex-1 bg-white dark:bg-slate-900">
                   {clientHoursDistribution.map((entry) => {
                     const totalHoursSum = clientHoursDistribution.reduce((sum, item) => sum + item.value, 0);
                     const pct = totalHoursSum > 0 ? ((entry.value / totalHoursSum) * 100).toFixed(1) : '0';
                     return (
-                      <div key={entry.name} className="flex items-center justify-between p-2 rounded hover:bg-slate-100 transition-colors select-none text-xs font-bold">
+                      <div key={entry.name} className="flex items-center justify-between p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors select-none text-xs font-bold">
                         <div className="flex items-center gap-2">
-                          <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: entry.color }} />
-                          <span className="text-slate-600 truncate flex-1">{entry.name}</span>
+                          <span className="w-3 h-3 rounded-full flex-shrink-0 border-2 border-white dark:border-slate-800" style={{ backgroundColor: entry.color }} />
+                          <span className="text-slate-800 dark:text-slate-100 truncate flex-1">{entry.name}</span>
                         </div>
-                        <span className="text-slate-400 font-mono">{pct}% ({entry.value.toFixed(1)} hrs)</span>
+                        <span className="text-slate-600 dark:text-slate-300 font-mono font-bold">{pct}% ({entry.value.toFixed(1)} hrs)</span>
                       </div>
                     );
                   })}
