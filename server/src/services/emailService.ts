@@ -93,25 +93,27 @@ export const sendReminderEmail = async (
   const employeeName = name || email.split('@')[0];
 
   const subject = isClosureWarning
-    ? `🚨 CRITICAL: Final Clocked Closure Notice for ${monthName}`
+    ? `Action Required: Final Clocked Closure Notice for ${monthName}`
     : `Action Required: Clocked Submission Reminder for ${monthName}`;
 
   const html = isClosureWarning
     ? `
-      <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 2px solid #ef4444; border-radius: 16px; background-color: #fef2f2;">
-        <h2 style="color: #dc2626; margin-top: 0; margin-bottom: 20px;">🚨 Final Closure Notice</h2>
+      <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 2px solid #ea580c; border-radius: 16px; background-color: #fffaf8;">
+        <h2 style="color: #ea580c; margin-top: 0; margin-bottom: 20px;">🚨 Final Closure Notice</h2>
         <p>Hi <strong>${employeeName}</strong>,</p>
-        <p>This is a <strong>critical warning</strong> that Clocked is closing for the month of <strong>${monthName}</strong>.</p>
-        <p>You currently have <strong>0 logged working hours</strong> in the tracking registry for this period.</p>
-        <p>Please submit your actual time allocations immediately to ensure they are captured before registry lock.</p>
+        <p>This is a reminder that you have <strong>0 logged working hours</strong> in Clocked for the month of <strong>${monthName}</strong>.</p>
+        <p>Please submit your time allocations immediately. May entries will be officially closed and locked on the <strong>5th of June</strong>.</p>
+        <p style="font-weight: bold; color: #ea580c; margin-top: 15px; margin-bottom: 15px;">
+          ⚠️ Note: You can ignore this message if you are an intern.
+        </p>
         <p style="margin-top: 30px; margin-bottom: 30px;">
           <a href="${process.env.CLIENT_URL || 'https://mavs-tracker.vercel.app/'}" 
-             style="background-color: #dc2626; color: white; padding: 12px 24px; text-decoration: none; font-weight: bold; border-radius: 8px; display: inline-block;">
+             style="background-color: #ea580c; color: white; padding: 12px 24px; text-decoration: none; font-weight: bold; border-radius: 8px; display: inline-block;">
             Submit Logs Immediately
           </a>
         </p>
-        <hr style="border: 0; border-top: 1px solid #fee2e2; margin: 30px 0;" />
-        <p style="font-size: 11px; color: #991b1b; line-height: 1.4;">Note: The executive leadership team has been copied on this final closure notice.</p>
+        <hr style="border: 0; border-top: 1px solid #fed7aa; margin: 30px 0;" />
+        <p style="font-size: 11px; color: #c2410c; line-height: 1.4;">Note: The executive leadership team has been copied on this final closure notice.</p>
       </div>
     `
     : `
@@ -119,7 +121,10 @@ export const sendReminderEmail = async (
         <h2 style="color: #ea580c; margin-top: 0; margin-bottom: 20px;">Clocked Reminder</h2>
         <p>Hi <strong>${employeeName}</strong>,</p>
         <p>This is a reminder that you have <strong>0 logged working hours</strong> in Clocked for the month of <strong>${monthName}</strong>.</p>
-        <p>Please log your time allocation entries as soon as possible to ensure accurate monthly tracking.</p>
+        <p>Please log your entries as soon as possible. May entries will be officially closed on the <strong>5th of June</strong>.</p>
+        <p style="font-weight: bold; color: #ea580c; margin-top: 15px; margin-bottom: 15px;">
+          ⚠️ Note: You can ignore this message if you are an intern.
+        </p>
         <p style="margin-top: 30px; margin-bottom: 30px;">
           <a href="${process.env.CLIENT_URL || 'https://mavs-tracker.vercel.app/'}" 
              style="background-color: #ea580c; color: white; padding: 12px 24px; text-decoration: none; font-weight: bold; border-radius: 8px; display: inline-block;">
