@@ -239,6 +239,25 @@ export default function MemberInsights({ month: initialMonth, onMonthChange }: {
     }
   };
 
+  const formatPeriod = (start?: string, end?: string) => {
+    if (!start) return '';
+    if (!end || start === end) {
+      try {
+        const date = new Date(start.replace(/-/g, '/'));
+        return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+      } catch {
+        return start;
+      }
+    }
+    try {
+      const startDate = new Date(start.replace(/-/g, '/'));
+      const endDate = new Date(end.replace(/-/g, '/'));
+      return `${startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – ${endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
+    } catch {
+      return `${start} – ${end}`;
+    }
+  };
+
   const groupedData = useMemo(() => {
     const groups: Record<string, { clientName: string; totalHours: number; items: any[] }> = {};
     memberData.forEach(item => {
@@ -261,7 +280,7 @@ export default function MemberInsights({ month: initialMonth, onMonthChange }: {
   return (
     <div className="space-y-8 animate-in fade-in duration-700">
       {/* Controls */}
-      <div className="bg-slate-900 rounded-[32px] p-8 shadow-2xl shadow-slate-900/20 border border-white/5">
+      <div className="bg-white rounded-[32px] p-8 shadow-2xl shadow-slate-200/50 border border-slate-100">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 items-end">
           <div className="space-y-3">
             <label className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] ml-1">Select Member</label>
@@ -283,7 +302,7 @@ export default function MemberInsights({ month: initialMonth, onMonthChange }: {
                 value={selectedEmail}
                 onChange={(val) => setSelectedEmail(val)}
                 placeholder="Choose a member..."
-                triggerClassName="bg-white/5 border-white/10 text-white !text-white focus:ring-4 focus:ring-orange-500/20"
+                triggerClassName="bg-slate-50 border-slate-200 text-slate-900 focus:ring-4 focus:ring-orange-500/20"
               />
           </div>
 
@@ -293,10 +312,10 @@ export default function MemberInsights({ month: initialMonth, onMonthChange }: {
                 <select 
                   value={currentMonth}
                   onChange={(e) => handleMonthChange(e.target.value)}
-                  className="flex-1 bg-white/5 dark:bg-slate-800 border border-white/10 dark:border-slate-700 rounded-2xl px-4 py-3.5 text-sm text-white font-bold outline-none focus:ring-4 focus:ring-orange-500/20 transition-all cursor-pointer appearance-none"
+                  className="flex-1 bg-slate-50 border-slate-200 rounded-2xl px-4 py-3.5 text-sm text-slate-900 font-bold outline-none focus:ring-4 focus:ring-orange-500/20 transition-all cursor-pointer appearance-none"
                 >
                   {["01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12"].map(m => (
-                    <option key={m} value={m}>
+                    <option key={m} value={m} className="bg-white text-slate-900 font-semibold">
                       {new Date(`2025-${m}-02`).toLocaleDateString('en-US', { month: 'long' })}
                     </option>
                   ))}
@@ -304,10 +323,12 @@ export default function MemberInsights({ month: initialMonth, onMonthChange }: {
                 <select 
                   value={currentYear}
                   onChange={(e) => handleYearChange(e.target.value)}
-                  className="bg-white/5 dark:bg-slate-800 border border-white/10 dark:border-slate-700 rounded-2xl px-4 py-3.5 text-sm text-white font-bold outline-none focus:ring-4 focus:ring-orange-500/20 transition-all cursor-pointer appearance-none"
+                  className="bg-slate-50 border-slate-200 rounded-2xl px-4 py-3.5 text-sm text-slate-900 font-bold outline-none focus:ring-4 focus:ring-orange-500/20 transition-all cursor-pointer appearance-none"
                 >
                   {[2025, 2026, 2027, 2028, 2029, 2030].map(y => (
-                    <option key={y} value={y.toString()}>{y}</option>
+                    <option key={y} value={y.toString()} className="bg-white text-slate-900 font-semibold">
+                      {y}
+                    </option>
                   ))}
                 </select>
              </div>
@@ -317,7 +338,7 @@ export default function MemberInsights({ month: initialMonth, onMonthChange }: {
             <button 
               onClick={fetchMemberReport}
               disabled={!selectedEmail || loading}
-              className="w-full bg-orange-600 hover:bg-orange-500 text-white font-black py-4 rounded-2xl shadow-lg shadow-orange-900/40 transition-all disabled:opacity-50 flex items-center justify-center gap-3 active:scale-95"
+              className="w-full bg-orange-600 hover:bg-orange-500 text-white font-black py-4 rounded-2xl shadow-lg shadow-orange-500/20 transition-all disabled:opacity-50 flex items-center justify-center gap-3 active:scale-95"
             >
               {loading ? <Loader size="sm" inline /> : <Search className="w-5 h-5" />}
               LOAD REPORT
@@ -441,6 +462,7 @@ export default function MemberInsights({ month: initialMonth, onMonthChange }: {
                                       <div className="flex flex-col gap-0.5">
                                         <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">
                                           {item.source || 'Manual'}
+                                          {item.start_date && ` • ${formatPeriod(item.start_date, item.end_date)}`}
                                         </span>
                                         <p className="text-xs text-slate-600 italic font-medium leading-relaxed max-w-xl">
                                           {item.notes || 'No description provided'}

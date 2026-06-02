@@ -94,7 +94,8 @@ export default function ClientAdmin({
         })
       });
       if (!res.ok) {
-        throw new Error('Failed to update client dates');
+        const errData = await res.json();
+        throw new Error(errData.error || 'Failed to update client dates');
       }
       setSaveStatus(prev => ({ ...prev, [clientId]: 'saved' }));
       setTimeout(() => {

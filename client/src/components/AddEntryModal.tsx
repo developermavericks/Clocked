@@ -21,7 +21,7 @@ export default function AddEntryModal({
   isOpen, onClose, type, month, userId, onSuccess, initialData, isEdit 
 }: AddEntryModalProps) {
   const [loading, setLoading] = useState(false);
-  const [clients, setClients] = useState<{ id: string, name: string }[]>([]);
+  const [clients, setClients] = useState<{ id: string, name: string, exit_date?: string | null }[]>([]);
   const [formData, setFormData] = useState({
     client_id: '',
     customBdName: '',
@@ -95,6 +95,32 @@ export default function AddEntryModal({
     }
 
     let currentClientId = formData.client_id;
+
+    if (currentClientId) {
+      const clientObj = clients.find(c => c.id === currentClientId);
+      if (clientObj && clientObj.exit_date) {
+        if (type === 'weekly') {
+          if (formData.start_date && formData.start_date > clientObj.exit_date) {
+            alert(`Error: Cannot log work for this client. The client exited on ${clientObj.exit_date}, but your entry starts on ${formData.start_date}. Please double-check the dates.`);
+            setLoading(false);
+            return;
+          }
+          if (formData.end_date && formData.end_date > clientObj.exit_date) {
+            alert(`Error: Cannot log work for this client. The client exited on ${clientObj.exit_date}, but your entry ends on ${formData.end_date}. Please double-check the dates.`);
+            setLoading(false);
+            return;
+          }
+        } else {
+          // Monthly Projection
+          const exitMonth = clientObj.exit_date.substring(0, 7); // YYYY-MM
+          if (month > exitMonth) {
+            alert(`Error: Cannot create projection for this client. The client exited on ${clientObj.exit_date}.`);
+            setLoading(false);
+            return;
+          }
+        }
+      }
+    }
 
     if (formData.customBdName.trim()) {
       try {

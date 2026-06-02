@@ -534,6 +534,115 @@ export default function FinancePortal() {
     return s;
   };
 
+  const [clickedEntity, setClickedEntity] = useState<string | null>(null);
+  const [modalTab, setModalTab] = useState<'logs' | 'finances'>('logs');
+
+  useEffect(() => {
+    setClickedEntity(null);
+    setModalTab('logs');
+  }, [analysisView, month, activeWorkspace]);
+
+  useEffect(() => {
+    setModalTab('logs');
+  }, [clickedEntity]);
+
+  const renderCustomDot = (chartEntity: string, isExpanded: boolean = false, isActive: boolean = false) => {
+    const CustomDotComponent = (props: any) => {
+      const { cx, cy, stroke } = props;
+      if (cx === undefined || cy === undefined) return null;
+      return (
+        <g>
+          {/* Large transparent click area */}
+          <circle
+            cx={cx}
+            cy={cy}
+            r={16}
+            fill="transparent"
+            style={{ cursor: 'pointer' }}
+            onClick={(e) => {
+              e.stopPropagation();
+              setClickedEntity(chartEntity);
+              if (isExpanded) {
+                setExpandedChart(null);
+              }
+            }}
+          />
+          {/* Small visible circle */}
+          <circle
+            cx={cx}
+            cy={cy}
+            r={isActive ? (isExpanded ? 6 : 5.5) : (isExpanded ? 4 : 3)}
+            fill={stroke}
+            stroke="#fff"
+            strokeWidth={1.5}
+            style={{ pointerEvents: 'none' }}
+          />
+        </g>
+      );
+    };
+    return <CustomDotComponent />;
+  };
+
+  const entityDetails = useMemo(() => {
+    if (!clickedEntity || !reportData || !reportData.rawAllocations) return [];
+
+    return reportData.rawAllocations.filter((alloc: any) => {
+      const uName = alloc.users?.name || alloc.users?.email?.split('@')[0] || 'Unknown';
+      const cName = getNormalizedClientName(alloc.clients?.name || 'Unknown Client');
+      const key = analysisView === 'employee' ? uName : cName;
+      return key.toLowerCase() === clickedEntity.toLowerCase();
+    }).sort((a: any, b: any) => Number(b.hours) - Number(a.hours));
+  }, [clickedEntity, reportData, analysisView, groupBD, groupLeave, groupInternal]);
+
+  const clickedEntityTotalHours = useMemo(() => {
+    return entityDetails.reduce((sum: number, alloc: any) => sum + (Number(alloc.hours) || 0), 0);
+  }, [entityDetails]);
+
+  const clickedEntityUniqueCount = useMemo(() => {
+    const unique = new Set<string>();
+    entityDetails.forEach((alloc: any) => {
+      if (analysisView === 'employee') {
+        unique.add(getNormalizedClientName(alloc.clients?.name || 'Unknown Client'));
+      } else {
+        unique.add(alloc.users?.name || alloc.users?.email || 'Unknown');
+      }
+    });
+    return unique.size;
+  }, [entityDetails, analysisView]);
+
+  const clientCostRows = useMemo(() => {
+    if (!clickedEntity || !reportData || !Array.isArray(reportData.rows) || analysisView !== 'client') return [];
+    
+    const matches: any[] = [];
+    reportData.rows.forEach((r: any) => {
+      const allocations = r.allocations || {};
+      let clientHours = 0;
+      Object.entries(allocations).forEach(([cName, hoursVal]) => {
+        if (getNormalizedClientName(cName).toLowerCase() === clickedEntity.toLowerCase()) {
+          clientHours += Number(hoursVal) || 0;
+        }
+      });
+
+      if (clientHours > 0) {
+        const salary = Number(r.salary) || 0;
+        const totalHours = Number(r.totalHours) || 0;
+        const sharePct = totalHours > 0 ? (clientHours / totalHours) : 0;
+        const costShare = salary * sharePct;
+        
+        matches.push({
+          name: r.name,
+          email: r.email,
+          salary,
+          clientHours,
+          totalHours,
+          sharePct: (sharePct * 100).toFixed(1),
+          costShare: Math.round(costShare)
+        });
+      }
+    });
+    return matches.sort((a, b) => b.costShare - a.costShare);
+  }, [clickedEntity, reportData, analysisView, groupBD, groupLeave, groupInternal]);
+
   const getDailyDistribution = (startDateStr: string, endDateStr: string, totalHours: number) => {
     if (startDateStr === endDateStr) {
       return { [startDateStr]: totalHours };
@@ -1340,7 +1449,12 @@ export default function FinancePortal() {
                               radius={[8, 8, 0, 0]}
                             >
                               {barChartData.map((entry, index) => (
-                                <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
+                                <Cell 
+                                  key={`cell-${index}`} 
+                                  fill={CHART_COLORS[index % CHART_COLORS.length]} 
+                                  onClick={() => setClickedEntity(entry.name)}
+                                  className="cursor-pointer hover:opacity-85 transition-all duration-150"
+                                />
                               ))}
                             </Bar>
                           </BarChart>
@@ -1394,9 +1508,9 @@ export default function FinancePortal() {
                             const color = CHART_COLORS[index % CHART_COLORS.length];
                             
                             return (
-                              <label 
+                              <div 
                                 key={entity}
-                                className="flex items-center gap-2 cursor-pointer p-1 rounded hover:bg-slate-100 transition-colors select-none"
+                                className="flex items-center gap-2 p-1 rounded hover:bg-slate-100/70 transition-colors select-none"
                               >
                                 <input
                                   type="checkbox"
@@ -1410,14 +1524,20 @@ export default function FinancePortal() {
                                   }}
                                   className="peer appearance-none w-3.5 h-3.5 border border-slate-300 rounded checked:bg-blue-600 checked:border-blue-600 cursor-pointer"
                                 />
-                                <span 
-                                  className="w-2 h-2 rounded-full flex-shrink-0"
-                                  style={{ backgroundColor: color }}
-                                />
-                                <span className="text-[10px] font-bold text-slate-600 truncate flex-1" title={entity}>
-                                  {entity}
-                                </span>
-                              </label>
+                                <div 
+                                  onClick={() => setClickedEntity(entity)}
+                                  className="flex items-center gap-2 flex-1 min-w-0 cursor-pointer hover:text-blue-600 transition-colors"
+                                  title={`Click to analyze ${entity}`}
+                                >
+                                  <span 
+                                    className="w-2 h-2 rounded-full flex-shrink-0"
+                                    style={{ backgroundColor: color }}
+                                  />
+                                  <span className="text-[10px] font-bold text-slate-600 truncate flex-1">
+                                    {entity}
+                                  </span>
+                                </div>
+                              </div>
                             );
                           })}
                         </div>
@@ -1470,8 +1590,11 @@ export default function FinancePortal() {
                                   dataKey={entity}
                                   stroke={color}
                                   strokeWidth={3}
-                                  dot={{ r: 2 }}
-                                  activeDot={{ r: 4 }}
+                                  dot={renderCustomDot(entity, false, false)}
+                                  activeDot={renderCustomDot(entity, false, true)}
+                                  onClick={() => {
+                                    setClickedEntity(entity);
+                                  }}
                                 />
                               );
                             })}
@@ -1780,8 +1903,30 @@ export default function FinancePortal() {
                                   itemStyle={{ color: '#fff' }}
                                   labelStyle={{ color: '#fff' }}
                                 />
-                                <Bar dataKey="revenueFormatted" name="Revenue (Budget)" fill="#10b981" radius={[6, 6, 0, 0]} />
-                                <Bar dataKey="costFormatted" name="Allocated Resource Cost" fill="#3b82f6" radius={[6, 6, 0, 0]} />
+                                <Bar dataKey="revenueFormatted" name="Revenue (Budget)" fill="#10b981" radius={[6, 6, 0, 0]}>
+                                  {budgetAnalysisData.map((entry, index) => (
+                                    <Cell 
+                                      key={`cell-analysis-rev-${index}`} 
+                                      onClick={() => {
+                                        setAnalysisView('client');
+                                        setClickedEntity(entry.name);
+                                      }}
+                                      className="cursor-pointer hover:opacity-85 transition-all duration-150"
+                                    />
+                                  ))}
+                                </Bar>
+                                <Bar dataKey="costFormatted" name="Allocated Resource Cost" fill="#3b82f6" radius={[6, 6, 0, 0]}>
+                                  {budgetAnalysisData.map((entry, index) => (
+                                    <Cell 
+                                      key={`cell-analysis-cost-${index}`} 
+                                      onClick={() => {
+                                        setAnalysisView('client');
+                                        setClickedEntity(entry.name);
+                                      }}
+                                      className="cursor-pointer hover:opacity-85 transition-all duration-150"
+                                    />
+                                  ))}
+                                </Bar>
                               </BarChart>
                             </ResponsiveContainer>
                           </div>
@@ -1838,7 +1983,15 @@ export default function FinancePortal() {
                                 />
                                 <Bar dataKey="profitFormatted" name="Net Profit / Loss" radius={[6, 6, 0, 0]}>
                                   {budgetAnalysisData.map((entry, idx) => (
-                                    <Cell key={`cell-${idx}`} fill={entry.profit >= 0 ? '#10b981' : '#ef4444'} />
+                                    <Cell 
+                                      key={`cell-${idx}`} 
+                                      fill={entry.profit >= 0 ? '#10b981' : '#ef4444'} 
+                                      onClick={() => {
+                                        setAnalysisView('client');
+                                        setClickedEntity(entry.name);
+                                      }}
+                                      className="cursor-pointer hover:opacity-85 transition-all duration-150"
+                                    />
                                   ))}
                                 </Bar>
                               </BarChart>
@@ -1870,7 +2023,17 @@ export default function FinancePortal() {
                         <div className="w-full overflow-x-auto custom-scrollbar select-none pb-2">
                           <div style={{ minWidth: budgetAnalysisData.length > 0 ? `${Math.max(450, budgetAnalysisData.filter(item => item.revenue > 0).length * 60)}px` : '100%', height: '250px' }}>
                             <ResponsiveContainer width="100%" height="100%">
-                              <LineChart data={budgetAnalysisData.filter(item => item.revenue > 0)} margin={{ top: 20, right: 10, left: 25, bottom: 45 }}>
+                              <LineChart 
+                                data={budgetAnalysisData.filter(item => item.revenue > 0)} 
+                                margin={{ top: 20, right: 10, left: 25, bottom: 45 }}
+                                style={{ cursor: 'pointer' }}
+                                onClick={(state: any) => {
+                                  if (state && state.activeLabel) {
+                                    setAnalysisView('client');
+                                    setClickedEntity(state.activeLabel);
+                                  }
+                                }}
+                              >
                                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                                 <XAxis 
                                   dataKey="name" 
@@ -1900,7 +2063,20 @@ export default function FinancePortal() {
                                   itemStyle={{ color: '#fff' }}
                                   labelStyle={{ color: '#fff' }}
                                 />
-                                <Line type="monotone" dataKey="profitMargin" stroke="#8b5cf6" strokeWidth={3} dot={{ r: 3 }} activeDot={{ r: 6 }} />
+                                <Line 
+                                  type="monotone" 
+                                  dataKey="profitMargin" 
+                                  stroke="#8b5cf6" 
+                                  strokeWidth={3} 
+                                  dot={{ r: 3, className: "cursor-pointer" }} 
+                                  activeDot={{ r: 6, className: "cursor-pointer" }} 
+                                  onClick={(data: any) => {
+                                    if (data && data.payload) {
+                                      setAnalysisView('client');
+                                      setClickedEntity(data.payload.name);
+                                    }
+                                  }}
+                                />
                               </LineChart>
                             </ResponsiveContainer>
                           </div>
@@ -1926,7 +2102,14 @@ export default function FinancePortal() {
                             </thead>
                             <tbody className="divide-y divide-slate-50 text-xs">
                               {budgetAnalysisData.map((item) => (
-                                <tr key={item.name} className="hover:bg-slate-50 transition-colors">
+                                <tr 
+                                  key={item.name} 
+                                  onClick={() => {
+                                    setAnalysisView('client');
+                                    setClickedEntity(item.name);
+                                  }}
+                                  className="hover:bg-slate-100/70 transition-colors cursor-pointer select-none"
+                                >
                                   <td className="px-4 py-3 font-bold text-slate-800">{item.name}</td>
                                   <td className="px-4 py-3 text-right font-mono font-bold text-slate-700">{fmtCurrency(item.revenue)}</td>
                                   <td className="px-4 py-3 text-right font-mono font-semibold text-slate-500">{fmtCurrency(item.cost)}</td>
@@ -2384,7 +2567,12 @@ export default function FinancePortal() {
                           radius={[12, 12, 0, 0]}
                         >
                           {barChartData.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
+                            <Cell 
+                              key={`cell-${index}`} 
+                              fill={CHART_COLORS[index % CHART_COLORS.length]} 
+                              onClick={() => setClickedEntity(entry.name)}
+                              className="cursor-pointer hover:opacity-85 transition-all duration-150"
+                            />
                           ))}
                         </Bar>
                       </BarChart>
@@ -2406,9 +2594,9 @@ export default function FinancePortal() {
                         const color = CHART_COLORS[index % CHART_COLORS.length];
                         
                         return (
-                          <label 
+                          <div 
                             key={entity}
-                            className="flex items-center gap-2.5 cursor-pointer p-1.5 rounded hover:bg-slate-100 transition-colors select-none"
+                            className="flex items-center gap-2.5 p-1.5 rounded hover:bg-slate-100 transition-colors select-none text-xs font-bold"
                           >
                             <input
                               type="checkbox"
@@ -2422,14 +2610,23 @@ export default function FinancePortal() {
                               }}
                               className="peer appearance-none w-4 h-4 border border-slate-300 rounded checked:bg-blue-600 checked:border-blue-600 cursor-pointer"
                             />
-                            <span 
-                              className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                              style={{ backgroundColor: color }}
-                            />
-                            <span className="text-xs font-bold text-slate-700 truncate flex-1">
-                              {entity}
-                            </span>
-                          </label>
+                            <div 
+                              onClick={() => {
+                                setClickedEntity(entity);
+                                setExpandedChart(null);
+                              }}
+                              className="flex items-center gap-2.5 flex-1 min-w-0 cursor-pointer hover:text-blue-600 transition-colors"
+                              title={`Click to analyze ${entity}`}
+                            >
+                              <span 
+                                className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                                style={{ backgroundColor: color }}
+                              />
+                              <span className="text-slate-700 truncate flex-1">
+                                {entity}
+                              </span>
+                            </div>
+                          </div>
                         );
                       })}
                     </div>
@@ -2481,8 +2678,12 @@ export default function FinancePortal() {
                               dataKey={entity}
                               stroke={color}
                               strokeWidth={3}
-                              dot={{ r: 3 }}
-                              activeDot={{ r: 5 }}
+                              dot={renderCustomDot(entity, true, false)}
+                              activeDot={renderCustomDot(entity, true, true)}
+                              onClick={() => {
+                                setClickedEntity(entity);
+                                setExpandedChart(null);
+                              }}
                             />
                           );
                         })}
@@ -2539,8 +2740,32 @@ export default function FinancePortal() {
                             itemStyle={{ color: '#fff' }}
                             labelStyle={{ color: '#fff' }}
                           />
-                          <Bar dataKey="revenueFormatted" name="Revenue (Budget)" fill="#10b981" radius={[8, 8, 0, 0]} />
-                          <Bar dataKey="costFormatted" name="Allocated Resource Cost" fill="#3b82f6" radius={[8, 8, 0, 0]} />
+                          <Bar dataKey="revenueFormatted" name="Revenue (Budget)" fill="#10b981" radius={[8, 8, 0, 0]}>
+                            {maximizedData.map((entry, index) => (
+                              <Cell 
+                                key={`cell-expanded-analysis-rev-${index}`} 
+                                onClick={() => {
+                                  setAnalysisView('client');
+                                  setClickedEntity(entry.name);
+                                  setExpandedChart(null);
+                                }}
+                                className="cursor-pointer hover:opacity-85 transition-all duration-150"
+                              />
+                            ))}
+                          </Bar>
+                          <Bar dataKey="costFormatted" name="Allocated Resource Cost" fill="#3b82f6" radius={[8, 8, 0, 0]}>
+                            {maximizedData.map((entry, index) => (
+                              <Cell 
+                                key={`cell-expanded-analysis-cost-${index}`} 
+                                onClick={() => {
+                                  setAnalysisView('client');
+                                  setClickedEntity(entry.name);
+                                  setExpandedChart(null);
+                                }}
+                                className="cursor-pointer hover:opacity-85 transition-all duration-150"
+                              />
+                            ))}
+                          </Bar>
                         </BarChart>
                       </ResponsiveContainer>
                     </div>
@@ -2584,7 +2809,16 @@ export default function FinancePortal() {
                         />
                         <Bar dataKey="profitFormatted" name="Net Profit / Loss" radius={[8, 8, 0, 0]}>
                           {maximizedData.map((entry, idx) => (
-                            <Cell key={`cell-${idx}`} fill={entry.profit >= 0 ? '#10b981' : '#ef4444'} />
+                            <Cell 
+                              key={`cell-${idx}`} 
+                              fill={entry.profit >= 0 ? '#10b981' : '#ef4444'} 
+                              onClick={() => {
+                                setAnalysisView('client');
+                                setClickedEntity(entry.name);
+                                setExpandedChart(null);
+                              }}
+                              className="cursor-pointer hover:opacity-85 transition-all duration-150"
+                            />
                           ))}
                         </Bar>
                       </BarChart>
@@ -2597,7 +2831,18 @@ export default function FinancePortal() {
                 <div className="w-full h-full overflow-x-auto custom-scrollbar select-none pt-2">
                   <div style={{ minWidth: `${Math.max(maximizedData.filter(item => item.revenue > 0).length * 90, 1200)}px` }} className="h-[90%]">
                     <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={maximizedData.filter(item => item.revenue > 0)} margin={{ top: 20, right: 10, left: 25, bottom: 95 }}>
+                      <LineChart 
+                        data={maximizedData.filter(item => item.revenue > 0)} 
+                        margin={{ top: 20, right: 10, left: 25, bottom: 95 }}
+                        style={{ cursor: 'pointer' }}
+                        onClick={(state: any) => {
+                          if (state && state.activeLabel) {
+                            setAnalysisView('client');
+                            setClickedEntity(state.activeLabel);
+                            setExpandedChart(null);
+                          }
+                        }}
+                      >
                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                         <XAxis 
                           dataKey="name" 
@@ -2627,7 +2872,21 @@ export default function FinancePortal() {
                           itemStyle={{ color: '#fff' }}
                           labelStyle={{ color: '#fff' }}
                         />
-                        <Line type="monotone" dataKey="profitMargin" stroke="#8b5cf6" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 7 }} />
+                        <Line 
+                          type="monotone" 
+                          dataKey="profitMargin" 
+                          stroke="#8b5cf6" 
+                          strokeWidth={3} 
+                          dot={{ r: 4, className: "cursor-pointer" }} 
+                          activeDot={{ r: 7, className: "cursor-pointer" }} 
+                          onClick={(data: any) => {
+                            if (data && data.payload) {
+                              setAnalysisView('client');
+                              setClickedEntity(data.payload.name);
+                              setExpandedChart(null);
+                            }
+                          }}
+                        />
                       </LineChart>
                     </ResponsiveContainer>
                   </div>
@@ -2760,8 +3019,30 @@ export default function FinancePortal() {
                                   itemStyle={{ color: '#fff' }}
                                   labelStyle={{ color: '#fff' }}
                                 />
-                                <Bar dataKey="revenueFormatted" name="Revenue (Budget)" fill="#10b981" radius={[6, 6, 0, 0]} />
-                                <Bar dataKey="costFormatted" name="Allocated Resource Cost" fill="#3b82f6" radius={[6, 6, 0, 0]} />
+                                <Bar dataKey="revenueFormatted" name="Revenue (Budget)" fill="#10b981" radius={[6, 6, 0, 0]}>
+                                  {drillDownData.map((entry, index) => (
+                                    <Cell 
+                                      key={`cell-drill-rev-${index}`} 
+                                      onClick={() => {
+                                        setAnalysisView('client');
+                                        setClickedEntity(entry.name);
+                                      }}
+                                      className="cursor-pointer hover:opacity-85 transition-all duration-150"
+                                    />
+                                  ))}
+                                </Bar>
+                                <Bar dataKey="costFormatted" name="Allocated Resource Cost" fill="#3b82f6" radius={[6, 6, 0, 0]}>
+                                  {drillDownData.map((entry, index) => (
+                                    <Cell 
+                                      key={`cell-drill-cost-${index}`} 
+                                      onClick={() => {
+                                        setAnalysisView('client');
+                                        setClickedEntity(entry.name);
+                                      }}
+                                      className="cursor-pointer hover:opacity-85 transition-all duration-150"
+                                    />
+                                  ))}
+                                </Bar>
                               </BarChart>
                             </ResponsiveContainer>
                           </div>
@@ -2815,7 +3096,15 @@ export default function FinancePortal() {
                                 />
                                 <Bar dataKey="profitFormatted" name="Net Profit / Loss" radius={[6, 6, 0, 0]}>
                                   {drillDownData.map((entry, idx) => (
-                                    <Cell key={`cell-${idx}`} fill={entry.profit >= 0 ? '#10b981' : '#ef4444'} />
+                                    <Cell 
+                                      key={`cell-${idx}`} 
+                                      fill={entry.profit >= 0 ? '#10b981' : '#ef4444'} 
+                                      onClick={() => {
+                                        setAnalysisView('client');
+                                        setClickedEntity(entry.name);
+                                      }}
+                                      className="cursor-pointer hover:opacity-85 transition-all duration-150"
+                                    />
                                   ))}
                                 </Bar>
                               </BarChart>
@@ -2843,7 +3132,17 @@ export default function FinancePortal() {
                           <div className="w-full overflow-x-auto custom-scrollbar select-none pb-2">
                             <div style={{ minWidth: drillDownData.length > 0 ? `${Math.max(600, drillDownData.filter(item => item.revenue > 0).length * 60)}px` : '100%', height: '280px' }}>
                               <ResponsiveContainer width="100%" height="100%">
-                                <LineChart data={drillDownData.filter(item => item.revenue > 0)} margin={{ top: 20, right: 10, left: 25, bottom: 85 }}>
+                                <LineChart 
+                                  data={drillDownData.filter(item => item.revenue > 0)} 
+                                  margin={{ top: 20, right: 10, left: 25, bottom: 85 }}
+                                  style={{ cursor: 'pointer' }}
+                                  onClick={(state: any) => {
+                                    if (state && state.activeLabel) {
+                                      setAnalysisView('client');
+                                      setClickedEntity(state.activeLabel);
+                                    }
+                                  }}
+                                >
                                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                                   <XAxis 
                                     dataKey="name" 
@@ -2873,7 +3172,20 @@ export default function FinancePortal() {
                                     itemStyle={{ color: '#fff' }}
                                     labelStyle={{ color: '#fff' }}
                                   />
-                                  <Line type="monotone" dataKey="profitMargin" stroke="#8b5cf6" strokeWidth={3} dot={{ r: 3 }} activeDot={{ r: 6 }} />
+                                  <Line 
+                                    type="monotone" 
+                                    dataKey="profitMargin" 
+                                    stroke="#8b5cf6" 
+                                    strokeWidth={3} 
+                                    dot={{ r: 3, className: "cursor-pointer" }} 
+                                    activeDot={{ r: 6, className: "cursor-pointer" }} 
+                                    onClick={(data: any) => {
+                                      if (data && data.payload) {
+                                        setAnalysisView('client');
+                                        setClickedEntity(data.payload.name);
+                                      }
+                                    }}
+                                  />
                                 </LineChart>
                               </ResponsiveContainer>
                             </div>
@@ -2898,7 +3210,14 @@ export default function FinancePortal() {
                     </thead>
                     <tbody className="divide-y divide-slate-100 bg-white">
                       {drillDownData.map((c) => (
-                        <tr key={c.name} className="hover:bg-slate-50 transition-colors">
+                        <tr 
+                          key={c.name} 
+                          onClick={() => {
+                            setAnalysisView('client');
+                            setClickedEntity(c.name);
+                          }}
+                          className="hover:bg-slate-100/70 transition-colors cursor-pointer select-none"
+                        >
                           <td className="px-6 py-4 text-sm font-bold text-slate-900">{c.name}</td>
                           <td className="px-6 py-4 text-sm text-slate-600 font-mono text-right">{c.revenue ? fmtCurrency(c.revenue) : '₹0.00'}</td>
                           <td className="px-6 py-4 text-sm text-slate-600 font-mono text-right">{fmtCurrency(c.cost)}</td>
@@ -2921,6 +3240,200 @@ export default function FinancePortal() {
         </div>
       )}
 
+      {/* Clicked Entity Details Modal */}
+      {clickedEntity && (
+        <div 
+          className="fixed inset-0 z-[999999] flex items-center justify-center bg-slate-950/70 backdrop-blur-md p-4 md:p-8 animate-in fade-in duration-200"
+          onClick={() => setClickedEntity(null)}
+        >
+          <div 
+            className="bg-white dark:bg-slate-900 rounded-[28px] border border-slate-100 dark:border-slate-800 shadow-2xl w-full max-w-4xl max-h-[85vh] flex flex-col p-6 relative overflow-hidden animate-in zoom-in-95 duration-200 text-slate-900 dark:text-white"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4 mb-6">
+              <div>
+                <span className="text-[10px] font-black text-blue-600 uppercase tracking-widest font-sans">
+                  {analysisView === 'employee' ? 'Team Member Directory' : 'Client Working Directory'}
+                </span>
+                <h3 className="text-xl font-bold text-slate-900 dark:text-white mt-1">
+                  {analysisView === 'employee' 
+                    ? `Working Details for ${clickedEntity}` 
+                    : `Team Working on ${clickedEntity}`
+                  }
+                </h3>
+              </div>
+              <button
+                onClick={() => setClickedEntity(null)}
+                className="flex items-center gap-1.5 px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-rose-50 dark:hover:bg-rose-950 hover:text-rose-600 dark:hover:text-rose-400 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-300 transition-all shadow-sm cursor-pointer border-none"
+              >
+                Close
+              </button>
+            </div>
+
+            {/* Stats Row */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+              <div className="p-4 bg-blue-50/80 dark:bg-blue-950/40 border border-blue-100 dark:border-blue-900/60 rounded-2xl shadow-sm">
+                <span className="text-[10px] font-black text-blue-500 dark:text-blue-400 uppercase tracking-wider block font-sans">Total Logged Hours</span>
+                <span className="text-xl font-black text-blue-700 dark:text-blue-300 block mt-1 font-mono">{clickedEntityTotalHours.toFixed(1)} hrs</span>
+              </div>
+              <div className="p-4 bg-emerald-50/80 dark:bg-emerald-950/40 border border-emerald-100 dark:border-emerald-900/60 rounded-2xl shadow-sm">
+                <span className="text-[10px] font-black text-emerald-500 dark:text-emerald-400 uppercase tracking-wider block font-sans">
+                  {analysisView === 'employee' ? 'Assigned Clients' : 'Active Team Members'}
+                </span>
+                <span className="text-xl font-black text-emerald-700 dark:text-emerald-300 block mt-1 font-mono">
+                  {clickedEntityUniqueCount} {analysisView === 'employee' 
+                    ? (clickedEntityUniqueCount === 1 ? 'client' : 'clients') 
+                    : (clickedEntityUniqueCount === 1 ? 'member' : 'members')
+                  }
+                </span>
+              </div>
+            </div>
+
+            {/* Conditional Tab Switcher (Only if client-level deep-dive) */}
+            {analysisView === 'client' && (
+              <div className="flex gap-2 mb-4 bg-slate-100 dark:bg-slate-800/60 p-1 rounded-xl w-fit">
+                <button
+                  onClick={() => setModalTab('logs')}
+                  className={`px-4 py-2 rounded-lg text-xs font-bold transition-all border-none cursor-pointer ${
+                    modalTab === 'logs'
+                      ? 'bg-white dark:bg-slate-900 text-slate-800 dark:text-white shadow-sm'
+                      : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
+                  }`}
+                >
+                  Work Logs
+                </button>
+                <button
+                  onClick={() => setModalTab('finances')}
+                  className={`px-4 py-2 rounded-lg text-xs font-bold transition-all border-none cursor-pointer ${
+                    modalTab === 'finances'
+                      ? 'bg-white dark:bg-slate-900 text-slate-800 dark:text-white shadow-sm'
+                      : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
+                  }`}
+                >
+                  Salary Cost Allocation
+                </button>
+              </div>
+            )}
+
+            {/* Table Details */}
+            {analysisView === 'client' && modalTab === 'finances' ? (
+              <div className="flex-1 overflow-y-auto min-h-0 rounded-2xl border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-950 custom-scrollbar shadow-inner">
+                <table className="w-full text-left border-collapse text-xs font-sans">
+                  <thead className="bg-slate-50 dark:bg-slate-900 sticky top-0 z-10 border-b border-slate-100 dark:border-slate-800">
+                    <tr>
+                      <th className="px-5 py-3.5 font-bold text-slate-500 uppercase tracking-wider">Team Member</th>
+                      <th className="px-5 py-3.5 font-bold text-slate-500 uppercase tracking-wider text-right font-mono">Monthly Salary</th>
+                      <th className="px-5 py-3.5 font-bold text-slate-500 uppercase tracking-wider text-right">Client Hours</th>
+                      <th className="px-5 py-3.5 font-bold text-slate-500 uppercase tracking-wider text-right font-mono">Total Monthly Hours</th>
+                      <th className="px-5 py-3.5 font-bold text-slate-500 uppercase tracking-wider text-right">Allocation % Share</th>
+                      <th className="px-5 py-3.5 font-bold text-slate-500 uppercase tracking-wider text-right font-mono">Allocated Resource Cost</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                    {clientCostRows.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="px-5 py-8 text-center text-slate-400 italic">No allocations recorded for this client.</td>
+                      </tr>
+                    ) : (
+                      clientCostRows.map((r: any, idx: number) => (
+                        <tr key={idx} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/50 transition-colors">
+                          <td className="px-5 py-4 font-bold text-slate-900 dark:text-white">
+                            <div>
+                              <p className="font-bold text-slate-900 dark:text-white">{r.name}</p>
+                              <p className="text-[10px] text-slate-400 dark:text-slate-500 font-medium font-sans">{r.email}</p>
+                            </div>
+                          </td>
+                          <td className="px-5 py-4 font-bold text-right text-slate-700 dark:text-slate-300 font-mono">
+                            {fmtCurrency(r.salary)}
+                          </td>
+                          <td className="px-5 py-4 font-bold text-right text-slate-700 dark:text-slate-300 font-mono">
+                            {r.clientHours.toFixed(1)}h
+                          </td>
+                          <td className="px-5 py-4 font-bold text-right text-slate-700 dark:text-slate-300 font-mono">
+                            {r.totalHours.toFixed(1)}h
+                          </td>
+                          <td className="px-5 py-4 font-bold text-right text-slate-700 dark:text-slate-300 font-mono">
+                            {r.sharePct}%
+                          </td>
+                          <td className="px-5 py-4 font-bold text-right text-rose-600 dark:text-rose-400 font-mono">
+                            {fmtCurrency(r.costShare)}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="flex-1 overflow-y-auto min-h-0 rounded-2xl border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-950 custom-scrollbar shadow-inner">
+                <table className="w-full text-left border-collapse text-xs font-sans text-slate-900 dark:text-white">
+                  <thead className="bg-slate-50 dark:bg-slate-900 sticky top-0 z-10 border-b border-slate-100 dark:border-slate-800 text-slate-500 dark:text-slate-400">
+                  <tr>
+                    <th className="px-5 py-3.5 font-bold text-slate-500 uppercase tracking-wider">
+                      {analysisView === 'employee' ? 'Client' : 'Team Member'}
+                    </th>
+                    <th className="px-5 py-3.5 font-bold text-slate-500 uppercase tracking-wider">Category</th>
+                    <th className="px-5 py-3.5 font-bold text-slate-500 uppercase tracking-wider">Period</th>
+                    <th className="px-5 py-3.5 font-bold text-slate-500 uppercase tracking-wider text-right">Hours</th>
+                    <th className="px-5 py-3.5 font-bold text-slate-500 uppercase tracking-wider">Notes</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                  {entityDetails.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="px-5 py-8 text-center text-slate-400 italic">No details recorded.</td>
+                    </tr>
+                  ) : (
+                    entityDetails.map((alloc: any, idx: number) => {
+                      const associatedName = analysisView === 'employee' 
+                        ? getNormalizedClientName(alloc.clients?.name || 'Unknown Client')
+                        : (alloc.users?.name || alloc.users?.email?.split('@')[0] || 'Unknown');
+                      
+                      const cleanNote = alloc.notes
+                        ?.replace(/\[Time:[^\]]+\]/g, '')
+                        ?.replace(/\[Cal:[^\]]+\]/g, '')
+                        ?.trim() || '—';
+                      
+                      const isCalendar = alloc.source === 'calendar' || alloc.notes?.toLowerCase().includes('[cal:');
+
+                      return (
+                        <tr key={idx} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/50 transition-colors">
+                          <td className="px-5 py-4 font-bold text-slate-900 dark:text-white">
+                            {associatedName}
+                          </td>
+                          <td className="px-5 py-4">
+                            <span className="bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wide text-slate-600 dark:text-slate-300">
+                              {alloc.category}
+                            </span>
+                          </td>
+                          <td className="px-5 py-4 font-semibold text-slate-400 dark:text-slate-500">
+                            {alloc.start_date} – {alloc.end_date}
+                          </td>
+                          <td className="px-5 py-4 font-bold text-right text-slate-700 dark:text-slate-300 font-mono">
+                            {Number(alloc.hours).toFixed(1)}h
+                          </td>
+                          <td className="px-5 py-4 text-slate-500 dark:text-slate-400 max-w-sm">
+                            <div className="flex flex-col gap-1.5">
+                              {isCalendar && (
+                                <span className="bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-100 dark:border-blue-900/60 rounded-full px-2.5 py-0.5 text-[9px] font-black w-fit uppercase tracking-wider font-sans">
+                                  Google Calendar
+                                </span>
+                              )}
+                              <span className="leading-relaxed break-words">{cleanNote}</span>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

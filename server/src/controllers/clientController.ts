@@ -170,6 +170,53 @@ export const updateClientDates = async (req: Request, res: Response) => {
   const { joiningDate, exitDate } = req.body;
 
   try {
+    if (exitDate && typeof exitDate === 'string' && exitDate.trim() !== '') {
+      // 1. Check allocations_weekly
+      const { data: weeklyAlloc, error: wErr } = await supabase
+        .from('allocations_weekly')
+        .select('start_date, user_id')
+        .eq('client_id', id)
+        .gt('start_date', exitDate)
+        .limit(1);
+
+      if (wErr) throw wErr;
+      if (weeklyAlloc && weeklyAlloc.length > 0) {
+        const userId = weeklyAlloc[0].user_id;
+        const { data: userRecord } = await supabase
+          .from('users')
+          .select('name')
+          .eq('id', userId)
+          .maybeSingle();
+        const uName = userRecord?.name || 'an employee';
+        return res.status(400).json({
+          error: `Not allowed to add exit date. An entry on ${weeklyAlloc[0].start_date} by ${uName} exists after the selected exit date (${exitDate}). Please cross-check.`
+        });
+      }
+
+      // 2. Check allocations_monthly
+      const exitMonth = exitDate.substring(0, 7);
+      const { data: monthlyAlloc, error: mErr } = await supabase
+        .from('allocations_monthly')
+        .select('month, user_id')
+        .eq('client_id', id)
+        .gt('month', exitMonth)
+        .limit(1);
+
+      if (mErr) throw mErr;
+      if (monthlyAlloc && monthlyAlloc.length > 0) {
+        const userId = monthlyAlloc[0].user_id;
+        const { data: userRecord } = await supabase
+          .from('users')
+          .select('name')
+          .eq('id', userId)
+          .maybeSingle();
+        const uName = userRecord?.name || 'an employee';
+        return res.status(400).json({
+          error: `Not allowed to add exit date. A monthly projection for ${monthlyAlloc[0].month} by ${uName} exists after the selected exit month (${exitMonth}). Please cross-check.`
+        });
+      }
+    }
+
     let { data, error } = await supabase
       .from('clients')
       .update({

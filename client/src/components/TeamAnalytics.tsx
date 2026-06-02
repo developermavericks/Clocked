@@ -18,6 +18,8 @@ export default function TeamAnalytics({ month, currentUserEmail }: TeamAnalytics
   const [reportData, setReportData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [expandedChart, setExpandedChart] = useState<'bar' | 'line' | 'team' | 'costVsRevenue' | 'profitVsLoss' | 'profitabilityMargin' | null>(null);
+  const [clickedEntity, setClickedEntity] = useState<string | null>(null);
+  const [modalTab, setModalTab] = useState<'logs' | 'finances'>('logs');
 
   const isSuperAdmin = useMemo(() => {
     const email = (currentUserEmail || '').toLowerCase().trim();
@@ -39,12 +41,21 @@ export default function TeamAnalytics({ month, currentUserEmail }: TeamAnalytics
   const [selectedVertical, setSelectedVertical] = useState<string | null>(null);
 
   useEffect(() => {
-    if (defaultVertical) {
-      setSelectedVertical(defaultVertical);
+    if (isSuperAdmin) {
+      if (defaultVertical) {
+        setSelectedVertical(defaultVertical);
+      }
+    } else {
+      setSelectedVertical('My Vertical');
     }
-  }, [defaultVertical]);
+  }, [defaultVertical, isSuperAdmin]);
 
-  const viewerCoreTeam = selectedVertical;
+  const viewerCoreTeam = useMemo(() => {
+    if (selectedVertical === 'My Vertical') {
+      return defaultVertical;
+    }
+    return selectedVertical;
+  }, [selectedVertical, defaultVertical]);
 
   // Fetch report data
   useEffect(() => {
@@ -71,11 +82,116 @@ export default function TeamAnalytics({ month, currentUserEmail }: TeamAnalytics
   // Filter rawAllocations specifically for this Core Team
   const filteredAllocations = useMemo(() => {
     if (!reportData || !Array.isArray(reportData.rawAllocations) || !viewerCoreTeam) return [];
+    if (viewerCoreTeam === 'All') return reportData.rawAllocations;
     return reportData.rawAllocations.filter((alloc: any) => {
       const clientName = alloc.clients?.name || '';
       return getClientCoreTeam(clientName) === viewerCoreTeam;
     });
   }, [reportData, viewerCoreTeam]);
+
+  // Reset clicked entity when month changes
+  useEffect(() => {
+    setClickedEntity(null);
+  }, [month]);
+
+  const entityDetails = useMemo(() => {
+    if (!clickedEntity || !filteredAllocations) return [];
+    if (analysisView === 'employee') {
+      return filteredAllocations.filter((alloc: any) => {
+        const uName = alloc.users?.name || alloc.users?.email?.split('@')[0] || 'Unknown';
+        return uName === clickedEntity;
+      });
+    } else {
+      return filteredAllocations.filter((alloc: any) => {
+        const cName = getNormalizedClientName(alloc.clients?.name || 'Unknown Client');
+        return cName === clickedEntity;
+      });
+    }
+  }, [clickedEntity, filteredAllocations, analysisView]);
+
+  const totalHours = useMemo(() => {
+    return entityDetails.reduce((sum: number, item: any) => sum + (Number(item.hours) || 0), 0);
+  }, [entityDetails]);
+
+  const uniqueAssociatedCount = useMemo(() => {
+    const set = new Set();
+    entityDetails.forEach((alloc: any) => {
+      if (analysisView === 'employee') {
+        set.add(getNormalizedClientName(alloc.clients?.name || 'Unknown Client'));
+      } else {
+        set.add(alloc.users?.name || alloc.users?.email?.split('@')[0] || 'Unknown');
+      }
+    });
+    return set.size;
+  }, [entityDetails, analysisView]);
+
+  useEffect(() => {
+    setModalTab('logs');
+  }, [clickedEntity]);
+
+  const renderCustomDot = (chartEntity: string, isExpanded: boolean = false, isActive: boolean = false) => {
+    const CustomDotComponent = (props: any) => {
+      const { cx, cy, stroke } = props;
+      if (cx === undefined || cy === undefined) return null;
+      return (
+        <g>
+          {/* Large transparent click area */}
+          <circle
+            cx={cx}
+            cy={cy}
+            r={16}
+            fill="transparent"
+            style={{ cursor: 'pointer' }}
+            onClick={(e) => {
+              e.stopPropagation();
+              setClickedEntity(chartEntity);
+              if (isExpanded) {
+                setExpandedChart(null);
+              }
+            }}
+          />
+          {/* Small visible circle */}
+          <circle
+            cx={cx}
+            cy={cy}
+            r={isActive ? (isExpanded ? 6 : 5.5) : (isExpanded ? 4 : 3)}
+            fill={stroke}
+            stroke="#fff"
+            strokeWidth={1.5}
+            style={{ pointerEvents: 'none' }}
+          />
+        </g>
+      );
+    };
+    return <CustomDotComponent />;
+  };
+
+  const clientCostRows = useMemo(() => {
+    if (!clickedEntity || !reportData || !Array.isArray(reportData.rows) || analysisView !== 'client') return [];
+    
+    const matches: any[] = [];
+    reportData.rows.forEach((r: any) => {
+      const allocations = r.allocations || {};
+      const clientHours = Number(allocations[clickedEntity]) || 0;
+      if (clientHours > 0) {
+        const salary = Number(r.salary) || 0;
+        const totalHours = Number(r.totalHours) || 0;
+        const sharePct = totalHours > 0 ? (clientHours / totalHours) : 0;
+        const costShare = salary * sharePct;
+        
+        matches.push({
+          name: r.name,
+          email: r.email,
+          salary,
+          clientHours,
+          totalHours,
+          sharePct: (sharePct * 100).toFixed(1),
+          costShare: Math.round(costShare)
+        });
+      }
+    });
+    return matches.sort((a, b) => b.costShare - a.costShare);
+  }, [clickedEntity, reportData, analysisView]);
 
   // Helper values
   const daysInMonth = useMemo(() => {
@@ -222,7 +338,7 @@ export default function TeamAnalytics({ month, currentUserEmail }: TeamAnalytics
 
     reportData.clients.forEach((c: any) => {
       const clientCore = getClientCoreTeam(c.name);
-      if (clientCore !== viewerCoreTeam) return;
+      if (viewerCoreTeam !== 'All' && clientCore !== viewerCoreTeam) return;
 
       clientMetrics[c.name] = {
         name: getNormalizedClientName(c.name),
@@ -243,7 +359,7 @@ export default function TeamAnalytics({ month, currentUserEmail }: TeamAnalytics
         if (hours === 0) return;
 
         const clientCore = getClientCoreTeam(clientName);
-        if (clientCore !== viewerCoreTeam) return;
+        if (viewerCoreTeam !== 'All' && clientCore !== viewerCoreTeam) return;
 
         const normName = getNormalizedClientName(clientName);
         if (!clientMetrics[normName]) {
@@ -324,7 +440,7 @@ export default function TeamAnalytics({ month, currentUserEmail }: TeamAnalytics
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-50 p-4 rounded-xl border border-slate-100">
         <div>
           <h3 className="text-sm font-black text-slate-800 uppercase tracking-wider">
-            Team Analytics Workspace - {viewerCoreTeam === 'Mitali' ? 'Mithali' : viewerCoreTeam}'s Vertical
+            Team Analytics Workspace - {viewerCoreTeam === 'All' ? 'All Verticals' : `${viewerCoreTeam === 'Mitali' ? 'Mithali' : viewerCoreTeam}'s Vertical`}
           </h3>
           <p className="text-xs text-slate-500 mt-0.5">
             Compare managed client working hour trends side-by-side.
@@ -332,26 +448,40 @@ export default function TeamAnalytics({ month, currentUserEmail }: TeamAnalytics
         </div>
 
         <div className="flex items-center gap-4 flex-wrap">
-          {isSuperAdmin && (
-            <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-xl border border-slate-200 shadow-sm">
-              <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider font-sans">Vertical:</span>
-              <select
-                value={selectedVertical || ''}
-                onChange={(e) => setSelectedVertical(e.target.value)}
-                className="text-xs font-black text-blue-600 bg-transparent border-none outline-none focus:ring-0 cursor-pointer uppercase tracking-wider py-0"
-              >
-                <option value="Smriti">Smriti</option>
-                <option value="Archana">Archana</option>
-                <option value="Mitali">Mitali</option>
-                <option value="Chetan">Chetan</option>
-              </select>
-            </div>
-          )}
-
+          <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-xl border border-slate-200 shadow-sm">
+            <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider font-sans">Vertical:</span>
+            <select
+              value={selectedVertical || ''}
+              onChange={(e) => {
+                setSelectedVertical(e.target.value);
+                setClickedEntity(null);
+              }}
+              className="text-xs font-black text-blue-600 bg-transparent border-none outline-none focus:ring-0 cursor-pointer uppercase tracking-wider py-0"
+            >
+              {isSuperAdmin ? (
+                <>
+                  <option value="Smriti">Smriti</option>
+                  <option value="Archana">Archana</option>
+                  <option value="Mitali">Mitali</option>
+                  <option value="Chetan">Chetan</option>
+                  <option value="All">All</option>
+                </>
+              ) : (
+                <>
+                  <option value="My Vertical">My Vertical</option>
+                  <option value="All">All</option>
+                </>
+              )}
+            </select>
+          </div>
+ 
           {/* Switcher Toggle (Team / Client View) */}
           <div className="flex bg-slate-200/60 p-1 rounded-xl">
           <button
-            onClick={() => setAnalysisView('employee')}
+            onClick={() => {
+              setAnalysisView('employee');
+              setClickedEntity(null);
+            }}
             className={`px-4 py-1.5 rounded-lg text-xs font-black transition-all ${
               analysisView === 'employee'
                 ? 'bg-white text-slate-900 shadow-sm'
@@ -361,7 +491,10 @@ export default function TeamAnalytics({ month, currentUserEmail }: TeamAnalytics
             Team View
           </button>
           <button
-            onClick={() => setAnalysisView('client')}
+            onClick={() => {
+              setAnalysisView('client');
+              setClickedEntity(null);
+            }}
             className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all uppercase tracking-wider ${
               analysisView === 'client'
                 ? 'bg-white text-blue-600 shadow-sm'
@@ -465,7 +598,12 @@ export default function TeamAnalytics({ month, currentUserEmail }: TeamAnalytics
                     />
                     <Bar dataKey="Hours" fill="#3b82f6" radius={[8, 8, 0, 0]}>
                       {barChartData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
+                        <Cell 
+                          key={`cell-${index}`} 
+                          fill={CHART_COLORS[index % CHART_COLORS.length]} 
+                          onClick={() => setClickedEntity(entry.name)}
+                          className="cursor-pointer hover:opacity-85 transition-all duration-150"
+                        />
                       ))}
                     </Bar>
                   </BarChart>
@@ -519,9 +657,9 @@ export default function TeamAnalytics({ month, currentUserEmail }: TeamAnalytics
                     const color = CHART_COLORS[index % CHART_COLORS.length];
                     
                     return (
-                      <label 
+                      <div 
                         key={entity}
-                        className="flex items-center gap-2 cursor-pointer p-1 rounded hover:bg-slate-100 transition-colors select-none text-[10px] font-bold"
+                        className="flex items-center gap-2 p-1 rounded hover:bg-slate-100/70 transition-colors select-none text-[10px] font-bold"
                       >
                         <input
                           type="checkbox"
@@ -535,14 +673,20 @@ export default function TeamAnalytics({ month, currentUserEmail }: TeamAnalytics
                           }}
                           className="peer appearance-none w-3.5 h-3.5 border border-slate-300 rounded checked:bg-blue-600 checked:border-blue-600 cursor-pointer"
                         />
-                        <span 
-                          className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                          style={{ backgroundColor: color }}
-                        />
-                        <span className="text-slate-600 truncate flex-1" title={entity}>
-                          {entity}
-                        </span>
-                      </label>
+                        <div 
+                          onClick={() => setClickedEntity(entity)}
+                          className="flex items-center gap-2 flex-1 min-w-0 cursor-pointer hover:text-blue-600 transition-colors"
+                          title={`Click to analyze ${entity}`}
+                        >
+                          <span 
+                            className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                            style={{ backgroundColor: color }}
+                          />
+                          <span className="text-slate-600 truncate flex-1">
+                            {entity}
+                          </span>
+                        </div>
+                      </div>
                     );
                   })}
                 </div>
@@ -592,8 +736,11 @@ export default function TeamAnalytics({ month, currentUserEmail }: TeamAnalytics
                             dataKey={entity}
                             stroke={CHART_COLORS[index % CHART_COLORS.length]}
                             strokeWidth={2.5}
-                            dot={{ r: 3 }}
-                            activeDot={{ r: 6 }}
+                            dot={renderCustomDot(entity, false, false)}
+                            activeDot={renderCustomDot(entity, false, true)}
+                            onClick={() => {
+                              setClickedEntity(entity);
+                            }}
                           />
                         );
                       })}
@@ -656,6 +803,10 @@ export default function TeamAnalytics({ month, currentUserEmail }: TeamAnalytics
                       <Cell 
                         key={`cell-${index}`} 
                         fill={entry.color} 
+                        onClick={() => {
+                          setAnalysisView('client');
+                          setClickedEntity(entry.name);
+                        }}
                         className="cursor-pointer hover:opacity-80 transition-all duration-150 outline-none"
                       />
                     ))}
@@ -695,9 +846,13 @@ export default function TeamAnalytics({ month, currentUserEmail }: TeamAnalytics
                   const totalHoursSum = clientHoursDistribution.reduce((sum, item) => sum + item.value, 0);
                   const pct = totalHoursSum > 0 ? ((entry.value / totalHoursSum) * 100).toFixed(1) : '0';
                   return (
-                    <div 
+                    <button 
                       key={entry.name} 
-                      className="flex items-center justify-between p-3.5 bg-slate-50/50 border border-slate-100 rounded-2xl transition-all duration-200 text-left w-full"
+                      onClick={() => {
+                        setAnalysisView('client');
+                        setClickedEntity(entry.name);
+                      }}
+                      className="flex items-center justify-between p-3.5 bg-slate-50/50 hover:bg-slate-100/80 hover:border-blue-300 hover:shadow-sm active:scale-[0.99] border border-slate-100 rounded-2xl transition-all duration-200 text-left w-full cursor-pointer focus:outline-none"
                     >
                       <div className="flex items-center gap-3 min-w-0">
                         <span 
@@ -717,7 +872,7 @@ export default function TeamAnalytics({ month, currentUserEmail }: TeamAnalytics
                         </span>
                         <span className="text-[8px] font-bold text-slate-400">Hours</span>
                       </div>
-                    </div>
+                    </button>
                   );
                 })}
               </div>
@@ -849,8 +1004,30 @@ export default function TeamAnalytics({ month, currentUserEmail }: TeamAnalytics
                           itemStyle={{ color: '#fff' }}
                           labelStyle={{ color: '#fff' }}
                         />
-                        <Bar dataKey="revenueFormatted" name="Revenue (Budget)" fill="#10b981" radius={[6, 6, 0, 0]} />
-                        <Bar dataKey="costFormatted" name="Allocated Resource Cost" fill="#3b82f6" radius={[6, 6, 0, 0]} />
+                        <Bar dataKey="revenueFormatted" name="Revenue (Budget)" fill="#10b981" radius={[6, 6, 0, 0]}>
+                          {financialData.map((entry, index) => (
+                            <Cell 
+                              key={`cell-rev-${index}`} 
+                              onClick={() => {
+                                setAnalysisView('client');
+                                setClickedEntity(entry.name);
+                              }}
+                              className="cursor-pointer hover:opacity-85 transition-all duration-150"
+                            />
+                          ))}
+                        </Bar>
+                        <Bar dataKey="costFormatted" name="Allocated Resource Cost" fill="#3b82f6" radius={[6, 6, 0, 0]}>
+                          {financialData.map((entry, index) => (
+                            <Cell 
+                              key={`cell-cost-${index}`} 
+                              onClick={() => {
+                                setAnalysisView('client');
+                                setClickedEntity(entry.name);
+                              }}
+                              className="cursor-pointer hover:opacity-85 transition-all duration-150"
+                            />
+                          ))}
+                        </Bar>
                       </BarChart>
                     </ResponsiveContainer>
                   </div>
@@ -907,7 +1084,15 @@ export default function TeamAnalytics({ month, currentUserEmail }: TeamAnalytics
                         />
                         <Bar dataKey="profitFormatted" name="Net Profit / Loss" radius={[6, 6, 0, 0]}>
                           {financialData.map((entry, idx) => (
-                            <Cell key={`cell-${idx}`} fill={entry.profit >= 0 ? '#10b981' : '#ef4444'} />
+                            <Cell 
+                              key={`cell-${idx}`} 
+                              fill={entry.profit >= 0 ? '#10b981' : '#ef4444'} 
+                              onClick={() => {
+                                setAnalysisView('client');
+                                setClickedEntity(entry.name);
+                              }}
+                              className="cursor-pointer hover:opacity-85 transition-all duration-150"
+                            />
                           ))}
                         </Bar>
                       </BarChart>
@@ -939,7 +1124,17 @@ export default function TeamAnalytics({ month, currentUserEmail }: TeamAnalytics
                 <div className="w-full overflow-x-auto custom-scrollbar select-none pb-2">
                   <div style={{ minWidth: financialData.length > 0 ? `${Math.max(300, financialData.filter(item => item.revenue > 0).length * 60)}px` : '100%', height: '250px' }}>
                     <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={financialData.filter(item => item.revenue > 0)} margin={{ top: 20, right: 10, left: 25, bottom: 45 }}>
+                      <LineChart 
+                        data={financialData.filter(item => item.revenue > 0)} 
+                        margin={{ top: 20, right: 10, left: 25, bottom: 45 }}
+                        style={{ cursor: 'pointer' }}
+                        onClick={(state: any) => {
+                          if (state && state.activeLabel) {
+                            setAnalysisView('client');
+                            setClickedEntity(state.activeLabel);
+                          }
+                        }}
+                      >
                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                         <XAxis 
                           dataKey="name" 
@@ -969,7 +1164,20 @@ export default function TeamAnalytics({ month, currentUserEmail }: TeamAnalytics
                           itemStyle={{ color: '#fff' }}
                           labelStyle={{ color: '#fff' }}
                         />
-                        <Line type="monotone" dataKey="profitMargin" stroke="#8b5cf6" strokeWidth={3} dot={{ r: 3 }} activeDot={{ r: 6 }} />
+                        <Line 
+                          type="monotone" 
+                          dataKey="profitMargin" 
+                          stroke="#8b5cf6" 
+                          strokeWidth={3} 
+                          dot={{ r: 3, className: "cursor-pointer" }} 
+                          activeDot={{ r: 6, className: "cursor-pointer" }} 
+                          onClick={(data: any) => {
+                            if (data && data.payload) {
+                              setAnalysisView('client');
+                              setClickedEntity(data.payload.name);
+                            }
+                          }}
+                        />
                       </LineChart>
                     </ResponsiveContainer>
                   </div>
@@ -995,7 +1203,14 @@ export default function TeamAnalytics({ month, currentUserEmail }: TeamAnalytics
                     </thead>
                     <tbody className="divide-y divide-slate-50 text-xs">
                       {financialData.map((item) => (
-                        <tr key={item.name} className="hover:bg-slate-50 transition-colors">
+                        <tr 
+                          key={item.name} 
+                          onClick={() => {
+                            setAnalysisView('client');
+                            setClickedEntity(item.name);
+                          }}
+                          className="hover:bg-slate-100/70 transition-colors cursor-pointer select-none"
+                        >
                           <td className="px-4 py-3 font-bold text-slate-800">{item.name}</td>
                           <td className="px-4 py-3 text-right font-mono font-bold text-slate-700">{fmtCurrency(item.revenue)}</td>
                           <td className="px-4 py-3 text-right font-mono font-semibold text-slate-500">{fmtCurrency(item.cost)}</td>
@@ -1026,7 +1241,7 @@ export default function TeamAnalytics({ month, currentUserEmail }: TeamAnalytics
             <div className="flex items-center justify-between border-b border-slate-100 pb-4 mb-6">
               <div>
                 <span className="text-[10px] font-black text-blue-600 uppercase tracking-widest">
-                  {viewerCoreTeam === 'Mitali' ? 'Mithali' : viewerCoreTeam}'s Team Analytics
+                  {viewerCoreTeam === 'All' ? 'All Verticals' : `${viewerCoreTeam === 'Mitali' ? 'Mithali' : viewerCoreTeam}'s Vertical`}' Team Analytics
                 </span>
                 <h3 className="text-xl font-bold text-slate-900 dark:text-white mt-1">
                   {expandedChart === 'bar' && `Total Allocation Hours (${analysisView === 'employee' ? 'by Team' : 'by Client'})`}
@@ -1102,7 +1317,12 @@ export default function TeamAnalytics({ month, currentUserEmail }: TeamAnalytics
                     />
                     <Bar dataKey="Hours" fill="#3b82f6" radius={[8, 8, 0, 0]}>
                       {barChartData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
+                        <Cell 
+                          key={`cell-${index}`} 
+                          fill={CHART_COLORS[index % CHART_COLORS.length]} 
+                          onClick={() => setClickedEntity(entry.name)}
+                          className="cursor-pointer hover:opacity-85 transition-all duration-150"
+                        />
                       ))}
                     </Bar>
                   </BarChart>
@@ -1123,7 +1343,7 @@ export default function TeamAnalytics({ month, currentUserEmail }: TeamAnalytics
                     const isChecked = selectedEntities.includes(entity);
                     const color = CHART_COLORS[index % CHART_COLORS.length];
                     return (
-                      <label key={entity} className="flex items-center gap-2 cursor-pointer p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors select-none text-xs font-bold">
+                      <div key={entity} className="flex items-center gap-2 p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors select-none text-xs font-bold">
                         <input
                           type="checkbox"
                           checked={isChecked}
@@ -1136,9 +1356,18 @@ export default function TeamAnalytics({ month, currentUserEmail }: TeamAnalytics
                           }}
                           className="peer appearance-none w-4 h-4 border border-slate-300 rounded checked:bg-blue-600 checked:border-blue-600 cursor-pointer"
                         />
-                        <span className="w-2.5 h-2.5 rounded-full flex-shrink-0 border border-white dark:border-slate-800" style={{ backgroundColor: color }} />
-                        <span className="text-slate-800 dark:text-slate-100 truncate flex-1 font-bold" title={entity}>{entity}</span>
-                      </label>
+                        <div 
+                          onClick={() => {
+                            setClickedEntity(entity);
+                            setExpandedChart(null);
+                          }}
+                          className="flex items-center gap-2 flex-1 min-w-0 cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                          title={`Click to analyze ${entity}`}
+                        >
+                          <span className="w-2.5 h-2.5 rounded-full flex-shrink-0 border border-white dark:border-slate-800" style={{ backgroundColor: color }} />
+                          <span className="text-slate-800 dark:text-slate-100 truncate flex-1 font-bold">{entity}</span>
+                        </div>
+                      </div>
                     );
                   })}
                 </div>
@@ -1181,8 +1410,12 @@ export default function TeamAnalytics({ month, currentUserEmail }: TeamAnalytics
                             dataKey={entity}
                             stroke={CHART_COLORS[index % CHART_COLORS.length]}
                             strokeWidth={3}
-                            dot={{ r: 4 }}
-                            activeDot={{ r: 7 }}
+                            dot={renderCustomDot(entity, true, false)}
+                            activeDot={renderCustomDot(entity, true, true)}
+                            onClick={() => {
+                              setClickedEntity(entity);
+                              setExpandedChart(null);
+                            }}
                           />
                         );
                       })}
@@ -1211,6 +1444,11 @@ export default function TeamAnalytics({ month, currentUserEmail }: TeamAnalytics
                         <Cell 
                           key={`cell-${index}`} 
                           fill={entry.color} 
+                          onClick={() => {
+                            setAnalysisView('client');
+                            setClickedEntity(entry.name);
+                            setExpandedChart(null);
+                          }}
                           className="cursor-pointer hover:opacity-80 transition-all duration-150 outline-none"
                         />
                       ))}
@@ -1243,13 +1481,21 @@ export default function TeamAnalytics({ month, currentUserEmail }: TeamAnalytics
                     const totalHoursSum = clientHoursDistribution.reduce((sum, item) => sum + item.value, 0);
                     const pct = totalHoursSum > 0 ? ((entry.value / totalHoursSum) * 100).toFixed(1) : '0';
                     return (
-                      <div key={entry.name} className="flex items-center justify-between p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors select-none text-xs font-bold">
-                        <div className="flex items-center gap-2">
+                      <button 
+                        key={entry.name} 
+                        onClick={() => {
+                          setAnalysisView('client');
+                          setClickedEntity(entry.name);
+                          setExpandedChart(null);
+                        }}
+                        className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800/80 hover:bg-slate-100 dark:hover:bg-slate-800 hover:border-blue-300 hover:shadow-sm active:scale-[0.99] transition-all duration-150 select-none text-xs font-bold w-full text-left cursor-pointer focus:outline-none"
+                      >
+                        <div className="flex items-center gap-2 min-w-0">
                           <span className="w-3 h-3 rounded-full flex-shrink-0 border-2 border-white dark:border-slate-800" style={{ backgroundColor: entry.color }} />
                           <span className="text-slate-800 dark:text-slate-100 truncate flex-1">{entry.name}</span>
                         </div>
-                        <span className="text-slate-600 dark:text-slate-300 font-mono font-bold">{pct}% ({entry.value.toFixed(1)} hrs)</span>
-                      </div>
+                        <span className="text-slate-600 dark:text-slate-300 font-mono font-bold shrink-0 pl-2">{pct}% ({entry.value.toFixed(1)} hrs)</span>
+                      </button>
                     );
                   })}
                 </div>
@@ -1291,8 +1537,32 @@ export default function TeamAnalytics({ month, currentUserEmail }: TeamAnalytics
                       itemStyle={{ color: '#fff' }}
                       labelStyle={{ color: '#fff' }}
                     />
-                    <Bar dataKey="revenueFormatted" name="Revenue (Budget)" fill="#10b981" radius={[8, 8, 0, 0]} />
-                    <Bar dataKey="costFormatted" name="Allocated Resource Cost" fill="#3b82f6" radius={[8, 8, 0, 0]} />
+                    <Bar dataKey="revenueFormatted" name="Revenue (Budget)" fill="#10b981" radius={[8, 8, 0, 0]}>
+                      {financialData.map((entry, index) => (
+                        <Cell 
+                          key={`cell-expanded-rev-${index}`} 
+                          onClick={() => {
+                            setAnalysisView('client');
+                            setClickedEntity(entry.name);
+                            setExpandedChart(null);
+                          }}
+                          className="cursor-pointer hover:opacity-85 transition-all duration-150"
+                        />
+                      ))}
+                    </Bar>
+                    <Bar dataKey="costFormatted" name="Allocated Resource Cost" fill="#3b82f6" radius={[8, 8, 0, 0]}>
+                      {financialData.map((entry, index) => (
+                        <Cell 
+                          key={`cell-expanded-cost-${index}`} 
+                          onClick={() => {
+                            setAnalysisView('client');
+                            setClickedEntity(entry.name);
+                            setExpandedChart(null);
+                          }}
+                          className="cursor-pointer hover:opacity-85 transition-all duration-150"
+                        />
+                      ))}
+                    </Bar>
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -1335,7 +1605,16 @@ export default function TeamAnalytics({ month, currentUserEmail }: TeamAnalytics
                     />
                     <Bar dataKey="profitFormatted" name="Net Profit / Loss" radius={[8, 8, 0, 0]}>
                       {financialData.map((entry, idx) => (
-                        <Cell key={`cell-${idx}`} fill={entry.profit >= 0 ? '#10b981' : '#ef4444'} />
+                        <Cell 
+                          key={`cell-${idx}`} 
+                          fill={entry.profit >= 0 ? '#10b981' : '#ef4444'} 
+                          onClick={() => {
+                            setAnalysisView('client');
+                            setClickedEntity(entry.name);
+                            setExpandedChart(null);
+                          }}
+                          className="cursor-pointer hover:opacity-85 transition-all duration-150"
+                        />
                       ))}
                     </Bar>
                   </BarChart>
@@ -1348,7 +1627,18 @@ export default function TeamAnalytics({ month, currentUserEmail }: TeamAnalytics
             <div className="w-full flex-1 overflow-x-auto custom-scrollbar select-none pt-4">
               <div style={{ minWidth: `${Math.max(1000, financialData.filter(item => item.revenue > 0).length * 100)}px` }} className="h-[90%]">
                 <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={financialData.filter(item => item.revenue > 0)} margin={{ top: 20, right: 15, left: 15, bottom: 95 }}>
+                  <LineChart 
+                    data={financialData.filter(item => item.revenue > 0)} 
+                    margin={{ top: 20, right: 15, left: 15, bottom: 95 }}
+                    style={{ cursor: 'pointer' }}
+                    onClick={(state: any) => {
+                      if (state && state.activeLabel) {
+                        setAnalysisView('client');
+                        setClickedEntity(state.activeLabel);
+                        setExpandedChart(null);
+                      }
+                    }}
+                  >
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                     <XAxis 
                       dataKey="name" 
@@ -1378,13 +1668,216 @@ export default function TeamAnalytics({ month, currentUserEmail }: TeamAnalytics
                       itemStyle={{ color: '#fff' }}
                       labelStyle={{ color: '#fff' }}
                     />
-                    <Line type="monotone" dataKey="profitMargin" stroke="#8b5cf6" strokeWidth={3.5} dot={{ r: 4 }} activeDot={{ r: 7 }} />
+                    <Line 
+                      type="monotone" 
+                      dataKey="profitMargin" 
+                      stroke="#8b5cf6" 
+                      strokeWidth={3.5} 
+                      dot={{ r: 4, className: "cursor-pointer" }} 
+                      activeDot={{ r: 7, className: "cursor-pointer" }} 
+                      onClick={(data: any) => {
+                        if (data && data.payload) {
+                          setAnalysisView('client');
+                          setClickedEntity(data.payload.name);
+                          setExpandedChart(null);
+                        }
+                      }}
+                    />
                   </LineChart>
                 </ResponsiveContainer>
               </div>
             </div>
           )}
 
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Clicked Entity Details Modal */}
+      {clickedEntity && (
+        <div 
+          className="fixed inset-0 z-[999999] flex items-center justify-center bg-slate-950/70 backdrop-blur-md p-4 md:p-8 animate-in fade-in duration-200"
+          onClick={() => setClickedEntity(null)}
+        >
+          <div 
+            className="bg-white dark:bg-slate-900 rounded-[28px] border border-slate-100 dark:border-slate-800 shadow-2xl w-full max-w-4xl max-h-[85vh] flex flex-col p-6 relative overflow-hidden animate-in zoom-in-95 duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4 mb-6">
+              <div>
+                <span className="text-[10px] font-black text-blue-600 uppercase tracking-widest font-sans">
+                  {analysisView === 'employee' ? 'Team Member Directory' : 'Client Working Directory'}
+                </span>
+                <h3 className="text-xl font-bold text-slate-900 dark:text-white mt-1">
+                  {analysisView === 'employee' 
+                    ? `Working Details for ${clickedEntity}` 
+                    : `Team Working on ${clickedEntity}`
+                  }
+                </h3>
+              </div>
+              <button
+                onClick={() => setClickedEntity(null)}
+                className="flex items-center gap-1.5 px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-rose-50 dark:hover:bg-rose-950 hover:text-rose-600 dark:hover:text-rose-400 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-300 transition-all shadow-sm cursor-pointer"
+              >
+                Close
+              </button>
+            </div>
+
+            {/* Stats Row */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+              <div className="p-4 bg-blue-50/80 dark:bg-blue-950/40 border border-blue-100 dark:border-blue-900/60 rounded-2xl shadow-sm">
+                <span className="text-[10px] font-black text-blue-500 dark:text-blue-400 uppercase tracking-wider block font-sans">Total Logged Hours</span>
+                <span className="text-xl font-black text-blue-700 dark:text-blue-300 block mt-1 font-mono">{totalHours.toFixed(1)} hrs</span>
+              </div>
+              <div className="p-4 bg-emerald-50/80 dark:bg-emerald-950/40 border border-emerald-100 dark:border-emerald-900/60 rounded-2xl shadow-sm">
+                <span className="text-[10px] font-black text-emerald-500 dark:text-emerald-400 uppercase tracking-wider block font-sans">
+                  {analysisView === 'employee' ? 'Assigned Clients' : 'Active Team Members'}
+                </span>
+                <span className="text-xl font-black text-emerald-700 dark:text-emerald-300 block mt-1 font-mono">
+                  {uniqueAssociatedCount} {analysisView === 'employee' 
+                    ? (uniqueAssociatedCount === 1 ? 'client' : 'clients') 
+                    : (uniqueAssociatedCount === 1 ? 'member' : 'members')
+                  }
+                </span>
+              </div>
+            </div>
+
+            {/* Tab Switcher inside Modal (Only shown for Client View) */}
+            {analysisView === 'client' && (
+              <div className="flex bg-slate-100 dark:bg-slate-800/80 p-1 rounded-xl mb-4 w-fit select-none">
+                <button
+                  onClick={() => setModalTab('logs')}
+                  className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                    modalTab === 'logs'
+                      ? 'bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-sm'
+                      : 'text-slate-500 hover:text-slate-700'
+                  }`}
+                >
+                  Work Logs
+                </button>
+                <button
+                  onClick={() => setModalTab('finances')}
+                  className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                    modalTab === 'finances'
+                      ? 'bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-sm'
+                      : 'text-slate-500 hover:text-slate-700'
+                  }`}
+                >
+                  Salary Cost Allocation
+                </button>
+              </div>
+            )}
+
+            {/* Table Details */}
+            <div className="flex-1 overflow-y-auto min-h-0 rounded-2xl border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-950 custom-scrollbar shadow-inner">
+              {analysisView === 'client' && modalTab === 'finances' ? (
+                <table className="w-full text-left border-collapse text-xs font-sans">
+                  <thead className="bg-slate-50 dark:bg-slate-900 sticky top-0 z-10 border-b border-slate-100 dark:border-slate-800">
+                    <tr>
+                      <th className="px-5 py-3.5 font-bold text-slate-500 uppercase tracking-wider">Employee Name</th>
+                      <th className="px-5 py-3.5 font-bold text-slate-500 uppercase tracking-wider text-right">Monthly Salary</th>
+                      <th className="px-5 py-3.5 font-bold text-slate-500 uppercase tracking-wider text-right">Hours on Client</th>
+                      <th className="px-5 py-3.5 font-bold text-slate-500 uppercase tracking-wider text-right">Total Hours</th>
+                      <th className="px-5 py-3.5 font-bold text-slate-500 uppercase tracking-wider text-right">Allocation %</th>
+                      <th className="px-5 py-3.5 font-bold text-slate-500 uppercase tracking-wider text-right">Allocated Resource Cost</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                    {clientCostRows.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="px-5 py-8 text-center text-slate-400 italic">No salary cost records found.</td>
+                      </tr>
+                    ) : (
+                      clientCostRows.map((row: any, idx: number) => (
+                        <tr key={idx} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/50 transition-colors">
+                          <td className="px-5 py-4 font-bold text-slate-900 dark:text-white">
+                            {row.name}
+                          </td>
+                          <td className="px-5 py-4 text-right font-mono text-slate-600 dark:text-slate-400">
+                            {fmtCurrency(row.salary)}
+                          </td>
+                          <td className="px-5 py-4 text-right font-mono text-slate-900 dark:text-slate-100 font-bold">
+                            {row.clientHours.toFixed(1)}h
+                          </td>
+                          <td className="px-5 py-4 text-right font-mono text-slate-500 dark:text-slate-500">
+                            {row.totalHours.toFixed(1)}h
+                          </td>
+                          <td className="px-5 py-4 text-right font-mono text-blue-600 dark:text-blue-400 font-bold">
+                            {row.sharePct}%
+                          </td>
+                          <td className="px-5 py-4 text-right font-mono text-rose-600 dark:text-rose-400 font-black">
+                            {fmtCurrency(row.costShare)}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              ) : (
+                <table className="w-full text-left border-collapse text-xs font-sans">
+                  <thead className="bg-slate-50 dark:bg-slate-900 sticky top-0 z-10 border-b border-slate-100 dark:border-slate-800">
+                    <tr>
+                      <th className="px-5 py-3.5 font-bold text-slate-500 uppercase tracking-wider">
+                        {analysisView === 'employee' ? 'Client' : 'Team Member'}
+                      </th>
+                      <th className="px-5 py-3.5 font-bold text-slate-500 uppercase tracking-wider">Category</th>
+                      <th className="px-5 py-3.5 font-bold text-slate-500 uppercase tracking-wider">Period</th>
+                      <th className="px-5 py-3.5 font-bold text-slate-500 uppercase tracking-wider text-right">Hours</th>
+                      <th className="px-5 py-3.5 font-bold text-slate-500 uppercase tracking-wider">Notes</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                    {entityDetails.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} className="px-5 py-8 text-center text-slate-400 italic">No details recorded.</td>
+                      </tr>
+                    ) : (
+                      entityDetails.map((alloc: any, idx: number) => {
+                        const associatedName = analysisView === 'employee' 
+                          ? getNormalizedClientName(alloc.clients?.name || 'Unknown Client')
+                          : (alloc.users?.name || alloc.users?.email?.split('@')[0] || 'Unknown');
+                        
+                        const cleanNote = alloc.notes
+                          ?.replace(/\[Time:[^\]]+\]/g, '')
+                          ?.replace(/\[Cal:[^\]]+\]/g, '')
+                          ?.trim() || '—';
+                        
+                        const isCalendar = alloc.source === 'calendar' || alloc.notes?.toLowerCase().includes('[cal:');
+
+                        return (
+                          <tr key={idx} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/50 transition-colors">
+                            <td className="px-5 py-4 font-bold text-slate-900 dark:text-white">
+                              {associatedName}
+                            </td>
+                            <td className="px-5 py-4">
+                              <span className="bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wide text-slate-600 dark:text-slate-300">
+                                {alloc.category}
+                              </span>
+                            </td>
+                            <td className="px-5 py-4 font-semibold text-slate-400 dark:text-slate-500">
+                              {alloc.start_date} – {alloc.end_date}
+                            </td>
+                            <td className="px-5 py-4 font-bold text-right text-slate-700 dark:text-slate-300 font-mono">
+                              {Number(alloc.hours).toFixed(1)}h
+                            </td>
+                            <td className="px-5 py-4 text-slate-500 dark:text-slate-400 max-w-sm">
+                              <div className="flex flex-col gap-1.5">
+                                {isCalendar && (
+                                  <span className="bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-100 dark:border-blue-900/60 rounded-full px-2.5 py-0.5 text-[9px] font-black w-fit uppercase tracking-wider font-sans">
+                                    Google Calendar
+                                  </span>
+                                )}
+                                <span className="leading-relaxed break-words">{cleanNote}</span>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              )}
             </div>
           </div>
         </div>

@@ -44,6 +44,9 @@ const getTransporter = async () => {
     const resolvedIp = await resolveHost(host);
 
     transporterInstance = nodemailer.createTransport({
+      pool: true,
+      maxConnections: 5,
+      maxMessages: 100,
       host: resolvedIp,
       port,
       secure: isSecure,
@@ -52,9 +55,9 @@ const getTransporter = async () => {
         pass
       },
       // Increase timeouts to be extra robust
-      connectionTimeout: 10000,
-      greetingTimeout: 10000,
-      socketTimeout: 10000,
+      connectionTimeout: 30000,
+      greetingTimeout: 30000,
+      socketTimeout: 30000,
       tls: {
         // Enforce servername matching the original hostname for SSL validation!
         servername: host,

@@ -91,6 +91,36 @@ export const checkIfMonthLocked = async (month: string, userRole: string): Promi
   return true;
 };
 
+const checkClientExitDate = async (client_id: string, dateOrMonth: string, isWeekly: boolean): Promise<string | null> => {
+  if (!client_id) return null;
+  try {
+    const { data: client, error } = await supabase
+      .from('clients')
+      .select('name, exit_date')
+      .eq('id', client_id)
+      .maybeSingle();
+
+    if (error || !client || !client.exit_date) return null;
+
+    const exitDateStr = client.exit_date;
+    const clientName = client.name || 'this client';
+
+    if (isWeekly) {
+      if (dateOrMonth > exitDateStr) {
+        return `Cannot log work for client "${clientName}". The client exited on ${exitDateStr}, but your entry date (${dateOrMonth}) is after the exit date.`;
+      }
+    } else {
+      const exitMonth = exitDateStr.substring(0, 7);
+      if (dateOrMonth > exitMonth) {
+        return `Cannot log work for client "${clientName}". The client exited on ${exitDateStr}, and your target month (${dateOrMonth}) is after the exit month.`;
+      }
+    }
+  } catch (err) {
+    console.error('Error checking client exit date:', err);
+  }
+  return null;
+};
+
 export const addMonthlyAllocation = async (req: Request, res: Response) => {
   const { user_id, month, client_id, category, hours, notes } = req.body;
   const userRole = (req as any).user_role || 'team';
@@ -100,6 +130,12 @@ export const addMonthlyAllocation = async (req: Request, res: Response) => {
     const isLocked = await checkIfMonthLocked(month, userRole);
     if (isLocked) {
       return res.status(403).json({ error: `This month (${month}) is locked for editing.` });
+    }
+
+    // Check client exit date constraint
+    const exitErr = await checkClientExitDate(client_id, month, false);
+    if (exitErr) {
+      return res.status(400).json({ error: exitErr });
     }
 
     const { data, error } = await supabase
@@ -139,6 +175,19 @@ export const addWeeklyAllocation = async (req: Request, res: Response) => {
       return res.status(403).json({ error: `This month (${month}) is locked for editing.` });
     }
 
+    // Check client exit date constraint
+    if (start_date) {
+      const exitErr = await checkClientExitDate(client_id, start_date, true);
+      if (exitErr) {
+        return res.status(400).json({ error: exitErr });
+      }
+    }
+    if (end_date) {
+      const exitErr = await checkClientExitDate(client_id, end_date, true);
+      if (exitErr) {
+        return res.status(400).json({ error: exitErr });
+      }
+    }
 
     // Prevent duplicate entries for weekly allocations (unless force is true)
     if (!req.body.force) {
@@ -280,6 +329,29 @@ export const updateAllocation = async (req: Request, res: Response) => {
     const isNewLocked = await checkIfMonthLocked(targetMonth, userRole);
     if (isNewLocked) {
       return res.status(403).json({ error: `The target month (${targetMonth}) is locked for editing.` });
+    }
+
+    // Check client exit date constraint
+    const activeClientId = updates.client_id || record.client_id;
+    if (activeClientId) {
+      if (table === 'allocations_weekly') {
+        const activeStartDate = updates.start_date || record.start_date;
+        const activeEndDate = updates.end_date || record.end_date;
+        if (activeStartDate) {
+          const err = await checkClientExitDate(activeClientId, activeStartDate, true);
+          if (err) return res.status(400).json({ error: err });
+        }
+        if (activeEndDate) {
+          const err = await checkClientExitDate(activeClientId, activeEndDate, true);
+          if (err) return res.status(400).json({ error: err });
+        }
+      } else {
+        const activeMonth = updates.month || record.month;
+        if (activeMonth) {
+          const err = await checkClientExitDate(activeClientId, activeMonth, false);
+          if (err) return res.status(400).json({ error: err });
+        }
+      }
     }
 
     const { data, error } = await supabase
