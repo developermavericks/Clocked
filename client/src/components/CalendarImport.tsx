@@ -32,6 +32,29 @@ interface CalendarEvent {
   originalEvents?: CalendarEvent[];
 }
 
+const formatOccTime = (startStr?: string, endStr?: string) => {
+  if (!startStr || !endStr) return '';
+  if (!startStr.includes('T')) return ''; // Skip all-day events
+  try {
+    const start = new Date(startStr);
+    const end = new Date(endStr);
+    
+    const formatTime = (date: Date) => {
+      let hours = date.getHours();
+      const minutes = date.getMinutes();
+      const ampm = hours >= 12 ? 'PM' : 'AM';
+      hours = hours % 12;
+      hours = hours ? hours : 12;
+      const minStr = minutes < 10 ? '0' + minutes : minutes;
+      return `${hours}:${minStr} ${ampm}`;
+    };
+    
+    return `${formatTime(start)} - ${formatTime(end)}`;
+  } catch (e) {
+    return '';
+  }
+};
+
 export default function CalendarImport({ 
   userId, month, onSuccess, onMissedCountChange 
 }: { 
@@ -684,7 +707,8 @@ export default function CalendarImport({
 
             const isNotesCustomized = event.notes !== event.originalDefaultNotes;
             const baseNotes = isNotesCustomized ? (event.notes || '') : (occ.notes || occ.title || event.title);
-            const finalNotes = `${baseNotes}\n[Cal: ${occ.title || event.title}]`;
+            const timeRange = formatOccTime(occ.start, occ.end);
+            const finalNotes = `${baseNotes}\n[Cal: ${occ.title || event.title}${timeRange ? ` @ ${timeRange}` : ''}]`;
 
             const response = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/allocations/weekly`, {
               method: 'POST',
@@ -716,7 +740,8 @@ export default function CalendarImport({
           const isLastRequest = currentRequestIndex === totalRequests;
           const skipEmail = !isLastRequest;
 
-          const finalNotes = `${event.notes || event.title}\n[Cal: ${event.title}]`;
+          const timeRange = formatOccTime(event.start, event.end);
+          const finalNotes = `${event.notes || event.title}\n[Cal: ${event.title}${timeRange ? ` @ ${timeRange}` : ''}]`;
           const response = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/allocations/weekly`, {
             method: 'POST',
             headers: {
