@@ -52,11 +52,17 @@ export const getMemberAllocations = async (req: Request, res: Response) => {
 
   try {
     const table = kind === 'projected' ? 'allocations_monthly' : 'allocations_weekly';
-    const { data, error } = await supabase
+    let query = supabase
       .from(table)
       .select('*, clients(name)')
       .eq('user_id', memberId)
       .eq('month', month);
+
+    if (kind !== 'projected') {
+      query = query.order('start_date', { ascending: true });
+    }
+
+    const { data, error } = await query;
 
     if (error) throw error;
     res.json(data);

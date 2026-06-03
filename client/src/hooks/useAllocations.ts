@@ -14,11 +14,17 @@ export function useAllocations(userId: string | undefined, month: string, type: 
     const table = type === 'projected' ? 'allocations_monthly' : 'allocations_weekly';
     
     try {
-      const { data: allocations, error: supabaseError } = await supabase
+      let query = supabase
         .from(table)
         .select('*, clients(name)')
         .eq('user_id', userId)
         .eq('month', month);
+
+      if (type !== 'projected') {
+        query = query.order('start_date', { ascending: true });
+      }
+
+      const { data: allocations, error: supabaseError } = await query;
 
       if (supabaseError) throw supabaseError;
       setData(allocations || []);

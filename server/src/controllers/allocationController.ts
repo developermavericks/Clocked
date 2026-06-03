@@ -24,7 +24,8 @@ export const getMyAllocations = async (req: Request, res: Response) => {
         .from('allocations_weekly')
         .select('id, user_id, month, client_id, category, hours, notes, start_date, end_date, week_code, source, clients(name)')
         .eq('user_id', userId)
-        .eq('month', month);
+        .eq('month', month)
+        .order('start_date', { ascending: true });
     }
 
     const { data, error } = await query;
