@@ -145,10 +145,12 @@ export const addMonthlyAllocation = async (req: Request, res: Response) => {
 
     if (error) throw error;
 
-    // Trigger acknowledgment email asynchronously
-    sendAcknowledgmentEmail(user_id, month).catch(err => {
-      console.error('[EMAIL-ERROR] Failed to send acknowledgment email:', err);
-    });
+    // Trigger acknowledgment email asynchronously (unless skipEmail is true)
+    if (!req.body.skipEmail) {
+      sendAcknowledgmentEmail(user_id, month).catch(err => {
+        console.error('[EMAIL-ERROR] Failed to send acknowledgment email:', err);
+      });
+    }
 
     res.status(201).json(data[0]);
   } catch (error: any) {
@@ -239,10 +241,12 @@ export const addWeeklyAllocation = async (req: Request, res: Response) => {
 
     if (error) throw error;
 
-    // Trigger acknowledgment email asynchronously
-    sendAcknowledgmentEmail(user_id, month).catch(err => {
-      console.error('[EMAIL-ERROR] Failed to send acknowledgment email:', err);
-    });
+    // Trigger acknowledgment email asynchronously (unless skipEmail is true)
+    if (!req.body.skipEmail) {
+      sendAcknowledgmentEmail(user_id, month).catch(err => {
+        console.error('[EMAIL-ERROR] Failed to send acknowledgment email:', err);
+      });
+    }
 
     res.status(201).json(data[0]);
   } catch (error: any) {

@@ -62,6 +62,18 @@ export const fetchCalendarEvents = async (accessToken: string, startDate: string
             occurrences: []
           };
         }
+
+        // Check if an occurrence with the exact same start, end, and title already exists in this bucket
+        const isDuplicateOccurrence = buckets[key].occurrences.some((occ: any) => 
+          occ.start === startStr && 
+          occ.end === endStr && 
+          occ.title.toLowerCase().trim() === key
+        );
+
+        if (isDuplicateOccurrence) {
+          console.log(`[CALENDAR] Skipping duplicate calendar occurrence: "${title}" at ${startStr}`);
+          continue;
+        }
         
         buckets[key].hours += duration;
         buckets[key].count += 1;

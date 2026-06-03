@@ -517,9 +517,12 @@ export default function CalendarImport({
           };
         });
 
-        // Recalculate duration and count
-        const totalHours = processedOccurrences.reduce((sum: number, o: any) => sum + Number(o.hours), 0);
-        const count = processedOccurrences.length;
+        // Keep only unsaved occurrences to block already-saved events/occurrences from fetching again
+        const unsavedOccurrences = processedOccurrences.filter((occ: any) => !occ.isAlreadySaved);
+
+        // Recalculate duration and count on unsaved occurrences
+        const totalHours = unsavedOccurrences.reduce((sum: number, o: any) => sum + Number(o.hours), 0);
+        const count = unsavedOccurrences.length;
 
         return {
           ...ev,
@@ -528,11 +531,11 @@ export default function CalendarImport({
           category: '', // Empty default
           notes: ev.title, // Default notes to event title
           originalDefaultNotes: ev.title,
-          occurrences: processedOccurrences,
+          occurrences: unsavedOccurrences,
           hours: totalHours,
           count: count
         };
-      });
+      }).filter((ev: any) => ev.occurrences.length > 0);
 
       setEvents(initializedEvents);
       setHasFetched(true);
@@ -647,9 +650,25 @@ export default function CalendarImport({
       updatedClientsList.sort((a, b) => a.name.localeCompare(b.name));
       setClients(updatedClientsList);
 
+      // Calculate total requests to determine when we are on the last one
+      let totalRequests = 0;
+      for (const event of eventsToSave) {
+        if (event.occurrences && event.occurrences.length > 0) {
+          totalRequests += event.occurrences.length;
+        } else {
+          totalRequests += 1;
+        }
+      }
+
+      let currentRequestIndex = 0;
+
       for (const event of eventsToSave) {
         if (event.occurrences && event.occurrences.length > 0) {
           for (const occ of event.occurrences) {
+            currentRequestIndex++;
+            const isLastRequest = currentRequestIndex === totalRequests;
+            const skipEmail = !isLastRequest;
+
             const isNotesCustomized = event.notes !== event.originalDefaultNotes;
             const baseNotes = isNotesCustomized ? (event.notes || '') : (occ.notes || occ.title || event.title);
             const finalNotes = `${baseNotes}\n[Cal: ${occ.title || event.title}]`;
@@ -669,7 +688,8 @@ export default function CalendarImport({
                 start_date: occ.start.split('T')[0],
                 end_date: occ.end.split('T')[0],
                 source: 'calendar',
-                force: true
+                force: true,
+                skipEmail
               })
             });
             if (!response.ok) {
@@ -678,6 +698,10 @@ export default function CalendarImport({
             }
           }
         } else {
+          currentRequestIndex++;
+          const isLastRequest = currentRequestIndex === totalRequests;
+          const skipEmail = !isLastRequest;
+
           const finalNotes = `${event.notes || event.title}\n[Cal: ${event.title}]`;
           const response = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/allocations/weekly`, {
             method: 'POST',
@@ -694,7 +718,8 @@ export default function CalendarImport({
               start_date: event.start.split('T')[0],
               end_date: event.end.split('T')[0],
               source: 'calendar',
-              force: true
+              force: true,
+              skipEmail
             })
           });
           if (!response.ok) {
