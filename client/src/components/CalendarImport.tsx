@@ -515,34 +515,44 @@ export default function CalendarImport({
         const processedOccurrences = (ev.occurrences || []).map((occ: any) => {
           const occDateStr = occ.start.split('T')[0];
           const occHours = Number(occ.hours);
-          const occTitleLower = (occ.title || ev.title || '').toLowerCase().trim();
+          const occTitleLower = (occ.title || ev.title || '').toLowerCase().trim().replace(/\s+/g, ' ');
+          const occTimeRange = formatOccTime(occ.start, occ.end).toLowerCase();
 
           const isAlreadySaved = existingAllocations.some((alloc: any) => {
             const allocDateStr = alloc.start_date; // YYYY-MM-DD
-            const allocHours = Number(alloc.hours);
-            const allocNotesLower = (alloc.notes || '').toLowerCase().trim();
-            const cleanAllocNotes = allocNotesLower.replace(/\[cal:.*?\]/g, '').trim();
+            const allocNotesLower = (alloc.notes || '').toLowerCase().trim().replace(/\s+/g, ' ');
 
-            // Check for hidden [cal: title] tag or direct matching
-            const hasHiddenTag = allocNotesLower.includes(`[cal: ${occTitleLower}]`);
-            const notesMatch = hasHiddenTag ||
-                               cleanAllocNotes === occTitleLower || 
-                               cleanAllocNotes.includes(occTitleLower) || 
-                               occTitleLower.includes(cleanAllocNotes);
+            // Check if this occurrence falls within the allocation's date range
+            const start = alloc.start_date;
+            const end = alloc.end_date || alloc.start_date;
+            const dateInPeriod = start && end && occDateStr >= start && occDateStr <= end;
+            if (!dateInPeriod) return false;
 
-            // If the activity notes match, check if this occurrence date falls within the logged allocation's date range
-            if (notesMatch) {
-              const start = alloc.start_date;
-              const end = alloc.end_date || alloc.start_date;
-              if (start && end && occDateStr >= start && occDateStr <= end) {
-                return true; // Marked as already saved!
+            // Check for explicit calendar tag match with time range
+            if (occTimeRange) {
+              const expectedTagWithTime = `[cal: ${occTitleLower} @ ${occTimeRange}]`;
+              if (allocNotesLower.includes(expectedTagWithTime)) {
+                return true;
+              }
+              // Backwards compatibility for old imports that didn't have time range:
+              // If the DB note has the generic tag '[cal: title]' without any '@' time range in it,
+              // we treat it as matching if the hours match.
+              const genericTag = `[cal: ${occTitleLower}]`;
+              const allocHours = Number(alloc.hours);
+              const occHours = Number(occ.hours);
+              const hoursMatch = Math.abs(allocHours - occHours) < 0.05;
+              if (allocNotesLower.includes(genericTag) && !allocNotesLower.includes(`[cal: ${occTitleLower} @`) && hoursMatch) {
+                return true;
+              }
+            } else {
+              // All-day event or no time range: match generic tag
+              const genericTag = `[cal: ${occTitleLower}]`;
+              if (allocNotesLower.includes(genericTag)) {
+                return true;
               }
             }
 
-            const datesMatch = allocDateStr === occDateStr;
-            const hoursMatch = Math.abs(allocHours - occHours) < 0.05;
-
-            return datesMatch && hoursMatch && notesMatch;
+            return false;
           });
 
           return {
@@ -708,7 +718,8 @@ export default function CalendarImport({
             const isNotesCustomized = event.notes !== event.originalDefaultNotes;
             const baseNotes = isNotesCustomized ? (event.notes || '') : (occ.notes || occ.title || event.title);
             const timeRange = formatOccTime(occ.start, occ.end);
-            const finalNotes = `${baseNotes}\n[Cal: ${occ.title || event.title}${timeRange ? ` @ ${timeRange}` : ''}]`;
+            const cleanTitle = (occ.title || event.title || '').trim().replace(/\s+/g, ' ');
+            const finalNotes = `${baseNotes}\n[Cal: ${cleanTitle}${timeRange ? ` @ ${timeRange}` : ''}]`;
 
             const response = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/allocations/weekly`, {
               method: 'POST',
@@ -741,7 +752,8 @@ export default function CalendarImport({
           const skipEmail = !isLastRequest;
 
           const timeRange = formatOccTime(event.start, event.end);
-          const finalNotes = `${event.notes || event.title}\n[Cal: ${event.title}${timeRange ? ` @ ${timeRange}` : ''}]`;
+          const cleanTitle = (event.title || '').trim().replace(/\s+/g, ' ');
+          const finalNotes = `${event.notes || event.title}\n[Cal: ${cleanTitle}${timeRange ? ` @ ${timeRange}` : ''}]`;
           const response = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/allocations/weekly`, {
             method: 'POST',
             headers: {

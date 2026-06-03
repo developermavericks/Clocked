@@ -151,7 +151,7 @@ export default function AddEntryModal({
       if (existingRes.ok) {
         const existingAllocations = await existingRes.json();
         const cleanNewNotes = formData.notes ? formData.notes.toLowerCase().trim() : '';
-        const cleanNewNotesCleaned = cleanNewNotes.replace(/\[cal:.*?\]/g, '').trim();
+        const cleanNewNotesCleaned = cleanNewNotes.replace(/\[cal:.*?\]/g, '').trim().replace(/\s+/g, ' ');
 
         const hasOverlap = existingAllocations.some((alloc: any) => {
           // If we are editing, ignore the current entry being edited
@@ -159,7 +159,7 @@ export default function AddEntryModal({
           if (alloc.client_id !== currentClientId) return false;
 
           const allocNotesLower = (alloc.notes || '').toLowerCase().trim();
-          const cleanAllocNotes = allocNotesLower.replace(/\[cal:.*?\]/g, '').trim();
+          const cleanAllocNotes = allocNotesLower.replace(/\[cal:.*?\]/g, '').trim().replace(/\s+/g, ' ');
 
           // Check if notes match or contain each other
           const notesMatch = (cleanAllocNotes && cleanNewNotesCleaned) && (
@@ -185,9 +185,13 @@ export default function AddEntryModal({
         });
 
         if (hasOverlap) {
-          alert(`Error: A time allocation for this client with similar notes already exists in this period. To prevent duplicates, please edit the existing entry instead of creating a new one.`);
-          setLoading(false);
-          return;
+          const proceed = window.confirm(
+            `A time allocation for this client with similar notes already exists in this period.\n\nDo you want to save this as a separate entry?`
+          );
+          if (!proceed) {
+            setLoading(false);
+            return;
+          }
         }
       }
     } catch (err) {

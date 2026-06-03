@@ -191,6 +191,18 @@ export const addWeeklyAllocation = async (req: Request, res: Response) => {
       }
     }
 
+    // Helper to parse calendar tags from notes
+    const parseCalTag = (notesStr: string) => {
+      const match = notesStr.match(/\[cal:\s*(.*?)(?:\s*@\s*(.*?))?\s*\]/i);
+      if (match) {
+        return {
+          title: match[1].toLowerCase().trim().replace(/\s+/g, ' '),
+          timeRange: match[2] ? match[2].toLowerCase().trim().replace(/\s+/g, ' ') : null
+        };
+      }
+      return null;
+    };
+
     // Prevent duplicate entries for weekly allocations (unless force is true)
     if (!req.body.force) {
       const { data: duplicateCheck, error: dError } = await supabase
@@ -204,23 +216,24 @@ export const addWeeklyAllocation = async (req: Request, res: Response) => {
       if (duplicateCheck && duplicateCheck.length > 0) {
         const isDuplicate = duplicateCheck.some(alloc => {
           const hoursMatch = Math.abs(Number(alloc.hours) - Number(hours)) < 0.05;
-          const allocNotesLower = (alloc.notes || '').toLowerCase().trim();
-          const incomingNotesLower = (notes || '').toLowerCase().trim();
           
-          // Strip out hidden tags for clean comparison
-          const cleanAllocNotes = allocNotesLower.replace(/\n\[cal: .*?\]/g, '').trim();
-          const cleanIncomingNotes = incomingNotesLower.replace(/\n\[cal: .*?\]/g, '').trim();
+          const allocTag = parseCalTag(alloc.notes || '');
+          const incomingTag = parseCalTag(notes || '');
 
-          // Check if either notes field has a calendar tag containing the other's text
-          const hasHiddenTag = (cleanIncomingNotes && allocNotesLower.includes(`[cal: ${cleanIncomingNotes}]`)) ||
-                               (cleanAllocNotes && incomingNotesLower.includes(`[cal: ${cleanAllocNotes}]`));
-
-          const notesMatch = hasHiddenTag ||
-                             cleanAllocNotes === cleanIncomingNotes || 
-                             cleanAllocNotes.includes(cleanIncomingNotes) || 
-                             cleanIncomingNotes.includes(cleanAllocNotes);
-
-          return hoursMatch && notesMatch;
+          if (allocTag && incomingTag) {
+            // Both are calendar entries: match only if both title and time range (if present) are identical
+            return allocTag.title === incomingTag.title && 
+                   allocTag.timeRange === incomingTag.timeRange && 
+                   hoursMatch;
+          } else if (!allocTag && !incomingTag) {
+            // Both are manual entries: match only if the notes are identical
+            const cleanAllocNotes = (alloc.notes || '').toLowerCase().trim();
+            const cleanIncomingNotes = (notes || '').toLowerCase().trim();
+            return cleanAllocNotes === cleanIncomingNotes && hoursMatch;
+          } else {
+            // One calendar and one manual: never a duplicate
+            return false;
+          }
         });
 
         if (isDuplicate) {
