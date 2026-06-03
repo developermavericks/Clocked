@@ -514,6 +514,7 @@ export default function CalendarImport({
         // Map occurrences and determine which ones are already saved
         const processedOccurrences = (ev.occurrences || []).map((occ: any) => {
           const occDateStr = occ.start.split('T')[0];
+          const occLocalDateStr = new Date(occ.start).toLocaleDateString('en-CA'); // YYYY-MM-DD local
           const occHours = Number(occ.hours);
           const occTitleLower = (occ.title || ev.title || '').toLowerCase().trim().replace(/\s+/g, ' ');
           const occTimeRange = formatOccTime(occ.start, occ.end).toLowerCase();
@@ -522,32 +523,47 @@ export default function CalendarImport({
             const allocDateStr = alloc.start_date; // YYYY-MM-DD
             const allocNotesLower = (alloc.notes || '').toLowerCase().trim().replace(/\s+/g, ' ');
 
-            // Check if this occurrence falls within the allocation's date range
+            // Check if this occurrence falls within the allocation's date range (check both UTC and Local date string)
             const start = alloc.start_date;
             const end = alloc.end_date || alloc.start_date;
-            const dateInPeriod = start && end && occDateStr >= start && occDateStr <= end;
+            const dateInPeriod = start && end && (
+              (occDateStr >= start && occDateStr <= end) ||
+              (occLocalDateStr >= start && occLocalDateStr <= end)
+            );
             if (!dateInPeriod) return false;
+
+            // Helper to normalize strings for robust matching (removes non-alphanumeric and leading zeros)
+            const normalizeForMatch = (str: string) => {
+              return str
+                .toLowerCase()
+                .replace(/\b0(\d)/g, '$1')
+                .replace(/[^a-z0-9]/g, '');
+            };
+
+            const normalizedNotes = normalizeForMatch(alloc.notes || '');
 
             // Check for explicit calendar tag match with time range
             if (occTimeRange) {
-              const expectedTagWithTime = `[cal: ${occTitleLower} @ ${occTimeRange}]`;
-              if (allocNotesLower.includes(expectedTagWithTime)) {
+              const expectedTagWithTime = normalizeForMatch(`[cal: ${occTitleLower} @ ${occTimeRange}]`);
+              if (normalizedNotes.includes(expectedTagWithTime)) {
                 return true;
               }
+              
               // Backwards compatibility for old imports that didn't have time range:
               // If the DB note has the generic tag '[cal: title]' without any '@' time range in it,
               // we treat it as matching if the hours match.
-              const genericTag = `[cal: ${occTitleLower}]`;
+              const genericTag = normalizeForMatch(`[cal: ${occTitleLower}]`);
               const allocHours = Number(alloc.hours);
               const occHours = Number(occ.hours);
               const hoursMatch = Math.abs(allocHours - occHours) < 0.05;
-              if (allocNotesLower.includes(genericTag) && !allocNotesLower.includes(`[cal: ${occTitleLower} @`) && hoursMatch) {
+              
+              if (normalizedNotes.includes(genericTag) && !allocNotesLower.includes(`[cal: ${occTitleLower} @`) && hoursMatch) {
                 return true;
               }
             } else {
               // All-day event or no time range: match generic tag
-              const genericTag = `[cal: ${occTitleLower}]`;
-              if (allocNotesLower.includes(genericTag)) {
+              const genericTag = normalizeForMatch(`[cal: ${occTitleLower}]`);
+              if (normalizedNotes.includes(genericTag)) {
                 return true;
               }
             }
