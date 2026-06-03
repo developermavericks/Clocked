@@ -29,6 +29,7 @@ export default function TeamPortal() {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [missedCalendarEventsCount, setMissedCalendarEventsCount] = useState<number | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteProgress, setDeleteProgress] = useState<{ current: number; total: number } | null>(null);
 
   useEffect(() => {
     setSelectedIds([]);
@@ -186,9 +187,11 @@ export default function TeamPortal() {
     if (selectedIds.length === 0) return;
     if (!confirm(`Are you sure you want to delete the ${selectedIds.length} selected entries?`)) return;
     setIsDeleting(true);
+    setDeleteProgress({ current: 0, total: selectedIds.length });
     try {
       let successCount = 0;
       let errorMsg = '';
+      let currentIndex = 0;
       
       for (const id of selectedIds) {
         const response = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/allocations/${id}?kind=${activeTab}`, {
@@ -200,6 +203,8 @@ export default function TeamPortal() {
           const result = await response.json();
           errorMsg = result.error || 'Failed to delete some entries';
         }
+        currentIndex++;
+        setDeleteProgress({ current: currentIndex, total: selectedIds.length });
       }
       
       setSelectedIds([]);
@@ -216,6 +221,7 @@ export default function TeamPortal() {
       alert(err.message);
     } finally {
       setIsDeleting(false);
+      setDeleteProgress(null);
     }
   };
 
@@ -406,7 +412,15 @@ export default function TeamPortal() {
                     className="flex items-center gap-1.5 px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg text-xs font-bold border border-red-200 transition-all shadow-sm animate-in fade-in zoom-in duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <Trash2 className="w-4 h-4" />
-                    {isDeleting ? "Deleting..." : `Delete Selected (${selectedIds.length})`}
+                    {isDeleting ? (
+                      deleteProgress ? (
+                        `Deleting... ${Math.round((deleteProgress.current / deleteProgress.total) * 100)}% (${deleteProgress.current}/${deleteProgress.total})`
+                      ) : (
+                        "Deleting..."
+                      )
+                    ) : (
+                      `Delete Selected (${selectedIds.length})`
+                    )}
                   </button>
                 )}
                 <div className="flex bg-slate-100 p-1 rounded-lg">
@@ -438,7 +452,16 @@ export default function TeamPortal() {
             <div className="p-0 relative min-h-[200px]">
               {(isTableLoading || isDeleting) && (
                 <div className="absolute inset-0 bg-white/60 dark:bg-slate-900/60 backdrop-blur-[1px] z-10 flex items-center justify-center rounded-2xl animate-in fade-in duration-200">
-                  <Loader size="md" text={isDeleting ? "Processing deletion..." : "Loading allocations..."} />
+                  <Loader 
+                    size="md" 
+                    text={
+                      isDeleting && deleteProgress
+                        ? `Deleting: ${Math.round((deleteProgress.current / deleteProgress.total) * 100)}% (${deleteProgress.current}/${deleteProgress.total})`
+                        : isDeleting
+                        ? "Processing deletion..."
+                        : "Loading allocations..."
+                    } 
+                  />
                 </div>
               )}
               <div className="space-y-8">

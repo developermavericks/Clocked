@@ -43,6 +43,7 @@ export default function CalendarImport({
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [saveProgress, setSaveProgress] = useState<{ current: number; total: number } | null>(null);
   const [selectedEvents, setSelectedEvents] = useState<Set<string>>(new Set());
   const [user, setUser] = useState<any>(null);
   const [hasFetched, setHasFetched] = useState(false);
@@ -670,12 +671,14 @@ export default function CalendarImport({
         }
       }
 
+      setSaveProgress({ current: 0, total: totalRequests });
       let currentRequestIndex = 0;
 
       for (const event of eventsToSave) {
         if (event.occurrences && event.occurrences.length > 0) {
           for (const occ of event.occurrences) {
             currentRequestIndex++;
+            setSaveProgress({ current: currentRequestIndex, total: totalRequests });
             const isLastRequest = currentRequestIndex === totalRequests;
             const skipEmail = !isLastRequest;
 
@@ -709,6 +712,7 @@ export default function CalendarImport({
           }
         } else {
           currentRequestIndex++;
+          setSaveProgress({ current: currentRequestIndex, total: totalRequests });
           const isLastRequest = currentRequestIndex === totalRequests;
           const skipEmail = !isLastRequest;
 
@@ -747,6 +751,7 @@ export default function CalendarImport({
       alert(err.message);
     } finally {
       setSaving(false);
+      setSaveProgress(null);
     }
   };
 
@@ -1046,7 +1051,15 @@ export default function CalendarImport({
                 className="bg-slate-900 text-white px-8 py-3 rounded-2xl text-sm font-bold hover:bg-slate-800 transition-all shadow-xl shadow-slate-200 disabled:opacity-50 flex items-center gap-2"
               >
                 {saving && <Loader size="sm" inline />}
-                {saving ? 'Saving...' : `Save ${getSelectedConstituentCount()} Events`}
+                {saving ? (
+                  saveProgress ? (
+                    `Saving... ${Math.round((saveProgress.current / saveProgress.total) * 100)}% (${saveProgress.current}/${saveProgress.total})`
+                  ) : (
+                    'Saving...'
+                  )
+                ) : (
+                  `Save ${getSelectedConstituentCount()} Events`
+                )}
               </button>
             </div>
           </div>
