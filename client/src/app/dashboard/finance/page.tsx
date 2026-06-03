@@ -3,7 +3,7 @@
 export const dynamic = 'force-dynamic';
 
 import { useState, useEffect, useMemo } from 'react';
-import { IndianRupee, Download, Users, Briefcase, RefreshCw, Layers, Sliders, CheckCircle2, AlertCircle, Edit2, BarChart3, Maximize2, Minimize2 } from 'lucide-react';
+import { IndianRupee, Download, Users, Briefcase, RefreshCw, Layers, Sliders, CheckCircle2, AlertCircle, Edit2, BarChart3, Maximize2, Minimize2, ChevronDown, ChevronUp } from 'lucide-react';
 import StatsCard from '@/components/StatsCard';
 import { apiFetch } from '@/lib/api';
 import { Loader } from '@/components/Loader';
@@ -536,6 +536,7 @@ export default function FinancePortal() {
 
   const [clickedEntity, setClickedEntity] = useState<string | null>(null);
   const [modalTab, setModalTab] = useState<'logs' | 'finances'>('logs');
+  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     setClickedEntity(null);
@@ -609,6 +610,37 @@ export default function FinancePortal() {
     });
     return unique.size;
   }, [entityDetails, analysisView]);
+
+  const groupedLogs = useMemo(() => {
+    const groups: Record<string, any[]> = {};
+    entityDetails.forEach((alloc: any) => {
+      const name = analysisView === 'employee' 
+        ? getNormalizedClientName(alloc.clients?.name || 'Unknown Client')
+        : (alloc.users?.name || alloc.users?.email?.split('@')[0] || 'Unknown');
+      if (!groups[name]) {
+        groups[name] = [];
+      }
+      groups[name].push(alloc);
+    });
+    return groups;
+  }, [entityDetails, analysisView, groupBD, groupLeave, groupInternal]);
+
+  const groupedKeys = useMemo(() => {
+    return Object.keys(groupedLogs).sort((a, b) => a.localeCompare(b));
+  }, [groupedLogs]);
+
+  useEffect(() => {
+    if (clickedEntity) {
+      const initial: Record<string, boolean> = {};
+      entityDetails.forEach((alloc: any) => {
+        const name = analysisView === 'employee' 
+          ? getNormalizedClientName(alloc.clients?.name || 'Unknown Client')
+          : (alloc.users?.name || alloc.users?.email?.split('@')[0] || 'Unknown');
+        initial[name] = true;
+      });
+      setExpandedGroups(initial);
+    }
+  }, [clickedEntity, entityDetails, analysisView]);
 
   const clientCostRows = useMemo(() => {
     if (!clickedEntity || !reportData || !Array.isArray(reportData.rows) || analysisView !== 'client') return [];
@@ -3367,69 +3399,128 @@ export default function FinancePortal() {
               </div>
             ) : (
               <div className="flex-1 overflow-y-auto min-h-0 rounded-2xl border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-950 custom-scrollbar shadow-inner">
-                <table className="w-full text-left border-collapse text-xs font-sans text-slate-900 dark:text-white">
-                  <thead className="bg-slate-50 dark:bg-slate-900 sticky top-0 z-10 border-b border-slate-100 dark:border-slate-800 text-slate-500 dark:text-slate-400">
-                  <tr>
-                    <th className="px-5 py-3.5 font-bold text-slate-500 uppercase tracking-wider">
-                      {analysisView === 'employee' ? 'Client' : 'Team Member'}
-                    </th>
-                    <th className="px-5 py-3.5 font-bold text-slate-500 uppercase tracking-wider">Category</th>
-                    <th className="px-5 py-3.5 font-bold text-slate-500 uppercase tracking-wider">Period</th>
-                    <th className="px-5 py-3.5 font-bold text-slate-500 uppercase tracking-wider text-right">Hours</th>
-                    <th className="px-5 py-3.5 font-bold text-slate-500 uppercase tracking-wider">Notes</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                  {entityDetails.length === 0 ? (
-                    <tr>
-                      <td colSpan={5} className="px-5 py-8 text-center text-slate-400 italic">No details recorded.</td>
-                    </tr>
+                <div className="p-4 space-y-4">
+                  {/* Toolbar */}
+                  <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
+                    <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider font-sans">
+                      Grouped Work Logs
+                    </span>
+                    <div className="flex items-center gap-2 text-[10px] font-black text-slate-400">
+                      <button
+                        onClick={() => {
+                          const updated = { ...expandedGroups };
+                          groupedKeys.forEach(k => { updated[k] = true; });
+                          setExpandedGroups(updated);
+                        }}
+                        className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors uppercase tracking-wider focus:outline-none border-none bg-transparent cursor-pointer font-black"
+                      >
+                        Expand All
+                      </button>
+                      <span className="text-slate-300 dark:text-slate-700">|</span>
+                      <button
+                        onClick={() => {
+                          const updated = { ...expandedGroups };
+                          groupedKeys.forEach(k => { updated[k] = false; });
+                          setExpandedGroups(updated);
+                        }}
+                        className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors uppercase tracking-wider focus:outline-none border-none bg-transparent cursor-pointer font-black"
+                      >
+                        Collapse All
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Groups */}
+                  {groupedKeys.length === 0 ? (
+                    <div className="text-center py-8 text-slate-400 italic font-sans">No details recorded.</div>
                   ) : (
-                    entityDetails.map((alloc: any, idx: number) => {
-                      const associatedName = analysisView === 'employee' 
-                        ? getNormalizedClientName(alloc.clients?.name || 'Unknown Client')
-                        : (alloc.users?.name || alloc.users?.email?.split('@')[0] || 'Unknown');
-                      
-                      const cleanNote = alloc.notes
-                        ?.replace(/\[Time:[^\]]+\]/g, '')
-                        ?.replace(/\[Cal:[^\]]+\]/g, '')
-                        ?.trim() || '—';
-                      
-                      const isCalendar = alloc.source === 'calendar' || alloc.notes?.toLowerCase().includes('[cal:');
+                    groupedKeys.map((groupName) => {
+                      const logs = groupedLogs[groupName];
+                      const isExpanded = !!expandedGroups[groupName];
+                      const totalGroupHours = logs.reduce((sum, log) => sum + (Number(log.hours) || 0), 0);
 
                       return (
-                        <tr key={idx} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/50 transition-colors">
-                          <td className="px-5 py-4 font-bold text-slate-900 dark:text-white">
-                            {associatedName}
-                          </td>
-                          <td className="px-5 py-4">
-                            <span className="bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wide text-slate-600 dark:text-slate-300">
-                              {alloc.category}
-                            </span>
-                          </td>
-                          <td className="px-5 py-4 font-semibold text-slate-400 dark:text-slate-500">
-                            {alloc.start_date} – {alloc.end_date}
-                          </td>
-                          <td className="px-5 py-4 font-bold text-right text-slate-700 dark:text-slate-300 font-mono">
-                            {Number(alloc.hours).toFixed(1)}h
-                          </td>
-                          <td className="px-5 py-4 text-slate-500 dark:text-slate-400 max-w-sm">
-                            <div className="flex flex-col gap-1.5">
-                              {isCalendar && (
-                                <span className="bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-100 dark:border-blue-900/60 rounded-full px-2.5 py-0.5 text-[9px] font-black w-fit uppercase tracking-wider font-sans">
-                                  Google Calendar
-                                </span>
+                        <div key={groupName} className="border border-slate-100 dark:border-slate-800 rounded-xl overflow-hidden shadow-sm bg-white dark:bg-slate-900">
+                          {/* Header */}
+                          <button
+                            onClick={() => setExpandedGroups(prev => ({ ...prev, [groupName]: !prev[groupName] }))}
+                            className="w-full flex items-center justify-between p-3 bg-slate-50 hover:bg-slate-100/70 dark:bg-slate-800/40 dark:hover:bg-slate-800/60 transition-colors border-none text-left cursor-pointer focus:outline-none"
+                          >
+                            <div className="flex items-center gap-2 min-w-0">
+                              {isExpanded ? (
+                                <ChevronUp className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500 shrink-0" />
+                              ) : (
+                                <ChevronDown className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500 shrink-0" />
                               )}
-                              <span className="leading-relaxed break-words">{cleanNote}</span>
+                              <span className="font-bold text-slate-800 dark:text-slate-200 truncate text-xs">
+                                {groupName}
+                              </span>
+                              <span className="px-2 py-0.5 bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 rounded-full text-[9px] font-black uppercase tracking-wider shrink-0 font-sans">
+                                {logs.length} {logs.length === 1 ? 'log' : 'logs'}
+                              </span>
                             </div>
-                          </td>
-                        </tr>
+                            <span className="text-xs font-bold text-slate-700 dark:text-slate-300 font-mono shrink-0 pl-2">
+                              {totalGroupHours.toFixed(1)}h
+                            </span>
+                          </button>
+
+                          {/* Sub-table */}
+                          {isExpanded && (
+                            <div className="border-t border-slate-100 dark:border-slate-800 overflow-x-auto bg-white dark:bg-slate-950">
+                              <table className="w-full text-left border-collapse text-xs font-sans">
+                                <thead className="bg-slate-50/50 dark:bg-slate-900/30 text-slate-500 dark:text-slate-400 border-b border-slate-100 dark:border-slate-800">
+                                  <tr>
+                                    <th className="px-4 py-2 font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider text-[10px]">Category</th>
+                                    <th className="px-4 py-2 font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider text-[10px]">Period</th>
+                                    <th className="px-4 py-2 font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider text-[10px] text-right">Hours</th>
+                                    <th className="px-4 py-2 font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider text-[10px]">Notes</th>
+                                  </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                                  {logs.map((alloc: any, idx: number) => {
+                                    const cleanNote = alloc.notes
+                                      ?.replace(/\[Time:[^\]]+\]/g, '')
+                                      ?.replace(/\[Cal:[^\]]+\]/g, '')
+                                      ?.trim() || '—';
+                                    
+                                    const isCalendar = alloc.source === 'calendar' || alloc.notes?.toLowerCase().includes('[cal:');
+
+                                    return (
+                                      <tr key={idx} className="hover:bg-slate-50/30 dark:hover:bg-slate-900/30 transition-colors">
+                                        <td className="px-4 py-3 font-semibold">
+                                          <span className="bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider text-slate-600 dark:text-slate-300">
+                                            {alloc.category}
+                                          </span>
+                                        </td>
+                                        <td className="px-4 py-3 text-slate-400 dark:text-slate-500">
+                                          {alloc.start_date} – {alloc.end_date}
+                                        </td>
+                                        <td className="px-4 py-3 font-bold text-right text-slate-700 dark:text-slate-300 font-mono">
+                                          {Number(alloc.hours).toFixed(1)}h
+                                        </td>
+                                        <td className="px-4 py-3 text-slate-500 dark:text-slate-400 max-w-sm">
+                                          <div className="flex flex-col gap-1">
+                                            {isCalendar && (
+                                              <span className="bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-100 dark:border-blue-900/60 rounded-full px-2 py-0.5 text-[8px] font-black w-fit uppercase tracking-wider font-sans">
+                                                Google Calendar
+                                              </span>
+                                            )}
+                                            <span className="leading-relaxed break-words text-[11px]">{cleanNote}</span>
+                                          </div>
+                                        </td>
+                                      </tr>
+                                    );
+                                  })}
+                                </tbody>
+                              </table>
+                            </div>
+                          )}
+                        </div>
                       );
                     })
                   )}
-                </tbody>
-              </table>
-            </div>
+                </div>
+              </div>
             )}
           </div>
         </div>
