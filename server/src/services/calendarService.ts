@@ -23,10 +23,13 @@ export const fetchCalendarEvents = async (accessToken: string, startDate: string
   console.log(`📅 Fetching events from ${startDate} to ${endDate}`);
 
   try {
+    const formattedMin = startDate.includes('T') ? startDate : `${startDate}T00:00:00.000Z`;
+    const formattedMax = endDate.includes('T') ? endDate : `${endDate}T23:59:59.999Z`;
+
     const response = await calendar.events.list({
       calendarId: 'primary',
-      timeMin: new Date(startDate).toISOString(),
-      timeMax: new Date(endDate).toISOString(),
+      timeMin: new Date(formattedMin).toISOString(),
+      timeMax: new Date(formattedMax).toISOString(),
       singleEvents: true,
       orderBy: 'startTime',
     });
