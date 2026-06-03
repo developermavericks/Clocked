@@ -145,6 +145,55 @@ export default function AddEntryModal({
       }
     }
 
+    // Duplicate & overlap checks
+    try {
+      const existingRes = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/allocations/my?userId=${userId}&month=${month}&kind=${type}`);
+      if (existingRes.ok) {
+        const existingAllocations = await existingRes.json();
+        const cleanNewNotes = formData.notes ? formData.notes.toLowerCase().trim() : '';
+        const cleanNewNotesCleaned = cleanNewNotes.replace(/\[cal:.*?\]/g, '').trim();
+
+        const hasOverlap = existingAllocations.some((alloc: any) => {
+          // If we are editing, ignore the current entry being edited
+          if (isEdit && initialData && alloc.id === initialData.id) return false;
+          if (alloc.client_id !== currentClientId) return false;
+
+          const allocNotesLower = (alloc.notes || '').toLowerCase().trim();
+          const cleanAllocNotes = allocNotesLower.replace(/\[cal:.*?\]/g, '').trim();
+
+          // Check if notes match or contain each other
+          const notesMatch = (cleanAllocNotes && cleanNewNotesCleaned) && (
+            cleanAllocNotes === cleanNewNotesCleaned || 
+            cleanAllocNotes.includes(cleanNewNotesCleaned) || 
+            cleanNewNotesCleaned.includes(cleanAllocNotes)
+          );
+
+          if (!notesMatch) return false;
+
+          // Check date overlap (for weekly)
+          if (type === 'weekly') {
+            const newStart = formData.start_date;
+            const newEnd = formData.end_date || formData.start_date;
+            const allocStart = alloc.start_date;
+            const allocEnd = alloc.end_date || alloc.start_date;
+
+            return (newStart <= allocEnd && newEnd >= allocStart);
+          } else {
+            // Monthly projection: same month, same client, same notes
+            return true;
+          }
+        });
+
+        if (hasOverlap) {
+          alert(`Error: A time allocation for this client with similar notes already exists in this period. To prevent duplicates, please edit the existing entry instead of creating a new one.`);
+          setLoading(false);
+          return;
+        }
+      }
+    } catch (err) {
+      console.warn('Failed to verify duplicates, proceeding with save.', err);
+    }
+
     const method = isEdit ? 'PUT' : 'POST';
     const url = isEdit 
       ? `${process.env.NEXT_PUBLIC_API_URL}/api/allocations/${initialData.id}`

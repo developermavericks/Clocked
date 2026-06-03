@@ -497,16 +497,26 @@ export default function CalendarImport({
             const allocDateStr = alloc.start_date; // YYYY-MM-DD
             const allocHours = Number(alloc.hours);
             const allocNotesLower = (alloc.notes || '').toLowerCase().trim();
+            const cleanAllocNotes = allocNotesLower.replace(/\[cal:.*?\]/g, '').trim();
 
-            const datesMatch = allocDateStr === occDateStr;
-            const hoursMatch = Math.abs(allocHours - occHours) < 0.05;
-            
             // Check for hidden [cal: title] tag or direct matching
             const hasHiddenTag = allocNotesLower.includes(`[cal: ${occTitleLower}]`);
             const notesMatch = hasHiddenTag ||
-                               allocNotesLower === occTitleLower || 
-                               allocNotesLower.includes(occTitleLower) || 
-                               occTitleLower.includes(allocNotesLower);
+                               cleanAllocNotes === occTitleLower || 
+                               cleanAllocNotes.includes(occTitleLower) || 
+                               occTitleLower.includes(cleanAllocNotes);
+
+            // If the activity notes match, check if this occurrence date falls within the logged allocation's date range
+            if (notesMatch) {
+              const start = alloc.start_date;
+              const end = alloc.end_date || alloc.start_date;
+              if (start && end && occDateStr >= start && occDateStr <= end) {
+                return true; // Marked as already saved!
+              }
+            }
+
+            const datesMatch = allocDateStr === occDateStr;
+            const hoursMatch = Math.abs(allocHours - occHours) < 0.05;
 
             return datesMatch && hoursMatch && notesMatch;
           });
