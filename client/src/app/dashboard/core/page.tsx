@@ -367,6 +367,57 @@ export default function CorePortal() {
     }
   };
 
+  const lockRegistryMonths = useMemo(() => {
+    const start = new Date(2025, 10, 1); // Nov 2025
+    const now = new Date();
+    const end = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+    
+    const list: { monthStr: string; label: string }[] = [];
+    let current = new Date(start);
+    while (current <= end) {
+      const year = current.getFullYear();
+      const monthNum = String(current.getMonth() + 1).padStart(2, '0');
+      const monthStr = `${year}-${monthNum}`;
+      const label = current.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+      list.push({ monthStr, label });
+      current.setMonth(current.getMonth() + 1);
+    }
+    return list.reverse(); // Show newest months first
+  }, []);
+
+  const isDefaultOpen = (monthStr: string) => {
+    const [y, m] = monthStr.split('-').map(Number);
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth() + 1;
+    const currentDay = now.getDate();
+    
+    const diffMonths = (currentYear * 12 + currentMonth) - (y * 12 + m);
+    if (diffMonths <= 0) return true; // current or future month
+    if (diffMonths === 1 && currentDay < 5) return true; // previous month before 5th
+    return false;
+  };
+
+  const handleUnlockMonthDirect = async (monthStr: string) => {
+    try {
+      const response = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/allocations/unlocked-months`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ month: monthStr })
+      });
+      if (response.ok) {
+        fetchUnlockedMonthsList();
+      } else {
+        const errData = await response.json();
+        alert(errData.error || 'Failed to unlock month');
+      }
+    } catch (err: any) {
+      alert(err.message);
+    }
+  };
+
   const fetchClients = async () => {
     setLoading(true);
     try {
@@ -669,60 +720,71 @@ export default function CorePortal() {
 
                 {/* Locked Months Manager Section */}
                 <div className="space-y-4">
-                  <h3 className="text-lg font-bold text-slate-900 px-1">Lock Override</h3>
-                  <div className="bg-slate-50 border border-slate-200/60 p-6 rounded-2xl space-y-5 shadow-sm">
+                  <h3 className="text-lg font-bold text-slate-900 px-1">Month Lock Registry</h3>
+                  <div className="bg-slate-50 border border-slate-200/60 p-6 rounded-2xl space-y-4 shadow-sm flex flex-col">
                     <div>
                       <h4 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                        <Unlock className="w-4 h-4 text-orange-600" />
-                        Unlock Previous Month
+                        <Lock className="w-4 h-4 text-orange-600" />
+                        Logging Lock Control
                       </h4>
                       <p className="text-xs text-slate-500 font-medium mt-1 leading-relaxed">
-                        Normally, time logging is capped after the 5th date of the current month. Unlock a month below to allow team edits.
+                        Control logging availability. Locked months block any entries or modifications.
                       </p>
                     </div>
 
-                    <form onSubmit={handleUnlockMonth} className="flex gap-2">
-                      <input 
-                        type="month" 
-                        required
-                        value={newUnlockMonth}
-                        onChange={(e) => setNewUnlockMonth(e.target.value)}
-                        className="flex-1 px-3 py-2.5 text-xs border border-slate-200 rounded-xl focus:ring-2 focus:ring-orange-600 focus:border-transparent outline-none bg-white font-semibold text-slate-800"
-                      />
-                      <button 
-                        type="submit"
-                        disabled={isUnlocking}
-                        className="bg-orange-600 text-white px-4 py-2.5 rounded-xl text-xs font-bold hover:bg-orange-700 transition-all flex items-center gap-1 shadow-md shadow-orange-100 disabled:opacity-50 uppercase tracking-wider font-black"
-                      >
-                        Unlock
-                      </button>
-                    </form>
+                    <div className="space-y-2.5 max-h-[380px] overflow-y-auto pr-1 custom-scrollbar">
+                      {lockRegistryMonths.map(({ monthStr, label }) => {
+                        const isOpenDefault = isDefaultOpen(monthStr);
+                        const isOverride = unlockedMonthsList.some(item => item.month === monthStr);
+                        const isUnlocked = isOpenDefault || isOverride;
 
-                    <div className="pt-3 border-t border-slate-200/60">
-                      <h5 className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-3 flex items-center gap-1.5">
-                        <Lock className="w-3 h-3 text-slate-400" />
-                        Active Overrides
-                      </h5>
-                      {unlockedMonthsList.length === 0 ? (
-                        <p className="text-xs text-slate-400 italic">No overrides set. Default locks active.</p>
-                      ) : (
-                        <div className="space-y-2.5 max-h-[220px] overflow-y-auto pr-1">
-                          {unlockedMonthsList.map((item) => (
-                            <div key={item.month} className="flex items-center justify-between bg-white border border-slate-100 px-4 py-3 rounded-xl shadow-sm">
-                              <span className="text-xs font-bold text-slate-800">
-                                {new Date(item.month + '-02').toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                        return (
+                          <div key={monthStr} className="flex items-center justify-between bg-white border border-slate-100 p-3 rounded-xl shadow-sm hover:border-slate-200 transition-colors">
+                            <div className="min-w-0 pr-2">
+                              <span className="text-xs font-bold text-slate-800 block truncate">
+                                {label}
                               </span>
-                              <button 
-                                onClick={() => handleLockMonth(item.month)}
-                                className="text-[10px] font-black text-rose-600 hover:bg-rose-50 px-2.5 py-1.5 rounded-lg uppercase tracking-wider transition-all"
-                                title="Re-lock month"
-                              >
-                                Re-Lock
-                              </button>
+                              <div className="flex gap-1.5 mt-1">
+                                {isOpenDefault ? (
+                                  <span className="bg-blue-50 text-blue-600 border border-blue-100 px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wider">
+                                    Open (Default)
+                                  </span>
+                                ) : isOverride ? (
+                                  <span className="bg-emerald-50 text-emerald-600 border border-emerald-100 px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wider">
+                                    Unlocked (Override)
+                                  </span>
+                                ) : (
+                                  <span className="bg-rose-50 text-rose-600 border border-rose-100 px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wider">
+                                    Locked
+                                  </span>
+                                )}
+                              </div>
                             </div>
-                          ))}
-                        </div>
-                      )}
+
+                            <div className="shrink-0">
+                              {isOpenDefault ? (
+                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2.5 py-1.5">
+                                  Default Open
+                                </span>
+                              ) : isOverride ? (
+                                <button
+                                  onClick={() => handleLockMonth(monthStr)}
+                                  className="text-[10px] font-black text-rose-600 hover:bg-rose-50 px-2.5 py-1.5 rounded-lg uppercase tracking-wider transition-all border border-rose-200 cursor-pointer"
+                                >
+                                  Lock
+                                </button>
+                              ) : (
+                                <button
+                                  onClick={() => handleUnlockMonthDirect(monthStr)}
+                                  className="text-[10px] font-black text-emerald-600 hover:bg-emerald-50 px-2.5 py-1.5 rounded-lg uppercase tracking-wider transition-all border border-emerald-200 cursor-pointer"
+                                >
+                                  Unlock
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 </div>

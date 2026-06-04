@@ -137,6 +137,12 @@ export default function TeamAnalytics({ month, currentUserEmail }: TeamAnalytics
       }
       groups[name].push(alloc);
     });
+
+    // Sort items chronologically (ascending) by start_date inside each group list
+    Object.values(groups).forEach(list => {
+      list.sort((a, b) => (a.start_date || '').localeCompare(b.start_date || ''));
+    });
+
     return groups;
   }, [entityDetails, analysisView]);
 

@@ -272,7 +272,15 @@ export default function MemberInsights({ month: initialMonth, onMonthChange }: {
       groups[clientName].totalHours += Number(item.hours) || 0;
       groups[clientName].items.push(item);
     });
-    return Object.values(groups).sort((a, b) => a.clientName.localeCompare(b.clientName));
+
+    const result = Object.values(groups).sort((a, b) => a.clientName.localeCompare(b.clientName));
+    
+    // Sort items chronologically (ascending) by start_date inside each client group
+    result.forEach(group => {
+      group.items.sort((a, b) => (a.start_date || '').localeCompare(b.start_date || ''));
+    });
+
+    return result;
   }, [memberData]);
 
   const totalHours = memberData.reduce((sum, item) => sum + (Number(item.hours) || 0), 0);

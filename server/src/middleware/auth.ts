@@ -52,37 +52,42 @@ export const authenticate = async (req: AuthRequest, res: Response, Next: NextFu
         .single();
       
       if (userByEmail) {
-        console.log(`[AUTH] Linking placeholder account for ${email}`);
         const oldId = userByEmail.id;
         const newId = user.id;
 
-        try {
-          // A. Temporarily change the email of the old record to avoid unique constraint conflict
-          await supabase.from('users').update({ email: `${email}_old_${Date.now()}` }).eq('id', oldId);
+        if (oldId === newId) {
+          console.log(`[AUTH] Placeholder account already has correct ID for ${email}`);
+          existingUser = userByEmail;
+        } else {
+          console.log(`[AUTH] Linking placeholder account for ${email}`);
+          try {
+            // A. Temporarily change the email of the old record to avoid unique constraint conflict
+            await supabase.from('users').update({ email: `${email}_old_${Date.now()}` }).eq('id', oldId);
 
-          // B. Create the NEW record with the correct auth ID and metadata
-          const { data: newUser } = await supabase.from('users').insert([{
-            id: newId,
-            email: email,
-            name: user.user_metadata?.full_name || userByEmail.name || email.split('@')[0],
-            picture: user.user_metadata?.avatar_url || userByEmail.picture,
-            role: userByEmail.role || 'team',
-            last_login: new Date().toISOString()
-          }]).select().single();
+            // B. Create the NEW record with the correct auth ID and metadata
+            const { data: newUser } = await supabase.from('users').insert([{
+              id: newId,
+              email: email,
+              name: user.user_metadata?.full_name || userByEmail.name || email.split('@')[0],
+              picture: user.user_metadata?.avatar_url || userByEmail.picture,
+              role: userByEmail.role || 'team',
+              last_login: new Date().toISOString()
+            }]).select().single();
 
-          // C. Move all references to the new ID
-          await supabase.from('teams').update({ manager_id: newId }).eq('manager_id', oldId);
-          await supabase.from('teams').update({ member_id: newId }).eq('member_id', oldId);
-          await supabase.from('allocations_monthly').update({ user_id: newId }).eq('user_id', oldId);
-          await supabase.from('allocations_weekly').update({ user_id: newId }).eq('user_id', oldId);
+            // C. Move all references to the new ID
+            await supabase.from('teams').update({ manager_id: newId }).eq('manager_id', oldId);
+            await supabase.from('teams').update({ member_id: newId }).eq('member_id', oldId);
+            await supabase.from('allocations_monthly').update({ user_id: newId }).eq('user_id', oldId);
+            await supabase.from('allocations_weekly').update({ user_id: newId }).eq('user_id', oldId);
 
-          // D. Delete the old placeholder record
-          await supabase.from('users').delete().eq('id', oldId);
+            // D. Delete the old placeholder record
+            await supabase.from('users').delete().eq('id', oldId);
 
-          existingUser = newUser;
-        } catch (mergeErr) {
-          console.error('[AUTH] Merge failed:', mergeErr);
-          // Fallback to searching again in case another process handled it
+            existingUser = newUser;
+          } catch (mergeErr) {
+            console.error('[AUTH] Merge failed:', mergeErr);
+            // Fallback to searching again in case another process handled it
+          }
         }
       }
     }
