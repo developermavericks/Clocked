@@ -85,6 +85,12 @@ export const sendAllReminders = async (req: Request, res: Response) => {
           if (exitMonth < month) return false;
         }
 
+        // Exclude core users who do not need to fill entries (Avinash and Satyam)
+        const emailLower = u.email ? u.email.toLowerCase().trim() : '';
+        if (emailLower === 'avinash@themavericksindia.com' || emailLower === 'satyam.singh@themavericksindia.com') {
+          return false;
+        }
+
         // Exclude if they have logged hours (> 0) this month
         if (activeUserIds.has(u.id)) return false;
 
@@ -165,6 +171,12 @@ export const sendClosureReminders = async (req: Request, res: Response) => {
         if (u.exit_date) {
           const exitMonth = u.exit_date.substring(0, 7);
           if (exitMonth < month) return false;
+        }
+
+        // Exclude core users who do not need to fill entries (Avinash and Satyam)
+        const emailLower = u.email ? u.email.toLowerCase().trim() : '';
+        if (emailLower === 'avinash@themavericksindia.com' || emailLower === 'satyam.singh@themavericksindia.com') {
+          return false;
         }
 
         // Exclude if they have logged hours (> 0) this month

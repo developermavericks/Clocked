@@ -257,17 +257,21 @@ export const sendConsolidatedClosureEmail = async (
   const transporter = await getTransporter();
   const monthName = formatMonthName(monthStr);
 
+  const [yearStr, monthStrPart] = monthStr.split('-');
+  const nextMonthDate = new Date(parseInt(yearStr), parseInt(monthStrPart), 1);
+  const nextMonthName = nextMonthDate.toLocaleString('en-US', { month: 'long', year: 'numeric' });
+
   const subject = `Action Required: Final Clocked Closure Notice for ${monthName}`;
 
   const html = `
     <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 2px solid #ea580c; border-radius: 16px; background-color: #fffaf8;">
       <h2 style="color: #ea580c; margin-top: 0; margin-bottom: 20px;">🚨 Final Closure Notice</h2>
       <p>Hi Team,</p>
-      <p>This is a reminder that you have <strong>0 logged working hours</strong> in Clocked for the month of <strong>${monthName}</strong>.</p>
-      <p>We have closed all month entries till May because today is the 5th. Yesterday, I unlocked all months so you could fill whichever entries were left. Now, we have closed all months till May. You can continue filling in your June entries.</p>
-      <p>Thank you.</p>
+      <p>This is a reminder that you currently have <strong>0 logged working hours</strong> for ${monthName} in Clocked.</p>
+      <p>As today is the 5th, all timesheet entries up to and including ${monthName} have now been closed. Yesterday, all months were temporarily unlocked to allow everyone to complete any pending entries. Since that grace period has ended, all months through ${monthName} have been locked again.</p>
+      <p>You may continue logging your working hours for ${nextMonthName} as usual.</p>
       <p style="font-weight: bold; color: #ea580c; margin-top: 15px; margin-bottom: 15px;">
-        ⚠️ Note: Interns can ignore this message.
+        ⚠️ Note: Interns may ignore this message.
       </p>
       <p>Thank you.</p>
       <p style="margin-top: 30px; margin-bottom: 30px;">

@@ -124,6 +124,10 @@ export default function MemberInsights({ month: initialMonth, onMonthChange }: {
             const exitMonth = u.exit_date.substring(0, 7);
             if (exitMonth < internalMonth) return false;
           }
+          const emailLower = u.email ? u.email.toLowerCase().trim() : '';
+          if (emailLower === 'avinash@themavericksindia.com' || emailLower === 'satyam.singh@themavericksindia.com') {
+            return false;
+          }
           return true;
         })
         .map((u: any) => u.email.toLowerCase())
