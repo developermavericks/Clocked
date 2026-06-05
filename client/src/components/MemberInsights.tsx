@@ -17,9 +17,11 @@ export default function MemberInsights({ month: initialMonth, onMonthChange }: {
   const [dbUsers, setDbUsers] = useState<any[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [expandedClients, setExpandedClients] = useState<Record<string, boolean>>({});
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     setExpandedClients({});
+    setSearchQuery('');
   }, [selectedEmail, internalMonth]);
 
   const toggleClientExpand = (clientName: string) => {
@@ -262,9 +264,21 @@ export default function MemberInsights({ month: initialMonth, onMonthChange }: {
     }
   };
 
+  const filteredMemberData = useMemo(() => {
+    if (!searchQuery) return memberData;
+    const query = searchQuery.toLowerCase().trim();
+    return memberData.filter(item => {
+      const notesMatch = (item.notes || '').toLowerCase().includes(query);
+      const clientMatch = (item.clients?.name || '').toLowerCase().includes(query);
+      const categoryMatch = (item.category || '').toLowerCase().includes(query);
+      const sourceMatch = (item.source || '').toLowerCase().includes(query);
+      return notesMatch || clientMatch || categoryMatch || sourceMatch;
+    });
+  }, [memberData, searchQuery]);
+
   const groupedData = useMemo(() => {
     const groups: Record<string, { clientName: string; totalHours: number; items: any[] }> = {};
-    memberData.forEach(item => {
+    filteredMemberData.forEach(item => {
       const clientName = item.clients?.name || 'Unknown Client';
       if (!groups[clientName]) {
         groups[clientName] = {
@@ -285,9 +299,12 @@ export default function MemberInsights({ month: initialMonth, onMonthChange }: {
     });
 
     return result;
-  }, [memberData]);
+  }, [filteredMemberData]);
 
   const totalHours = memberData.reduce((sum, item) => sum + (Number(item.hours) || 0), 0);
+  const filteredTotalHours = useMemo(() => {
+    return filteredMemberData.reduce((sum, item) => sum + (Number(item.hours) || 0), 0);
+  }, [filteredMemberData]);
 
   return (
     <div className="space-y-8 animate-in fade-in duration-700">
@@ -363,12 +380,31 @@ export default function MemberInsights({ month: initialMonth, onMonthChange }: {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-6">
           <div className="bg-white rounded-[32px] border border-slate-100 shadow-xl shadow-slate-100/50 overflow-hidden">
-            <div className="px-8 py-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-              <h3 className="text-lg font-black text-slate-900 flex items-center gap-2">
-                <Clock className="w-5 h-5 text-orange-600" />
-                Work Log Summary
-              </h3>
+            <div className="px-8 py-6 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-50/50">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-4 flex-1">
+                <h3 className="text-lg font-black text-slate-900 flex items-center gap-2 whitespace-nowrap">
+                  <Clock className="w-5 h-5 text-orange-600" />
+                  Work Log Summary
+                </h3>
+                {memberData.length > 0 && (
+                  <div className="relative flex-1 max-w-xs">
+                    <input
+                      type="text"
+                      placeholder="Search events/clients..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="w-full bg-white border border-slate-200 rounded-xl pl-9 pr-4 py-2 text-xs font-semibold text-slate-700 placeholder-slate-400 outline-none focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 transition-all"
+                    />
+                    <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+                  </div>
+                )}
+              </div>
               <div className="flex items-center gap-3">
+                {searchQuery.trim() && (
+                  <div className="px-4 py-2 bg-orange-100 text-orange-800 rounded-xl text-xs font-black">
+                    Matched: {filteredTotalHours.toFixed(1)}h
+                  </div>
+                )}
                 <div className="px-4 py-2 bg-slate-100 text-slate-600 rounded-xl text-[10px] font-black uppercase">
                   {new Date(internalMonth + '-02').toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
                 </div>
@@ -395,6 +431,16 @@ export default function MemberInsights({ month: initialMonth, onMonthChange }: {
                     <p className="text-slate-400 text-sm font-medium italic">No work logs found for {selectedEmail || 'this member'} in {new Date(internalMonth + '-02').toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}.</p>
                   </div>
                 </div>
+              ) : filteredMemberData.length === 0 ? (
+                <div className="py-20 text-center space-y-4">
+                  <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto text-slate-300">
+                    <Search className="w-8 h-8" />
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-slate-900 font-bold">No Matching Logs</p>
+                    <p className="text-slate-400 text-sm font-medium italic">No entries match your search query "{searchQuery}".</p>
+                  </div>
+                </div>
               ) : (
                 <div className="divide-y divide-slate-100">
                   {/* Expand/Collapse All Actions */}
@@ -419,7 +465,7 @@ export default function MemberInsights({ month: initialMonth, onMonthChange }: {
                   </div>
 
                   {groupedData.map((group) => {
-                    const isExpanded = !!expandedClients[group.clientName];
+                    const isExpanded = !!expandedClients[group.clientName] || searchQuery.trim().length > 0;
                     const firstChar = group.clientName[0] || 'C';
                     
                     return (
