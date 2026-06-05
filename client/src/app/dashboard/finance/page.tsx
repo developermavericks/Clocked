@@ -636,7 +636,7 @@ export default function FinancePortal() {
         const name = analysisView === 'employee' 
           ? getNormalizedClientName(alloc.clients?.name || 'Unknown Client')
           : (alloc.users?.name || alloc.users?.email?.split('@')[0] || 'Unknown');
-        initial[name] = true;
+        initial[name] = false;
       });
       setExpandedGroups(initial);
     }

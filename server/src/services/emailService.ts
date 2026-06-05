@@ -102,18 +102,18 @@ export const sendReminderEmail = async (
         <h2 style="color: #ea580c; margin-top: 0; margin-bottom: 20px;">🚨 Final Closure Notice</h2>
         <p>Hi <strong>${employeeName}</strong>,</p>
         <p>This is a reminder that you have <strong>0 logged working hours</strong> in Clocked for the month of <strong>${monthName}</strong>.</p>
-        <p>Please submit your time allocations immediately. May entries will be officially closed and locked on the <strong>5th of June</strong>.</p>
+        <p>We have closed all month entries till May because today is the 5th. Yesterday, I unlocked all months so you could fill whichever entries were left. Now, we have closed all months till May. You can continue filling in your June entries.</p>
+        <p>Thank you.</p>
         <p style="font-weight: bold; color: #ea580c; margin-top: 15px; margin-bottom: 15px;">
-          ⚠️ Note: You can ignore this message if you are an intern.
+          ⚠️ Note: Interns can ignore this message.
         </p>
+        <p>Thank you.</p>
         <p style="margin-top: 30px; margin-bottom: 30px;">
           <a href="${process.env.CLIENT_URL || 'https://mavs-tracker.vercel.app/'}" 
              style="background-color: #ea580c; color: white; padding: 12px 24px; text-decoration: none; font-weight: bold; border-radius: 8px; display: inline-block;">
-            Submit Logs Immediately
+            Go to Clocked
           </a>
         </p>
-        <hr style="border: 0; border-top: 1px solid #fed7aa; margin: 30px 0;" />
-        <p style="font-size: 11px; color: #c2410c; line-height: 1.4;">Note: The executive leadership team has been copied on this final closure notice.</p>
       </div>
     `
     : `
@@ -245,3 +245,70 @@ export const sendAcknowledgmentEmail = async (userId: string, monthStr: string) 
     console.error(`[EMAIL-ERROR] Failed to send SMTP acknowledgment email for user ${userId}:`, error);
   }
 };
+
+/**
+ * Sends a single consolidated closure email to all zero-hour members in the To field,
+ * and CCs the 4 executive/CEO emails.
+ */
+export const sendConsolidatedClosureEmail = async (
+  memberEmails: string[],
+  monthStr: string
+) => {
+  const transporter = await getTransporter();
+  const monthName = formatMonthName(monthStr);
+
+  const subject = `Action Required: Final Clocked Closure Notice for ${monthName}`;
+
+  const html = `
+    <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 2px solid #ea580c; border-radius: 16px; background-color: #fffaf8;">
+      <h2 style="color: #ea580c; margin-top: 0; margin-bottom: 20px;">🚨 Final Closure Notice</h2>
+      <p>Hi Team,</p>
+      <p>This is a reminder that you have <strong>0 logged working hours</strong> in Clocked for the month of <strong>${monthName}</strong>.</p>
+      <p>We have closed all month entries till May because today is the 5th. Yesterday, I unlocked all months so you could fill whichever entries were left. Now, we have closed all months till May. You can continue filling in your June entries.</p>
+      <p>Thank you.</p>
+      <p style="font-weight: bold; color: #ea580c; margin-top: 15px; margin-bottom: 15px;">
+        ⚠️ Note: Interns can ignore this message.
+      </p>
+      <p>Thank you.</p>
+      <p style="margin-top: 30px; margin-bottom: 30px;">
+        <a href="${process.env.CLIENT_URL || 'https://mavs-tracker.vercel.app/'}" 
+           style="background-color: #ea580c; color: white; padding: 12px 24px; text-decoration: none; font-weight: bold; border-radius: 8px; display: inline-block;">
+          Go to Clocked
+        </a>
+      </p>
+    </div>
+  `;
+
+  const fromEmail = process.env.SMTP_FROM || 'Clocked <notifications@themavericksindia.com>';
+  const ccString = CEO_EMAILS.join(', ');
+
+  // Ensure To list has no duplicates and contains only valid emails
+  const toEmails = Array.from(new Set(memberEmails.map(e => e.trim().toLowerCase())));
+
+  if (toEmails.length === 0) {
+    return { success: false, error: 'No recipient emails provided.' };
+  }
+
+  const toString = toEmails.join(', ');
+
+  if (!transporter) {
+    console.log(`[EMAIL-MOCK] Consolidated closure email sent via SMTP to: ${toString} (CC: ${ccString}) for ${monthName}.`);
+    return { success: true, mock: true, recipients: toEmails };
+  }
+
+  try {
+    const info = await transporter.sendMail({
+      from: fromEmail,
+      to: toString,
+      cc: ccString,
+      subject: subject,
+      html: html,
+    });
+    console.log(`[EMAIL] Consolidated closure email successfully sent to ${toEmails.length} recipients (CC: ${ccString})`);
+    return { success: true, messageId: info.messageId, recipients: toEmails };
+  } catch (error: any) {
+    console.error(`[EMAIL-ERROR] Failed to send consolidated closure email:`, error);
+    throw error;
+  }
+};
+

@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { supabase } from '../config/supabase';
 import { isActiveUser } from '../config/activeUsers';
-import { sendReminderEmail, sendBulkReminderEmails } from '../services/emailService';
+import { sendReminderEmail, sendBulkReminderEmails, sendConsolidatedClosureEmail } from '../services/emailService';
 
 export const sendIndividualReminder = async (req: Request, res: Response) => {
   const { email, month } = req.body;
@@ -181,12 +181,13 @@ export const sendClosureReminders = async (req: Request, res: Response) => {
       return res.json({ message: 'No zero-hour members found for closure warning.' });
     }
 
-    // 4. Send bulk emails smoothly with delay (isClosureWarning = true)
-    const results = await sendBulkReminderEmails(zeroHourMembersList, month, true);
+    // 4. Send consolidated single email to all zero-hour members with CC to leadership
+    const recipientEmails = zeroHourMembersList.map(m => m.email);
+    const result = await sendConsolidatedClosureEmail(recipientEmails, month);
 
     res.json({
-      message: `Successfully processed closure warning emails for ${zeroHourMembersList.length} members.`,
-      results
+      message: `Successfully sent consolidated closure warning email to ${recipientEmails.length} members with CC.`,
+      result
     });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
