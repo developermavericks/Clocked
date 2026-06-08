@@ -42,7 +42,10 @@ export const getClients = async (req: Request, res: Response) => {
       );
     };
 
-    const safeData = data || [];
+    const safeData = (data || []).filter((c: any) => {
+      const low = String(c.name || '').toLowerCase();
+      return !low.includes('lunch');
+    });
     let filtered = safeData;
     if (month && typeof month === 'string' && /^\d{4}-\d{2}$/.test(month)) {
       // Fetch monthly budget overrides for this month
@@ -100,6 +103,10 @@ export const createClient = async (req: Request, res: Response) => {
 
   if (!name) {
     return res.status(400).json({ error: 'Client name is required' });
+  }
+
+  if (name.toLowerCase().includes('lunch')) {
+    return res.status(400).json({ error: "Cannot create a client containing 'lunch'." });
   }
 
   try {

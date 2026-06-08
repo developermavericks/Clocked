@@ -87,6 +87,12 @@ export default function AddEntryModal({
       return;
     }
 
+    if (formData.customBdName.trim().toLowerCase().includes('lunch')) {
+      alert("Error: Cannot create a client containing 'lunch'.");
+      setLoading(false);
+      return;
+    }
+
     // Validate neither populated
     if (!formData.client_id && !formData.customBdName.trim()) {
       alert("Error: Please select a client or enter a custom BD name.");
