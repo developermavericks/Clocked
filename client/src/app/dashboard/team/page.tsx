@@ -58,7 +58,7 @@ export default function TeamPortal() {
           const CORE_EMAILS = [
             'archana@themavericksindia.com', 'arunkumar@themavericksindia.com', 'avinash@themavericksindia.com',
             'chetan@themavericksindia.com', 'developerteam@themavericksindia.com', 'divyanshsharma@themavericksindia.com',
-            'mitali.p@themavericksindia.com', 'pooja@themavericksindia.com',
+            'gaurav@themavericksindia.com', 'mitali.p@themavericksindia.com', 'pooja@themavericksindia.com',
             'satyam.singh@themavericksindia.com', 'smriti@themavericksindia.com'
           ];
           const MANAGER_EMAILS = [
