@@ -308,7 +308,7 @@ export const deleteAllocation = async (req: Request, res: Response) => {
 
 export const updateAllocation = async (req: Request, res: Response) => {
   const { id } = req.params;
-  const { kind, ...updates } = req.body;
+  const { kind, force, skipEmail, ...updates } = req.body;
   const userRole = (req as any).user_role || 'team';
 
   try {
