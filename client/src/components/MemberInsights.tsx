@@ -127,7 +127,14 @@ export default function MemberInsights({ month: initialMonth, onMonthChange }: {
             if (exitMonth < internalMonth) return false;
           }
           const emailLower = u.email ? u.email.toLowerCase().trim() : '';
-          if (emailLower === 'avinash@themavericksindia.com' || emailLower === 'satyam.singh@themavericksindia.com') {
+          const excludedEmails = [
+            'avinash@themavericksindia.com',
+            'satyam.singh@themavericksindia.com',
+            'developerteam@themavericksindia.com',
+            'tech@themavericksindia.com',
+            'divyanshsharma@themavericksindia.com'
+          ];
+          if (excludedEmails.includes(emailLower)) {
             return false;
           }
           return true;
