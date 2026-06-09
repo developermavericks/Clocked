@@ -3,6 +3,7 @@ import { supabase } from '../config/supabase';
 import { calculateWeekCode } from '../utils/dateUtils';
 import { exportUserAllocationsToExcel } from '../services/excelService';
 import { sendAcknowledgmentEmail } from '../services/emailService';
+import { logActivity } from '../services/auditService';
 
 export const getMyAllocations = async (req: Request, res: Response) => {
   const { userId, month, kind } = req.query;
@@ -158,6 +159,17 @@ export const addMonthlyAllocation = async (req: Request, res: Response) => {
       });
     }
 
+    const email = (req as any).user?.email || 'unknown';
+    logActivity('CREATE_ALLOCATION', email, user_id, {
+      type: 'monthly',
+      id: data[0].id,
+      month,
+      client_id,
+      category,
+      hours,
+      notes
+    });
+
     res.status(201).json(data[0]);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -267,6 +279,20 @@ export const addWeeklyAllocation = async (req: Request, res: Response) => {
       });
     }
 
+    const email = (req as any).user?.email || 'unknown';
+    logActivity('CREATE_ALLOCATION', email, user_id, {
+      type: 'weekly',
+      id: data[0].id,
+      month,
+      client_id,
+      category,
+      hours,
+      notes,
+      start_date,
+      end_date,
+      source
+    });
+
     res.status(201).json(data[0]);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -305,6 +331,14 @@ export const deleteAllocation = async (req: Request, res: Response) => {
       .eq('id', id);
 
     if (error) throw error;
+
+    const email = (req as any).user?.email || 'unknown';
+    logActivity('DELETE_ALLOCATION', email, record.user_id, {
+      type: kind === 'projected' ? 'monthly' : 'weekly',
+      id,
+      month: record.month
+    });
+
     res.status(204).send();
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -384,6 +418,21 @@ export const updateAllocation = async (req: Request, res: Response) => {
       .select();
 
     if (error) throw error;
+
+    const email = (req as any).user?.email || 'unknown';
+    logActivity('UPDATE_ALLOCATION', email, record.user_id, {
+      type: kind === 'projected' ? 'monthly' : 'weekly',
+      id,
+      old_values: {
+        month: record.month,
+        client_id: record.client_id,
+        category: record.category,
+        hours: record.hours,
+        notes: record.notes
+      },
+      new_values: updates
+    });
+
     res.json(data[0]);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -480,6 +529,10 @@ export const addUnlockedMonth = async (req: Request, res: Response) => {
       }
       throw error;
     }
+
+    const email = (req as any).user?.email || 'unknown';
+    logActivity('UNLOCK_MONTH', email, null, { month });
+
     res.status(201).json(data[0]);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -508,6 +561,10 @@ export const deleteUnlockedMonth = async (req: Request, res: Response) => {
       }
       throw error;
     }
+
+    const email = (req as any).user?.email || 'unknown';
+    logActivity('LOCK_MONTH', email, null, { month });
+
     res.status(204).send();
   } catch (error: any) {
     res.status(500).json({ error: error.message });

@@ -3,6 +3,7 @@ import ExcelJS from 'exceljs';
 import { supabase } from '../config/supabase';
 import { calculateWeekCode } from '../utils/dateUtils';
 import { checkIfMonthLocked } from './allocationController';
+import { logActivity } from '../services/auditService';
 
 export const importExcel = async (req: Request, res: Response) => {
   if (!req.file) {
@@ -103,6 +104,13 @@ export const importExcel = async (req: Request, res: Response) => {
     const { error } = await supabase.from(table).insert(rows);
 
     if (error) throw error;
+
+    const email = (req as any).user?.email || 'unknown';
+    logActivity('IMPORT_EXCEL', email, user_id, {
+      type,
+      month,
+      count: rows.length
+    });
 
     res.json({ message: `Successfully imported ${rows.length} entries` });
   } catch (error: any) {

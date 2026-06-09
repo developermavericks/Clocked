@@ -85,9 +85,16 @@ export const sendAllReminders = async (req: Request, res: Response) => {
           if (exitMonth < month) return false;
         }
 
-        // Exclude core users who do not need to fill entries (Avinash and Satyam)
+        // Exclude core/system users who do not need to fill entries (Avinash, Satyam, Developer Team, Tech, and Divyansh)
         const emailLower = u.email ? u.email.toLowerCase().trim() : '';
-        if (emailLower === 'avinash@themavericksindia.com' || emailLower === 'satyam.singh@themavericksindia.com') {
+        const excludedEmails = [
+          'avinash@themavericksindia.com',
+          'satyam.singh@themavericksindia.com',
+          'developerteam@themavericksindia.com',
+          'tech@themavericksindia.com',
+          'divyanshsharma@themavericksindia.com'
+        ];
+        if (excludedEmails.includes(emailLower)) {
           return false;
         }
 
@@ -173,9 +180,16 @@ export const sendClosureReminders = async (req: Request, res: Response) => {
           if (exitMonth < month) return false;
         }
 
-        // Exclude core users who do not need to fill entries (Avinash and Satyam)
+        // Exclude core/system users who do not need to fill entries (Avinash, Satyam, Developer Team, Tech, and Divyansh)
         const emailLower = u.email ? u.email.toLowerCase().trim() : '';
-        if (emailLower === 'avinash@themavericksindia.com' || emailLower === 'satyam.singh@themavericksindia.com') {
+        const excludedEmails = [
+          'avinash@themavericksindia.com',
+          'satyam.singh@themavericksindia.com',
+          'developerteam@themavericksindia.com',
+          'tech@themavericksindia.com',
+          'divyanshsharma@themavericksindia.com'
+        ];
+        if (excludedEmails.includes(emailLower)) {
           return false;
         }
 
