@@ -41,8 +41,8 @@ export const checkIfMonthLocked = async (month: string, userRole: string, userId
   // 1. Core users are NEVER locked out
   // Core users are subject to the same lock rules as others; they can unlock via unlocked_months table
 
-  // Special lock override for Mitali Prakash (9582e5bb-f9f6-4a31-9888-4c5ffd4cc313) from Nov 2025 to May 2026 inclusive
-  if (userId === '9582e5bb-f9f6-4a31-9888-4c5ffd4cc313' && month >= '2025-11' && month <= '2026-05') {
+  // Special lock override for Mitali Prakash (9582e5bb-f9f6-4a31-9888-4c5ffd4cc313) - all months unlocked
+  if (userId === '9582e5bb-f9f6-4a31-9888-4c5ffd4cc313') {
     return false;
   }
 
