@@ -37,9 +37,14 @@ export const getMyAllocations = async (req: Request, res: Response) => {
   }
 };
 
-export const checkIfMonthLocked = async (month: string, userRole: string): Promise<boolean> => {
+export const checkIfMonthLocked = async (month: string, userRole: string, userId?: string): Promise<boolean> => {
   // 1. Core users are NEVER locked out
   // Core users are subject to the same lock rules as others; they can unlock via unlocked_months table
+
+  // Special lock override for Mitali Prakash (9582e5bb-f9f6-4a31-9888-4c5ffd4cc313) from Nov 2025 to May 2026 inclusive
+  if (userId === '9582e5bb-f9f6-4a31-9888-4c5ffd4cc313' && month >= '2025-11' && month <= '2026-05') {
+    return false;
+  }
 
   if (!/^\d{4}-\d{2}$/.test(month)) {
     return false;
@@ -128,7 +133,7 @@ export const addMonthlyAllocation = async (req: Request, res: Response) => {
 
   try {
     // Check lock
-    const isLocked = await checkIfMonthLocked(month, userRole);
+    const isLocked = await checkIfMonthLocked(month, userRole, user_id);
     if (isLocked) {
       return res.status(403).json({ error: `This month (${month}) is locked for editing.` });
     }
@@ -173,7 +178,7 @@ export const addWeeklyAllocation = async (req: Request, res: Response) => {
     // Debug log role and month
     console.log('[LOCK] Checking lock for month', month, 'role', userRole);
     // Check lock
-    const isLocked = await checkIfMonthLocked(month, userRole);
+    const isLocked = await checkIfMonthLocked(month, userRole, user_id);
     if (isLocked) {
       return res.status(403).json({ error: `This month (${month}) is locked for editing.` });
     }
@@ -281,7 +286,7 @@ export const deleteAllocation = async (req: Request, res: Response) => {
     // Fetch month first to verify lock
     const { data: record, error: fetchError } = await supabase
       .from(table)
-      .select('month')
+      .select('month, user_id')
       .eq('id', id)
       .maybeSingle();
 
@@ -289,7 +294,7 @@ export const deleteAllocation = async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Allocation not found' });
     }
 
-    const isLocked = await checkIfMonthLocked(record.month, userRole);
+    const isLocked = await checkIfMonthLocked(record.month, userRole, record.user_id);
     if (isLocked) {
       return res.status(403).json({ error: `This month (${record.month}) is locked for editing.` });
     }
@@ -326,7 +331,7 @@ export const updateAllocation = async (req: Request, res: Response) => {
     }
 
     // 1. Check if the original month is locked
-    const isOldLocked = await checkIfMonthLocked(record.month, userRole);
+    const isOldLocked = await checkIfMonthLocked(record.month, userRole, record.user_id);
     if (isOldLocked) {
       return res.status(403).json({ error: `This month (${record.month}) is locked for editing.` });
     }
@@ -344,7 +349,7 @@ export const updateAllocation = async (req: Request, res: Response) => {
       targetMonth = updates.month;
     }
 
-    const isNewLocked = await checkIfMonthLocked(targetMonth, userRole);
+    const isNewLocked = await checkIfMonthLocked(targetMonth, userRole, record.user_id);
     if (isNewLocked) {
       return res.status(403).json({ error: `The target month (${targetMonth}) is locked for editing.` });
     }

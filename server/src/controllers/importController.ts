@@ -14,7 +14,7 @@ export const importExcel = async (req: Request, res: Response) => {
   const workbook = new ExcelJS.Workbook();
   
   try {
-    const isLocked = await checkIfMonthLocked(month, userRole);
+    const isLocked = await checkIfMonthLocked(month, userRole, user_id);
     if (isLocked) {
       return res.status(403).json({ error: `This month (${month}) is locked for editing.` });
     }
@@ -88,7 +88,7 @@ export const importExcel = async (req: Request, res: Response) => {
         rowMonth = row.start_date.slice(0, 7);
       }
 
-      const isRowLocked = await checkIfMonthLocked(rowMonth, userRole);
+      const isRowLocked = await checkIfMonthLocked(rowMonth, userRole, user_id);
       if (isRowLocked) {
         return res.status(403).json({ error: `Cannot import: The date ${row.start_date} is in a locked month (${rowMonth}).` });
       }
