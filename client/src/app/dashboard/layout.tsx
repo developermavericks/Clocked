@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Sidebar from '@/components/Sidebar';
 import { Menu } from 'lucide-react';
 import { usePathname } from 'next/navigation';
+import { supabase } from '@/lib/supabase';
 
 export default function DashboardLayout({
   children,
@@ -13,6 +14,94 @@ export default function DashboardLayout({
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isNavigating, setIsNavigating] = useState(false);
   const pathname = usePathname();
+
+  // Helper to get friendly activity messages based on current path
+  const getActivityMessage = (path: string): string => {
+    if (path === '/dashboard') return 'viewing dashboard';
+    if (path === '/dashboard/core') return 'viewing Admin Portal';
+    if (path === '/dashboard/manager') return 'reviewing team allocations';
+    if (path === '/dashboard/finance') return 'generating reports';
+    if (path.startsWith('/dashboard/team')) return 'filling weekly timesheet';
+    return 'online';
+  };
+
+  // Track real-time presence
+  useEffect(() => {
+    let channel: any = null;
+
+    const setupPresence = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user?.email) return;
+
+      const userEmail = user.email.toLowerCase().trim();
+      
+      channel = supabase.channel('online-presence', {
+        config: {
+          presence: {
+            key: userEmail,
+          },
+        },
+      });
+
+      channel
+        .on('presence', { event: 'sync' }, () => {
+          const state = channel.presenceState();
+          const activeUsers: Record<string, { activity: string; name: string }> = {};
+          
+          Object.entries(state).forEach(([emailKey, presences]) => {
+            const latest = (presences as any[])?.[0];
+            activeUsers[emailKey.toLowerCase().trim()] = {
+              activity: latest?.activity || 'online',
+              name: latest?.name || emailKey,
+            };
+          });
+
+          if (typeof window !== 'undefined') {
+            (window as any).onlineUsers = activeUsers;
+            (window as any).onlineEmails = new Set(Object.keys(activeUsers));
+            window.dispatchEvent(new CustomEvent('online-presence-change'));
+          }
+        })
+        .subscribe(async (status: string) => {
+          if (status === 'SUBSCRIBED') {
+            const currentPath = window.location.pathname;
+            await channel.track({
+              online_at: new Date().toISOString(),
+              name: user.user_metadata?.name || user.email,
+              activity: getActivityMessage(currentPath),
+            });
+          }
+        });
+    };
+
+    setupPresence();
+
+    return () => {
+      if (channel) {
+        channel.unsubscribe();
+      }
+    };
+  }, []);
+
+  // Update activity status on path changes
+  useEffect(() => {
+    if (!pathname) return;
+    
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user?.email) return;
+      const userEmail = user.email.toLowerCase().trim();
+      
+      const channel = supabase.channel('online-presence', {
+        config: { presence: { key: userEmail } }
+      });
+      
+      channel.track({
+        online_at: new Date().toISOString(),
+        name: user.user_metadata?.name || user.email,
+        activity: getActivityMessage(pathname),
+      }).catch(err => console.warn('Failed to update presence activity:', err));
+    });
+  }, [pathname]);
 
   // Load state from localStorage on mount (safe for Next.js SSR)
   useEffect(() => {

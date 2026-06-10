@@ -148,8 +148,8 @@ export default function ManagerPortal() {
 
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900">Manager Portal</h1>
-          <p className="text-slate-500 mt-1">Oversee team performance and manage your own time.</p>
+          <h1 className="text-3xl font-bold text-slate-900 dark:text-white">Manager Portal</h1>
+          <p className="text-slate-500 dark:text-slate-400 mt-1">Oversee team performance and manage your own time.</p>
         </div>
         <div className="flex bg-white border border-slate-200 rounded-xl shadow-sm relative z-[100] overflow-visible">
           <select 

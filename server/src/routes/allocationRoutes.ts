@@ -8,7 +8,8 @@ import {
   exportMyAllocations,
   getUnlockedMonths,
   addUnlockedMonth,
-  deleteUnlockedMonth
+  deleteUnlockedMonth,
+  getWeeklyHoursForMonth
 } from '../controllers/allocationController';
 import { authenticate } from '../middleware/auth';
 
@@ -18,6 +19,7 @@ router.use(authenticate);
 
 router.get('/my', getMyAllocations);
 router.get('/my/export', exportMyAllocations);
+router.get('/weekly-hours', getWeeklyHoursForMonth);
 router.post('/monthly', addMonthlyAllocation);
 router.post('/weekly', addWeeklyAllocation);
 

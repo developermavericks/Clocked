@@ -570,3 +570,74 @@ export const deleteUnlockedMonth = async (req: Request, res: Response) => {
     res.status(500).json({ error: error.message });
   }
 };
+
+export const getWeeklyHoursForMonth = async (req: Request, res: Response) => {
+  const { month } = req.query;
+  if (!month || typeof month !== 'string') {
+    return res.status(400).json({ error: 'Month parameter is required' });
+  }
+
+  const userRole = (req as any).user_role || 'team';
+  if (userRole !== 'core') {
+    return res.status(403).json({ error: 'Access denied: Core role required' });
+  }
+
+  try {
+    console.log('[API] getWeeklyHoursForMonth query starting for:', month);
+    
+    let allRows: any[] = [];
+    let page = 0;
+    const pageSize = 1000;
+    let hasMore = true;
+
+    while (hasMore) {
+      const { data, error } = await supabase
+        .from('allocations_weekly')
+        .select('user_id, week_code, hours')
+        .eq('month', month)
+        .range(page * pageSize, (page + 1) * pageSize - 1);
+
+      if (error) throw error;
+
+      if (data && data.length > 0) {
+        allRows = allRows.concat(data);
+        if (data.length < pageSize) {
+          hasMore = false;
+        } else {
+          page++;
+        }
+      } else {
+        hasMore = false;
+      }
+    }
+
+    console.log(`[API] Total raw rows fetched: ${allRows.length}`);
+
+    // Group by user_id and week_code to aggregate hours
+    const aggregatedMap: Record<string, number> = {};
+    allRows.forEach((row: any) => {
+      const uId = row.user_id;
+      const weekCode = row.week_code || '';
+      if (!uId) return;
+      
+      const key = `${uId}||${weekCode}`;
+      aggregatedMap[key] = (aggregatedMap[key] || 0) + Number(row.hours);
+    });
+
+    // Convert aggregated map back to array format that frontend expects
+    const result = Object.entries(aggregatedMap).map(([key, hours]) => {
+      const [user_id, week_code] = key.split('||');
+      return {
+        user_id,
+        week_code: week_code || null,
+        hours
+      };
+    });
+
+    console.log(`[API] getWeeklyHoursForMonth query successful. Returning ${result.length} aggregated rows.`);
+    res.json(result);
+  } catch (error: any) {
+    console.error('[API] getWeeklyHoursForMonth error:', error.message);
+    res.status(500).json({ error: error.message });
+  }
+};

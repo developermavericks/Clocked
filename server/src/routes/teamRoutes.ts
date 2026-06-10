@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { getTeamMembers, getMemberAllocations, getAllUsers, deleteUser, updateUserRole, updateUserExitDate, updateUserJoiningDate, createUser } from '../controllers/teamController';
 import { authenticate, requireRole } from '../middleware/auth';
+import { supabase } from '../config/supabase';
 
 const router = Router();
 
@@ -10,8 +11,21 @@ router.get('/members', requireRole(['manager', 'core']), getTeamMembers);
 router.get('/allocations', requireRole(['manager', 'core']), getMemberAllocations);
 router.get('/all', requireRole(['core']), getAllUsers);
 
-router.get('/me', (req, res) => {
-  res.json({ role: (req as any).user_role || 'team' });
+router.get('/me', async (req, res) => {
+  try {
+    const { data: dbUser, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('id', (req as any).user.id)
+      .single();
+
+    if (error || !dbUser) {
+      return res.json({ role: (req as any).user_role || 'team' });
+    }
+    res.json(dbUser);
+  } catch (err) {
+    res.json({ role: (req as any).user_role || 'team' });
+  }
 });
 
 router.delete('/users/:id', requireRole(['core']), deleteUser);

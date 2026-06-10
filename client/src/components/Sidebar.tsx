@@ -60,6 +60,7 @@ export default function Sidebar({ isOpen, toggleSidebar }: SidebarProps) {
   const [userRole, setUserRole] = useState('team');
   const [loading, setLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState<any>(null);
+  const [dbUser, setDbUser] = useState<any>(null);
   const [isDarkMode, setIsDarkMode] = useState(false);
 
   useEffect(() => {
@@ -106,6 +107,7 @@ export default function Sidebar({ isOpen, toggleSidebar }: SidebarProps) {
         if (response.ok) {
           const data = await response.json();
           role = data.role || 'team';
+          setDbUser(data);
         }
 
         // Hardcoded overrides (useful for new users or list updates)
@@ -200,7 +202,7 @@ export default function Sidebar({ isOpen, toggleSidebar }: SidebarProps) {
 
       <div className="p-4 border-t border-slate-100 dark:border-slate-800 space-y-4">
         {currentUser && (
-          <div className="flex items-center gap-3 px-2 py-2 mb-2">
+          <div className="flex items-center gap-3 px-2 py-2 mb-2 profile-box cursor-default">
             {currentUser.user_metadata?.avatar_url ? (
               <img src={currentUser.user_metadata.avatar_url} alt="Profile" className="w-10 h-10 rounded-full border-2 border-orange-200" />
             ) : (
@@ -208,13 +210,22 @@ export default function Sidebar({ isOpen, toggleSidebar }: SidebarProps) {
                 {(currentUser.user_metadata?.full_name || currentUser.email || '?').charAt(0).toUpperCase()}
               </div>
             )}
-            <div className="overflow-hidden">
-              <p className="text-sm font-bold text-slate-900 dark:text-white truncate">
-                {currentUser.user_metadata?.full_name || currentUser.email.split('@')[0]}
+            <div className="overflow-hidden w-[140px]">
+              <p className="text-sm font-bold text-slate-900 dark:text-white truncate leading-tight">
+                {dbUser?.name || currentUser.user_metadata?.full_name || currentUser.email.split('@')[0]}
               </p>
-              <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
-                {currentUser.email}
-              </p>
+              {dbUser?.title && (
+                <div className="marquee-wrapper mt-0.5">
+                  <span className="marquee-content text-[10px] font-black text-blue-600 dark:text-blue-400 tracking-wider uppercase">
+                    {dbUser.title}
+                  </span>
+                </div>
+              )}
+              <div className="marquee-wrapper mt-1">
+                <span className="marquee-content text-[10px] text-slate-400 dark:text-slate-500 leading-none">
+                  {currentUser.email}
+                </span>
+              </div>
             </div>
           </div>
         )}

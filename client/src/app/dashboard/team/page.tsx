@@ -283,13 +283,34 @@ export default function TeamPortal() {
   const actualHours = data.reduce((acc, curr) => acc + curr.hours, 0);
   const efficiencyPercentage = projectedHours > 0 ? (actualHours / projectedHours) * 100 : 0;
 
+  const displayName = (() => {
+    if (!user) return 'Maverick';
+    const fullName = user.user_metadata?.full_name;
+    if (fullName) return fullName;
+    if (user.email) {
+      const parts = user.email.split('@')[0].split(/[._-]/);
+      return parts.map((p: string) => p.charAt(0).toUpperCase() + p.slice(1)).join(' ');
+    }
+    return 'Maverick';
+  })();
+
   return (
     <div className="space-y-8 relative">
 
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
-        <div>
-          <h1 className="text-4xl font-display font-black text-slate-900 tracking-tight">My Allocations</h1>
-          <p className="text-slate-500 mt-1 font-medium">Manage your time allocations and actuals.</p>
+      <div className="bg-gradient-to-r from-blue-500/10 via-indigo-500/5 to-transparent border border-blue-100/70 dark:border-blue-900/30 rounded-2xl p-6 shadow-sm flex items-center justify-between">
+        <div className="space-y-1">
+          <div className="flex flex-wrap items-center gap-2 mb-1">
+            <span className="text-[10px] font-black text-blue-600 bg-blue-50 border border-blue-100 dark:bg-blue-950/30 dark:border-blue-900/50 px-2 py-0.5 rounded-md uppercase tracking-wider">
+              Welcome Back
+            </span>
+            <span className="text-sm font-bold text-slate-700 dark:text-slate-200">
+              Hi, {displayName} 👋
+            </span>
+          </div>
+          <h1 className="text-3xl font-display font-black text-slate-900 dark:text-white tracking-tight">My Allocations</h1>
+          <p className="text-xs text-slate-500 dark:text-slate-400 font-medium leading-relaxed">
+            Your logged hours fuel our shared goals. Thank you for keeping your timesheet accurate and up-to-date!
+          </p>
         </div>
       </div>
 

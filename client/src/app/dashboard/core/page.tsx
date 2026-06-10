@@ -3,7 +3,7 @@
 export const dynamic = 'force-dynamic';
 
 import { useState, useEffect, useMemo } from 'react';
-import { Settings, FileText, Briefcase, Download, Plus, Search, ShieldCheck, User as UserIcon, Users, Trash2, UserPlus, Calendar, RefreshCw, Lock, Unlock, BarChart3, CheckCircle2 } from 'lucide-react';
+import { Settings, FileText, Briefcase, Download, Plus, Search, ShieldCheck, User as UserIcon, Users, Trash2, UserPlus, Calendar, RefreshCw, Lock, Unlock, BarChart3, CheckCircle2, ChevronDown, ChevronUp, ChevronLeft, ChevronRight } from 'lucide-react';
 import StatsCard from '@/components/StatsCard';
 import { apiFetch } from '@/lib/api';
 import { Loader } from '@/components/Loader';
@@ -52,10 +52,38 @@ export default function CorePortal() {
   // Unlocked months state
   const [unlockedMonthsList, setUnlockedMonthsList] = useState<any[]>([]);
   
+  // Heatmap weekly hours state
+  const [weeklyHoursData, setWeeklyHoursData] = useState<Record<string, Record<string, number>>>({});
+  
+  // Real-time Presence state
+  const [onlineUsers, setOnlineUsers] = useState<Record<string, { activity: string; name: string }>>({});
+  const [onlineEmails, setOnlineEmails] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const handlePresenceChange = () => {
+      setOnlineUsers((window as any).onlineUsers || {});
+      setOnlineEmails((window as any).onlineEmails || new Set());
+    };
+
+    window.addEventListener('online-presence-change', handlePresenceChange);
+    // Initial load
+    handlePresenceChange();
+
+    return () => {
+      window.removeEventListener('online-presence-change', handlePresenceChange);
+    };
+  }, []);
+  
   // Save feedback state
   const [saveStatus, setSaveStatus] = useState<Record<string, 'saving' | 'saved' | null>>({});
   const [newUnlockMonth, setNewUnlockMonth] = useState('');
   const [isUnlocking, setIsUnlocking] = useState(false);
+
+  // Collapsed sections state
+  const [isUsersCollapsed, setIsUsersCollapsed] = useState(false);
+  const [isLockRegistryCollapsed, setIsLockRegistryCollapsed] = useState(true);
 
   // Form states for adding a new employee
   const [showAddForm, setShowAddForm] = useState(false);
@@ -279,6 +307,36 @@ export default function CorePortal() {
     return { columns, rows };
   }, [report, groupBD, groupInternal]);
 
+  const fetchWeeklyHours = async () => {
+    if (month < '2026-06') {
+      setWeeklyHoursData({});
+      return;
+    }
+    try {
+      const response = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/allocations/weekly-hours?month=${month}`);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch: ${response.statusText}`);
+      }
+      const data = await response.json();
+
+      const grouped: Record<string, Record<string, number>> = {};
+      (data || []).forEach((row: any) => {
+        const uId = row.user_id;
+        const week = row.week_code ? row.week_code.split('-').pop() : '';
+        if (!uId || !week) return;
+
+        if (!grouped[uId]) {
+          grouped[uId] = {};
+        }
+        grouped[uId][week] = (grouped[uId][week] || 0) + Number(row.hours);
+      });
+
+      setWeeklyHoursData(grouped);
+    } catch (err) {
+      console.error('Failed to fetch weekly hours for heatmap:', err);
+    }
+  };
+
   useEffect(() => {
     const loadCoreData = async () => {
       if (activeTab === 'admin') {
@@ -296,6 +354,10 @@ export default function CorePortal() {
           if (unlockedRes.ok) {
             const unlockedData = await unlockedRes.json();
             setUnlockedMonthsList(unlockedData || []);
+          }
+
+          if (month >= '2026-06') {
+            await fetchWeeklyHours();
           }
         } catch (err) {
           console.error('Failed to load core admin data in parallel:', err);
@@ -470,8 +532,8 @@ export default function CorePortal() {
 
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900">Core Portal</h1>
-          <p className="text-slate-500 mt-1">Administrative tools and master reporting for core staff.</p>
+          <h1 className="text-3xl font-bold text-slate-900 dark:text-white">Core Portal</h1>
+          <p className="text-slate-500 dark:text-slate-400 mt-1">Administrative tools and master reporting for core staff.</p>
         </div>
         <div className="flex items-center gap-4 relative z-[100]">
           <div className="flex bg-white border border-slate-200 rounded-xl shadow-sm overflow-visible">
@@ -602,191 +664,340 @@ export default function CorePortal() {
                 />
               </div>
               
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              <div className="flex flex-col lg:flex-row gap-8 items-start w-full">
                 {/* Active Users Section */}
-                <div className="lg:col-span-2 space-y-4">
-                  <h3 className="text-lg font-bold text-slate-900 px-1">Manage User Roles</h3>
-                  <div className="overflow-x-auto border border-slate-100 rounded-2xl bg-white shadow-sm">
-                    <table className="w-full text-left border-collapse">
-                      <thead className="bg-slate-50">
-                        <tr>
-                          <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase">User</th>
-                          <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase">Email</th>
-                          <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase text-right">Role</th>
-                          <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase text-right">Action</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100">
-                        {loading ? (
+                <div className="flex-1 min-w-0 space-y-4 w-full">
+                  <div className="flex justify-between items-center px-1">
+                    <h3 className="text-lg font-bold text-slate-900">Manage User Roles</h3>
+                    <button 
+                      onClick={() => setIsUsersCollapsed(!isUsersCollapsed)}
+                      className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 px-2.5 py-1.5 rounded-lg transition-all cursor-pointer animate-fade-in"
+                    >
+                      {isUsersCollapsed ? (
+                        <>
+                          <ChevronDown className="w-3.5 h-3.5" />
+                          <span>Show List</span>
+                        </>
+                      ) : (
+                        <>
+                          <ChevronUp className="w-3.5 h-3.5" />
+                          <span>Hide List</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                  
+                  {!isUsersCollapsed ? (
+                    <div className="overflow-x-auto border border-slate-100 rounded-2xl bg-white shadow-sm transition-all duration-200">
+                      <table className="w-full text-left border-collapse">
+                        <thead className="bg-slate-50">
                           <tr>
-                            <td colSpan={4} className="text-center py-10 bg-white">
-                              <Loader size="md" text="Loading roles..." />
-                            </td>
+                            <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase">User</th>
+                            <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase">Email</th>
+                            <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase">Office</th>
+                            <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase">Designation</th>
+                            {month >= '2026-06' && (
+                              <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase">Timesheet</th>
+                            )}
+                            <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase text-right">Role</th>
                           </tr>
-                        ) : activeUsersOnly.map(u => {
-                          // Role priority: Core > Manager > Team
-                          let displayRole = u.role?.toUpperCase() || 'TEAM';
-                          if (u.role === 'core') displayRole = 'CORE';
-                          else if (u.is_manager) displayRole = 'MANAGER';
-                          else displayRole = 'TEAM';
-
-                          const handleRoleChange = async (userId: string, currentRole: string) => {
-                            const roles: ('team' | 'manager' | 'core')[] = ['team', 'manager', 'core'];
-                            const nextRole = roles[(roles.indexOf(currentRole as any) + 1) % roles.length];
-                            
-                            // Optimistic role cycle update
-                            setUsers(prevUsers => 
-                              prevUsers.map(u => {
-                                  if (u.id === userId) {
-                                    const isManager = nextRole === 'manager';
-                                    return { ...u, role: nextRole, is_manager: isManager };
-                                  }
-                                  return u;
-                                })
-                            );
-                            
-                            try {
-                              await apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/teams/users/${userId}/role`, {
-                                method: 'PATCH',
-                                body: JSON.stringify({ role: nextRole })
-                              });
-                              fetchUsers(false);
-                            } catch (err) {
-                              console.error('Failed to update role:', err);
-                              fetchUsers(true);
-                            }
-                          };
-
-                          const roleColor = 
-                            displayRole === 'CORE' ? 'bg-orange-100 text-orange-700' :
-                            displayRole === 'MANAGER' ? 'bg-indigo-100 text-indigo-700' :
-                            'bg-slate-100 text-slate-600';
-
-                          // Avatar Color Logic: Only bright colors for logged-in users
-                          const colors = ['bg-emerald-600', 'bg-blue-600', 'bg-indigo-600', 'bg-rose-600', 'bg-amber-600', 'bg-violet-600', 'bg-cyan-600'];
-                          const colorIndex = (u.email?.length || 0) % colors.length;
-                          const hasLoggedIn = !!u.last_login;
-                          const avatarColor = hasLoggedIn ? colors[colorIndex] : 'bg-slate-200';
-                          const initialColor = hasLoggedIn ? 'text-white' : 'text-slate-400';
-                          const initial = (u.name?.[0] || u.email?.[0] || '?').toUpperCase();
-
-                          return (
-                            <tr key={u.id} className="hover:bg-slate-50 transition-colors">
-                              <td className="px-6 py-4 flex items-center gap-3">
-                                {u.picture ? (
-                                  <img src={u.picture} className="w-9 h-9 rounded-xl object-cover shadow-sm ring-2 ring-white" />
-                                ) : (
-                                  <div className={`w-9 h-9 ${avatarColor} rounded-xl flex items-center justify-center ${initialColor} text-sm font-black shadow-sm ring-2 ring-white`}>
-                                    {initial}
-                                  </div>
-                                )}
-                                <div>
-                                  <span className="text-sm font-bold text-slate-900 block leading-tight">
-                                    {u.name || u.email.split('@')[0]}
-                                  </span>
-                                  <span className="text-[10px] text-slate-400 font-medium uppercase tracking-wider">{u.email.split('@')[1]}</span>
-                                </div>
-                              </td>
-                              <td className="px-6 py-4 text-sm text-slate-600 font-medium">{u.email}</td>
-                              <td className="px-6 py-4 text-sm text-right">
-                                <button 
-                                  onClick={() => handleRoleChange(u.id, u.role || 'team')}
-                                  title="Click to cycle role (Team -> Manager -> Core)"
-                                  className={`${roleColor} text-[10px] font-black px-2.5 py-1 rounded-lg uppercase tracking-widest hover:brightness-95 transition-all`}
-                                >
-                                  {displayRole}
-                                </button>
-                              </td>
-                              <td className="px-6 py-4 text-right">
-                                <button 
-                                  onClick={async () => {
-                                    if (confirm(`Remove ${u.email}? This will revoke their access immediately.`)) {
-                                      await apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/teams/users/${u.id}`, { method: 'DELETE' });
-                                      fetchUsers();
-                                    }
-                                  }}
-                                  className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </button>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {loading ? (
+                            <tr>
+                              <td colSpan={month >= '2026-06' ? 6 : 5} className="text-center py-10 bg-white">
+                                <Loader size="md" text="Loading roles..." />
                               </td>
                             </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
+                          ) : activeUsersOnly.map(u => {
+                            // Role priority: Core > Manager > Team
+                            let displayRole = u.role?.toUpperCase() || 'TEAM';
+                            if (u.role === 'core') displayRole = 'CORE';
+                            else if (u.is_manager) displayRole = 'MANAGER';
+                            else displayRole = 'TEAM';
+
+                            const handleRoleChange = async (userId: string, currentRole: string) => {
+                              const roles: ('team' | 'manager' | 'core')[] = ['team', 'manager', 'core'];
+                              const nextRole = roles[(roles.indexOf(currentRole as any) + 1) % roles.length];
+                              
+                              // Optimistic role cycle update
+                              setUsers(prevUsers => 
+                                prevUsers.map(u => {
+                                    if (u.id === userId) {
+                                      const isManager = nextRole === 'manager';
+                                      return { ...u, role: nextRole, is_manager: isManager };
+                                    }
+                                    return u;
+                                  })
+                              );
+                              
+                              try {
+                                  await apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/teams/users/${userId}/role`, {
+                                    method: 'PATCH',
+                                    body: JSON.stringify({ role: nextRole })
+                                  });
+                                  fetchUsers(false);
+                              } catch (err) {
+                                  console.error('Failed to update role:', err);
+                                  fetchUsers(true);
+                              }
+                            };
+
+                            const roleColor = 
+                              displayRole === 'CORE' ? 'bg-orange-100 text-orange-700' :
+                              displayRole === 'MANAGER' ? 'bg-indigo-100 text-indigo-700' :
+                              'bg-slate-100 text-slate-600';
+
+                            // Avatar Color Logic: Only bright colors for logged-in users
+                            const colors = ['bg-emerald-600', 'bg-blue-600', 'bg-indigo-600', 'bg-rose-600', 'bg-amber-600', 'bg-violet-600', 'bg-cyan-600'];
+                            const colorIndex = (u.email?.length || 0) % colors.length;
+                            const hasLoggedIn = !!u.last_login;
+                            const avatarColor = hasLoggedIn ? colors[colorIndex] : 'bg-slate-200';
+                            const initialColor = hasLoggedIn ? 'text-white' : 'text-slate-400';
+                            const initial = (u.name?.[0] || u.email?.[0] || '?').toUpperCase();
+
+                            return (
+                              <tr key={u.id} className="hover:bg-slate-50 transition-colors">
+                                <td className="px-6 py-4 flex items-center gap-3">
+                                  <div className="relative group/avatar">
+                                    {u.picture ? (
+                                      <img src={u.picture} className="w-9 h-9 rounded-xl object-cover shadow-sm ring-2 ring-white" />
+                                    ) : (
+                                      <div className={`w-9 h-9 ${avatarColor} rounded-xl flex items-center justify-center ${initialColor} text-sm font-black shadow-sm ring-2 ring-white`}>
+                                        {initial}
+                                      </div>
+                                    )}
+                                    {/* Online status indicator */}
+                                    {onlineEmails.has(u.email?.toLowerCase().trim()) && (
+                                      <>
+                                        <div className="absolute -bottom-1 -right-1 w-3.5 h-3.5 bg-emerald-500 border-2 border-white rounded-full flex items-center justify-center shadow-sm">
+                                          <span className="w-1.5 h-1.5 bg-white rounded-full animate-ping"></span>
+                                        </div>
+                                        {/* Tooltip for online status */}
+                                        <div className="absolute left-full top-1/2 -translate-y-1/2 ml-2 hidden group-hover/avatar:flex items-center gap-1.5 bg-slate-950 text-white text-[9px] font-bold px-2 py-1 rounded shadow-lg whitespace-nowrap z-50 transition-all border border-slate-800">
+                                          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                                          <span>Active now — {onlineUsers[u.email?.toLowerCase().trim()]?.activity || 'online'}</span>
+                                          {/* Little left-pointing arrow */}
+                                          <div className="absolute right-full top-1/2 -translate-y-1/2 border-4 border-transparent border-r-slate-950"></div>
+                                        </div>
+                                      </>
+                                    )}
+                                  </div>
+                                  <div>
+                                    <span className="text-sm font-bold text-slate-900 block leading-tight">
+                                      {u.name || u.email.split('@')[0]}
+                                    </span>
+                                    <span className="text-[10px] text-slate-400 font-medium uppercase tracking-wider">{u.email.split('@')[1]}</span>
+                                  </div>
+                                </td>
+                                <td className="px-6 py-4 text-sm text-slate-600 font-medium">{u.email}</td>
+                                <td className="px-6 py-4 text-sm text-slate-900 font-semibold">{u.office || '-'}</td>
+                                <td className="px-6 py-4 text-sm text-slate-600 font-medium">{u.title || '-'}</td>
+                                {month >= '2026-06' && (
+                                  <td className="px-6 py-4">
+                                    <div className="flex gap-1.5 items-center">
+                                      {['Wk1', 'Wk2', 'Wk3', 'Wk4', 'Wk5'].map((wk) => {
+                                        const hours = weeklyHoursData[u.id]?.[wk] || 0;
+                                        
+                                        // Determine if the week has started based on selectedMonth ("YYYY-MM")
+                                        const [yStr, mStr] = month.split('-');
+                                        const yearNum = parseInt(yStr);
+                                        const monthIdx = parseInt(mStr) - 1;
+
+                                        let startDay = 1;
+                                        if (wk === 'Wk2') startDay = 8;
+                                        else if (wk === 'Wk3') startDay = 15;
+                                        else if (wk === 'Wk4') startDay = 22;
+                                        else if (wk === 'Wk5') startDay = 29;
+
+                                        const weekStartDate = new Date(yearNum, monthIdx, startDay);
+                                        const now = new Date();
+                                        const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+                                        const hasStarted = todayStart >= weekStartDate;
+
+                                        // Determine box color and status label based on rules:
+                                        // Dark Green -> High number of entries (>= 35 hrs)
+                                        // Light Green -> Some entries (> 0 hrs)
+                                        // Red -> No entries submitted for that week, even though the week has already passed
+                                        // Grey -> The week has not started yet
+                                        let boxClass = '';
+                                        let statusLabel = '';
+                                        let statusColorClass = '';
+
+                                        if (!hasStarted) {
+                                          boxClass = 'bg-slate-200 dark:bg-slate-800/80 border border-slate-300 dark:border-slate-700/50';
+                                          statusLabel = 'Not Started';
+                                          statusColorClass = 'text-slate-400';
+                                        } else if (hours >= 35) {
+                                          boxClass = 'bg-emerald-700 border border-emerald-800 shadow-sm';
+                                          statusLabel = 'High Entries';
+                                          statusColorClass = 'text-emerald-400';
+                                        } else if (hours > 0) {
+                                          boxClass = 'bg-emerald-400 border border-emerald-500 shadow-sm';
+                                          statusLabel = 'Some Entries';
+                                          statusColorClass = 'text-emerald-300';
+                                        } else {
+                                          boxClass = 'bg-rose-500 border border-rose-600 shadow-sm';
+                                          statusLabel = 'No Entries (Missing)';
+                                          statusColorClass = 'text-rose-400';
+                                        }
+
+                                        return (
+                                          <div 
+                                            key={wk} 
+                                            className="relative group"
+                                          >
+                                            <div className={`w-4 h-4 rounded-md ${boxClass} transition-all duration-200 hover:scale-125 hover:z-10 cursor-pointer`} />
+                                            {/* Tooltip */}
+                                            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-150 z-50 bg-slate-900 text-white text-[10px] font-bold py-1.5 px-2.5 rounded-lg shadow-xl whitespace-nowrap scale-95 group-hover:scale-100 border border-slate-800">
+                                              <div className="flex flex-col gap-0.5">
+                                                <span className="text-slate-400 text-[9px] uppercase tracking-wider">{wk} Status</span>
+                                                <span className="font-extrabold text-[11px] font-mono">{hours.toFixed(1)} hrs</span>
+                                                <span className={`text-[9px] font-semibold ${statusColorClass}`}>
+                                                  {statusLabel}
+                                                </span>
+                                              </div>
+                                              {/* Tiny arrow */}
+                                              <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-slate-900"></div>
+                                            </div>
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  </td>
+                                )}
+                                <td className="px-6 py-4 text-sm text-right">
+                                  <button 
+                                    onClick={() => handleRoleChange(u.id, u.role || 'team')}
+                                    title="Click to cycle role (Team -> Manager -> Core)"
+                                    className={`${roleColor} text-[10px] font-black px-2.5 py-1 rounded-lg uppercase tracking-widest hover:brightness-95 transition-all`}
+                                  >
+                                    {displayRole}
+                                  </button>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <div 
+                      onClick={() => setIsUsersCollapsed(false)}
+                      className="border border-dashed border-slate-200 rounded-2xl bg-slate-50/50 hover:bg-slate-100/70 p-8 flex flex-col items-center justify-center cursor-pointer transition-all duration-200 group py-12"
+                    >
+                      <Users className="w-8 h-8 text-slate-400 group-hover:scale-110 group-hover:text-blue-500 transition-all mb-2" />
+                      <span className="text-xs font-bold text-slate-500 group-hover:text-slate-800 transition-all">
+                        User Roles list is hidden
+                      </span>
+                      <span className="text-[10px] text-slate-400 mt-1 font-medium">Click anywhere inside this card to show the list</span>
+                    </div>
+                  )}
                 </div>
 
                 {/* Locked Months Manager Section */}
-                <div className="space-y-4">
-                  <h3 className="text-lg font-bold text-slate-900 px-1">Month Lock Registry</h3>
-                  <div className="bg-slate-50 border border-slate-200/60 p-6 rounded-2xl space-y-4 shadow-sm flex flex-col">
-                    <div>
-                      <h4 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                        <Lock className="w-4 h-4 text-orange-600" />
-                        Logging Lock Control
-                      </h4>
-                      <p className="text-xs text-slate-500 font-medium mt-1 leading-relaxed">
-                        Control logging availability. Locked months block any entries or modifications.
-                      </p>
+                <div className={`shrink-0 transition-all duration-300 w-full ${isLockRegistryCollapsed ? 'lg:w-14' : 'lg:w-[380px]'} space-y-4`}>
+                  {!isLockRegistryCollapsed && (
+                    <div className="flex justify-between items-center px-1">
+                      <h3 className="text-lg font-bold text-slate-900">Month Lock Registry</h3>
+                      <button 
+                        onClick={() => setIsLockRegistryCollapsed(true)}
+                        className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 px-2.5 py-1.5 rounded-lg transition-all cursor-pointer animate-fade-in"
+                      >
+                        <ChevronRight className="w-3.5 h-3.5" />
+                        <span>Hide</span>
+                      </button>
                     </div>
+                  )}
+                  
+                  {isLockRegistryCollapsed ? (
+                    <div 
+                      onClick={() => setIsLockRegistryCollapsed(false)}
+                      title="Expand Month Lock Registry"
+                      className="w-full lg:w-14 bg-slate-50 border border-slate-200/60 rounded-2xl p-3 flex lg:flex-col items-center justify-between cursor-pointer hover:bg-slate-100 hover:border-slate-300/80 transition-all duration-200 group lg:py-8 lg:min-h-[450px] shadow-sm select-none lg:mt-[44px]"
+                    >
+                      <div className="flex lg:flex-col items-center gap-3 w-full">
+                        <div className="w-8 h-8 rounded-lg bg-orange-50 border border-orange-100 flex items-center justify-center">
+                          <Lock className="w-4 h-4 text-orange-600 group-hover:scale-110 transition-transform" />
+                        </div>
+                        <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest lg:[writing-mode:vertical-lr] lg:rotate-180 whitespace-nowrap">
+                          Lock Registry
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-center mt-auto">
+                        <ChevronLeft className="w-4 h-4 text-slate-400 group-hover:translate-x-[-2px] transition-all hidden lg:block" />
+                        <ChevronDown className="w-4 h-4 text-slate-400 group-hover:translate-y-[2px] transition-all block lg:hidden" />
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="bg-slate-50 border border-slate-200/60 p-6 rounded-2xl space-y-4 shadow-sm flex flex-col transition-all duration-200 w-full">
+                      <div>
+                        <h4 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                          <Lock className="w-4 h-4 text-orange-600" />
+                          Logging Lock Control
+                        </h4>
+                        <p className="text-xs text-slate-500 font-medium mt-1 leading-relaxed">
+                          Control logging availability. Locked months block any entries or modifications.
+                        </p>
+                      </div>
 
-                    <div className="space-y-2.5 max-h-[380px] overflow-y-auto pr-1 custom-scrollbar">
-                      {lockRegistryMonths.map(({ monthStr, label }) => {
-                        const isOpenDefault = isDefaultOpen(monthStr);
-                        const isOverride = unlockedMonthsList.some(item => item.month === monthStr);
-                        const isUnlocked = isOpenDefault || isOverride;
+                      <div className="space-y-2.5 max-h-[380px] overflow-y-auto pr-1 custom-scrollbar">
+                        {lockRegistryMonths.map(({ monthStr, label }) => {
+                          const isOpenDefault = isDefaultOpen(monthStr);
+                          const isOverride = unlockedMonthsList.some(item => item.month === monthStr);
+                          const isUnlocked = isOpenDefault || isOverride;
 
-                        return (
-                          <div key={monthStr} className="flex items-center justify-between bg-white border border-slate-100 p-3 rounded-xl shadow-sm hover:border-slate-200 transition-colors">
-                            <div className="min-w-0 pr-2">
-                              <span className="text-xs font-bold text-slate-800 block truncate">
-                                {label}
-                              </span>
-                              <div className="flex gap-1.5 mt-1">
+                          return (
+                            <div key={monthStr} className="flex items-center justify-between bg-white border border-slate-100 p-3 rounded-xl shadow-sm hover:border-slate-200 transition-colors">
+                              <div className="min-w-0 pr-2">
+                                <span className="text-xs font-bold text-slate-800 block truncate">
+                                  {label}
+                                </span>
+                                <div className="flex gap-1.5 mt-1">
+                                  {isOpenDefault ? (
+                                    <span className="bg-blue-50 text-blue-600 border border-blue-100 px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wider">
+                                      Open (Default)
+                                    </span>
+                                  ) : isOverride ? (
+                                    <span className="bg-emerald-50 text-emerald-600 border border-emerald-100 px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wider">
+                                      Unlocked (Override)
+                                    </span>
+                                  ) : (
+                                    <span className="bg-rose-50 text-rose-600 border border-rose-100 px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wider">
+                                      Locked
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+
+                              <div className="shrink-0">
                                 {isOpenDefault ? (
-                                  <span className="bg-blue-50 text-blue-600 border border-blue-100 px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wider">
-                                    Open (Default)
+                                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2.5 py-1.5">
+                                    Default Open
                                   </span>
                                 ) : isOverride ? (
-                                  <span className="bg-emerald-50 text-emerald-600 border border-emerald-100 px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wider">
-                                    Unlocked (Override)
-                                  </span>
+                                  <button
+                                    onClick={() => handleLockMonth(monthStr)}
+                                    className="text-[10px] font-black text-rose-600 hover:bg-rose-50 px-2.5 py-1.5 rounded-lg uppercase tracking-wider transition-all border border-rose-200 cursor-pointer"
+                                  >
+                                    Lock
+                                  </button>
                                 ) : (
-                                  <span className="bg-rose-50 text-rose-600 border border-rose-100 px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wider">
-                                    Locked
-                                  </span>
+                                  <button
+                                    onClick={() => handleUnlockMonthDirect(monthStr)}
+                                    className="text-[10px] font-black text-emerald-600 hover:bg-emerald-50 px-2.5 py-1.5 rounded-lg uppercase tracking-wider transition-all border border-emerald-200 cursor-pointer"
+                                  >
+                                    Unlock
+                                  </button>
                                 )}
                               </div>
                             </div>
-
-                            <div className="shrink-0">
-                              {isOpenDefault ? (
-                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2.5 py-1.5">
-                                  Default Open
-                                </span>
-                              ) : isOverride ? (
-                                <button
-                                  onClick={() => handleLockMonth(monthStr)}
-                                  className="text-[10px] font-black text-rose-600 hover:bg-rose-50 px-2.5 py-1.5 rounded-lg uppercase tracking-wider transition-all border border-rose-200 cursor-pointer"
-                                >
-                                  Lock
-                                </button>
-                              ) : (
-                                <button
-                                  onClick={() => handleUnlockMonthDirect(monthStr)}
-                                  className="text-[10px] font-black text-emerald-600 hover:bg-emerald-50 px-2.5 py-1.5 rounded-lg uppercase tracking-wider transition-all border border-emerald-200 cursor-pointer"
-                                >
-                                  Unlock
-                                </button>
-                              )}
-                            </div>
-                          </div>
-                        );
-                      })}
+                          );
+                        })}
+                      </div>
                     </div>
-                  </div>
+                  )}
                 </div>
               </div>
             </div>
